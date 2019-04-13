@@ -1,5 +1,4 @@
 !Vector & matrix & high order tensor operation, BLAS & LAPACK routine wrapper
-!Version 4/12/2019
 !
 !Instruction:
 !Naming convention (following LAPACK): s = real*4, d = real*8, c = complex*8, z = complex*16

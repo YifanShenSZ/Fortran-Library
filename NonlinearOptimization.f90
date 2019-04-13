@@ -1,5 +1,4 @@
 !Nonlinear optimization routines
-!Version 4/12/2019
 !
 !Instruction:
 !If you want to solve nonlinear equation(s), you may:

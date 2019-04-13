@@ -1,5 +1,4 @@
 !Mathematical and physical constant, mathematical routine
-!Version 4/12/2019
 module Mathematics
     implicit none
 

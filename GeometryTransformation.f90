@@ -1,5 +1,4 @@
 !Common geometry transformation applied in molecule computation
-!Version 4/12/2019
 module GeometryTransformation
     use General
     use LinearAlgebra

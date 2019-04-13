@@ -1,5 +1,4 @@
 !General basic derived type, general basic routine
-!Version 4/12/2019
 module General
     implicit none
 

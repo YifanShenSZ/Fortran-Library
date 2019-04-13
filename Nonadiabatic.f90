@@ -1,5 +1,4 @@
 !Common routines applied in nonadiabatic chemistry
-!Version 4/12/2019
 module Nonadiabatic
     implicit none
 
