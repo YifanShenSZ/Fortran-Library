@@ -720,7 +720,7 @@ contains
 !----------------- End -----------------
 
 !------------- Matrix norm -------------
-    !============= 2norm =============
+    !============= 2-norm ==============
         !M x N matrix A, return 2 norm of A
 
         real*8 function d2normge(A,M,N)
@@ -742,9 +742,39 @@ contains
             call My_zheev('N',ATA,eigval,N)
             z2normge=Sqrt(maxval(eigval))
         end function z2normge
-    !============== End ==============
+    !=============== End ===============
 
-    !========== Other norms ==========
+    !========== F-norm square ==========
+        !Return Frobenius norm square of A
+
+        !M x N real matrix A
+        real*8 function dgeFrobeniusSquare(A,M,N)
+            integer,intent(in)::M,N
+            real*8,dimension(M,N),intent(in)::A
+            integer::i
+            dgeFrobeniusSquare=dot_product(A(:,1),A(:,1))
+            do i=2,N
+                dgeFrobeniusSquare=dgeFrobeniusSquare+dot_product(A(:,i),A(:,i))
+            end do
+        end function dgeFrobeniusSquare
+
+        !N order real symmetric matrix A
+        real*8 function dsyFrobeniusSquare(A,N)
+            integer,intent(in)::N
+            real*8,dimension(N,N),intent(in)::A
+            integer::i
+            real*8::temp
+            dsyFrobeniusSquare=A(1,1)*A(1,1)
+            temp=dot_product(A(2:N,1),A(2:N,1))
+            do i=2,N-1
+                dsyFrobeniusSquare=dsyFrobeniusSquare+A(i,i)*A(i,i)
+                temp=temp+dot_product(A(i+1:N,i),A(i+1:N,i))
+            end do
+            dsyFrobeniusSquare=dsyFrobeniusSquare+A(N,N)*A(N,N)+2d0*temp
+        end function dsyFrobeniusSquare
+    !=============== End ===============
+    
+    !=========== Other norms ===========
         !jobtype: 'M', return max(abs(A(i,j))) (note this is not a subordinate norm)
         !         'F', return Frobenius norm = Sqrt(sum of element squares) = Sqrt[Tr(A^T.A)]
         !              also called Euclidean norm, note this is not a subordinate norm
@@ -780,7 +810,7 @@ contains
             real*8,dimension(N)::work
             My_dlansy=dlansy(jobtype,'L',N,A,N,work)
         end function My_dlansy
-    !============== End ==============
+    !=============== End ===============
 !----------------- End -----------------
 
 end module LinearAlgebra
