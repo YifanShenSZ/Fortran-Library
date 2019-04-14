@@ -1,4 +1,4 @@
-# Library
+# Fortran-Library
 Nonlinear optimization, linear algebra, and more 
 
 To see what this library is capable of conveniently, you may open each source file and simply fold all: routines are categorized and folded into different sections.
