@@ -515,24 +515,24 @@ contains
             
         !---------- Transform geometry and gradient ----------
             !Transform geometry and gradient from Cartesian coordinate to internal coordinate
-            subroutine Cartesian2Internal(q,intgrad,intdim,r,cartgrad,cartdim)
-                integer,intent(in)::intdim,cartdim
-                real*8,dimension(intdim),intent(out)::q,intgrad
+            subroutine Cartesian2Internal(r,cartgrad,cartdim,q,intgrad,intdim)
+                integer,intent(in)::cartdim,intdim
                 real*8,dimension(cartdim),intent(in)::r,cartgrad
+                real*8,dimension(intdim),intent(out)::q,intgrad
                 real*8,dimension(intdim,cartdim)::B
                 call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-                call Cartesian2InternalGradient(intgrad,B,cartgrad,intdim,cartdim)
+                call Cartesian2InternalGradient(cartgrad,cartdim,intgrad,intdim,B)
             end subroutine Cartesian2Internal
             !In nonadiabatic process, we need the gradient of NStates order matrix
-            subroutine Cartesian2Internal_Nonadiabatic(q,intgrad,intdim,r,cartgrad,cartdim,NStates)
-                integer,intent(in)::intdim,cartdim,NStates
-                real*8,dimension(intdim),intent(out)::q
-                real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
+            subroutine Cartesian2Internal_Nonadiabatic(r,cartgrad,cartdim,q,intgrad,intdim,NStates)
+                integer,intent(in)::cartdim,intdim,NStates
                 real*8,dimension(cartdim),intent(in)::r
                 real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
+                real*8,dimension(intdim),intent(out)::q
+                real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
                 real*8,dimension(intdim,cartdim)::B
                 call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-                call Cartesian2InternalNonadiabaticGradient(intgrad,B,cartgrad,intdim,cartdim,NStates)
+                call Cartesian2InternalNonadiabaticGradient(cartgrad,cartdim,intgrad,intdim,B,NStates)
             end subroutine Cartesian2Internal_Nonadiabatic
             
             !========== Build Wilson B matrix and transform geometry ==========
@@ -650,11 +650,11 @@ contains
             !============================== End ===============================
             
             !Generate internal gradient from Wilson B matrix and Cartesian gradient
-            subroutine Cartesian2InternalGradient(intgrad,B,cartgrad,intdim,cartdim)
-                integer,intent(in)::intdim,cartdim
+            subroutine Cartesian2InternalGradient(cartgrad,cartdim,intgrad,intdim,B)
+                integer,intent(in)::cartdim,intdim
+                real*8,dimension(cartdim),intent(in)::cartgrad
                 real*8,dimension(intdim),intent(out)::intgrad
                 real*8,dimension(intdim,cartdim),intent(in)::B
-                real*8,dimension(cartdim),intent(in)::cartgrad
                 real*8,dimension(intdim,intdim)::BBT
                 real*8,dimension(intdim,cartdim)::GT
                 BBT=matmul(B,transpose(B))
@@ -664,11 +664,11 @@ contains
                 intgrad=matmul(GT,cartgrad)
             end subroutine Cartesian2InternalGradient
             !In nonadiabatic process, we need the gradient of NStates order matrix
-            subroutine Cartesian2InternalNonadiabaticGradient(intgrad,B,cartgrad,intdim,cartdim,NStates)
-                integer,intent(in)::intdim,cartdim,NStates
+            subroutine Cartesian2InternalNonadiabaticGradient(cartgrad,cartdim,intgrad,intdim,B,NStates)
+                integer,intent(in)::cartdim,intdim,NStates
+                real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
                 real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
                 real*8,dimension(intdim,cartdim),intent(in)::B
-                real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
                 integer::i,j
                 real*8,dimension(intdim,intdim)::BBT
                 real*8,dimension(intdim,cartdim)::GT
