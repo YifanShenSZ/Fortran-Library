@@ -1,5 +1,5 @@
 My Advisor Results - Fortran/
 x64/
-Fortran.u2d
-Fortran.vfproj
+*.u2d
+*.vfproj
 MKL_RCI.f90
