@@ -311,15 +311,15 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS'
-       call random_number(x)
-       QuasiNewtonWarning=.true.
-       call BFGS(f,fd,fdd,x,dim,freq)
-       write(*,*)norm2(x)
+        call random_number(x)
+        QuasiNewtonWarning=.true.
+        call BFGS(f,fd,fdd,x,dim,freq)
+        write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_cheap'
-       call random_number(x)
-       QuasiNewtonWarning=.true.
-       call BFGS_cheap(f,fd,x,dim)
+        x=0d0
+        QuasiNewtonWarning=.true.
+        call BFGS_cheap(f,fd,x,dim)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_NH'

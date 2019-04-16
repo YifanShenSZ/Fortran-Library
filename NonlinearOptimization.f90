@@ -585,6 +585,7 @@ contains
                 else!Hessian is not positive definite, use steepest descent direction
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -598,14 +599,14 @@ contains
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<NewtonRaphsonTol) return
-                if(phidnew*a*a<NewtonRaphsonTol) then
+                if(dot_product(p,p)*a*a<NewtonRaphsonTol) then
                     if(NewtonRaphsonWarning) then
                         write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
                         NewtonRaphsonWarning=.false.
                     end if
-                    return 
+                    return
                 end if
                 !Determine new direction
                 p=-fdnew
@@ -615,7 +616,7 @@ contains
                     a=1d0
                 else!Hessian is not positive definite, use steepest descent direction
                     p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
+                    phidnew=-phidnew
                     a=a*phidold/phidnew
                 end if
             end do
@@ -647,6 +648,7 @@ contains
                 else!Hessian is not positive definite, use steepest descent direction
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -660,7 +662,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<NewtonRaphsonTol) return
-                if(phidnew*a*a<NewtonRaphsonTol) then
+                if(dot_product(p,p)*a*a<NewtonRaphsonTol) then
                     if(NewtonRaphsonWarning) then
                         write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -677,7 +679,7 @@ contains
                     a=1d0
                 else!Hessian is not positive definite, use steepest descent direction
                     p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
+                    phidnew=-phidnew
                     a=a*phidold/phidnew
                 end if
             end do
@@ -708,6 +710,7 @@ contains
                 else!Hessian is not positive definite, use steepest descent direction
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -721,7 +724,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<NewtonRaphsonTol) return
-                if(phidnew*a*a<NewtonRaphsonTol) then
+                if(dot_product(p,p)*a*a<NewtonRaphsonTol) then
                     if(NewtonRaphsonWarning) then
                         write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -738,7 +741,7 @@ contains
                     a=1d0
                 else!Hessian is not positive definite, use steepest descent direction
                     p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
+                    phidnew=-phidnew
                     a=a*phidold/phidnew
                 end if
             end do
@@ -775,6 +778,7 @@ contains
                 else!Hessian is not positive definite, use a as initial approximate inverse Hessian
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -783,6 +787,17 @@ contains
                     s=x
                     y=fdnew
                     call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<QuasiNewtonTol) return
+                    if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                        if(QuasiNewtonWarning) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                            QuasiNewtonWarning=.false.
+                        end if
+                        return 
+                    end if
                     s=x-s
                     y=fdnew-y
                     rho=1d0/dot_product(y,s)
@@ -804,7 +819,7 @@ contains
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -859,7 +874,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<QuasiNewtonTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -869,6 +885,17 @@ contains
                 y=fdnew
                 !Initial approximate inverse Hessian = a
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<QuasiNewtonTol) return
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                    if(QuasiNewtonWarning) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        QuasiNewtonWarning=.false.
+                    end if
+                    return 
+                end if
                 s=x-s
                 y=fdnew-y
                 rho=1d0/dot_product(y,s)
@@ -888,7 +915,7 @@ contains
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -941,6 +968,7 @@ contains
                 else!Hessian is not positive definite, use a as initial approximate inverse Hessian
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -949,6 +977,17 @@ contains
                     s=x
                     y=fdnew
                     call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<QuasiNewtonTol) return
+                    if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                        if(QuasiNewtonWarning) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                            QuasiNewtonWarning=.false.
+                        end if
+                        return 
+                    end if
                     s=x-s
                     y=fdnew-y
                     rho=1d0/dot_product(y,s)
@@ -970,7 +1009,7 @@ contains
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1035,6 +1074,7 @@ contains
                 else!Hessian is not positive definite, use a as initial approximate inverse Hessian
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -1043,6 +1083,17 @@ contains
                     s=x
                     y=fdnew
                     call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<QuasiNewtonTol) return
+                    if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                        if(QuasiNewtonWarning) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                            QuasiNewtonWarning=.false.
+                        end if
+                        return 
+                    end if
                     s=x-s
                     y=fdnew-y
                     rho=1d0/dot_product(y,s)
@@ -1064,7 +1115,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1118,7 +1169,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<QuasiNewtonTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1128,6 +1180,17 @@ contains
                 y=fdnew
                 !Initial approximate inverse Hessian = a
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<QuasiNewtonTol) return
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                    if(QuasiNewtonWarning) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        QuasiNewtonWarning=.false.
+                    end if
+                    return 
+                end if
                 s=x-s
                 y=fdnew-y
                 rho=1d0/dot_product(y,s)
@@ -1147,7 +1210,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1198,6 +1261,7 @@ contains
                 else!Hessian is not positive definite, use a as initial approximate inverse Hessian
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -1206,6 +1270,17 @@ contains
                     s=x
                     y=fdnew
                     call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<QuasiNewtonTol) return
+                    if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                        if(QuasiNewtonWarning) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                            QuasiNewtonWarning=.false.
+                        end if
+                        return 
+                    end if
                     s=x-s
                     y=fdnew-y
                     rho=1d0/dot_product(y,s)
@@ -1227,7 +1302,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1291,6 +1366,7 @@ contains
                 else!Hessian is not positive definite, use a as initial approximate inverse Hessian
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -1299,6 +1375,17 @@ contains
                     s=x
                     y=fdnew
                     call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<QuasiNewtonTol) return
+                    if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                        if(QuasiNewtonWarning) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                            QuasiNewtonWarning=.false.
+                        end if
+                        return 
+                    end if
                     s=x-s
                     y=fdnew-y
                     rho=1d0/dot_product(y,s)
@@ -1320,7 +1407,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1373,7 +1460,8 @@ contains
             !Initialize
                 call f_fd(fnew,fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<QuasiNewtonTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1383,6 +1471,17 @@ contains
                 y=fdnew
                 !Initial approximate inverse Hessian = a
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<QuasiNewtonTol) return
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                    if(QuasiNewtonWarning) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        QuasiNewtonWarning=.false.
+                    end if
+                    return 
+                end if
                 s=x-s
                 y=fdnew-y
                 rho=1d0/dot_product(y,s)
@@ -1402,7 +1501,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1452,6 +1551,7 @@ contains
                 else!Hessian is not positive definite, use a as initial approximate inverse Hessian
                     p=-fdnew
                     phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<QuasiNewtonTol) return
                     if(fnew==0d0) then
                         a=1d0
                     else
@@ -1460,6 +1560,17 @@ contains
                     s=x
                     y=fdnew
                     call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<QuasiNewtonTol) return
+                    if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                        if(QuasiNewtonWarning) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                            QuasiNewtonWarning=.false.
+                        end if
+                        return 
+                    end if
                     s=x-s
                     y=fdnew-y
                     rho=1d0/dot_product(y,s)
@@ -1481,7 +1592,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1540,7 +1651,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<QuasiNewtonTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1550,6 +1662,17 @@ contains
                 fdold=fdnew
                 !Initial approximate inverse Hessian = a
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<QuasiNewtonTol) return
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                    if(QuasiNewtonWarning) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        QuasiNewtonWarning=.false.
+                    end if
+                    return 
+                end if
                 recent=0
                 s(:,0)=x-xold
                 y(:,0)=fdnew-fdold
@@ -1607,7 +1730,7 @@ contains
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1642,7 +1765,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<QuasiNewtonTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1652,6 +1776,17 @@ contains
                 fdold=fdnew
                 !Initial approximate inverse Hessian = a
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<QuasiNewtonTol) return
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                    if(QuasiNewtonWarning) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        QuasiNewtonWarning=.false.
+                    end if
+                    return 
+                end if
                 recent=0
                 s(:,0)=x-xold
                 y(:,0)=fdnew-fdold
@@ -1709,7 +1844,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1744,7 +1879,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<QuasiNewtonTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1754,6 +1890,17 @@ contains
                 fdold=fdnew
                 !Initial approximate inverse Hessian = a
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<QuasiNewtonTol) return
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
+                    if(QuasiNewtonWarning) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        QuasiNewtonWarning=.false.
+                    end if
+                    return 
+                end if
                 recent=0
                 s(:,0)=x-xold
                 y(:,0)=fdnew-fdold
@@ -1811,7 +1958,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<QuasiNewtonTol) return
-                if(phidnew*a*a<QuasiNewtonTol) then
+                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
                     if(QuasiNewtonWarning) then
                         write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1846,7 +1993,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<ConjugateGradientTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1861,7 +2009,7 @@ contains
                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<ConjugateGradientTol) return
-                if(phidnew*a*a<ConjugateGradientTol) then
+                if(dot_product(p,p)*a*a<ConjugateGradientTol) then
                     if(ConjugateGradientWarning) then
                         write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1898,7 +2046,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<ConjugateGradientTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1913,7 +2062,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<ConjugateGradientTol) return
-                if(phidnew*a*a<ConjugateGradientTol) then
+                if(dot_product(p,p)*a*a<ConjugateGradientTol) then
                     if(ConjugateGradientWarning) then
                         write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -1949,7 +2098,8 @@ contains
             !Initialize
                 call f_fd(fnew,fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<ConjugateGradientTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -1964,7 +2114,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<ConjugateGradientTol) return
-                if(phidnew*a*a<ConjugateGradientTol) then
+                if(dot_product(p,p)*a*a<ConjugateGradientTol) then
                     if(ConjugateGradientWarning) then
                         write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -2003,7 +2153,8 @@ contains
                 call f(fnew,x,dim)
                 call fd(fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<ConjugateGradientTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -2018,7 +2169,7 @@ contains
                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<ConjugateGradientTol) return
-                if(phidnew*a*a<ConjugateGradientTol) then
+                if(dot_product(p,p)*a*a<ConjugateGradientTol) then
                     if(ConjugateGradientWarning) then
                         write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
@@ -2054,7 +2205,8 @@ contains
             !Initialize
                 call f_fd(fnew,fdnew,x,dim)
                 p=-fdnew
-                phidnew=dot_product(fdnew,p)
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<ConjugateGradientTol) return
                 if(fnew==0d0) then
                     a=1d0
                 else
@@ -2069,7 +2221,7 @@ contains
                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<ConjugateGradientTol) return
-                if(phidnew*a*a<ConjugateGradientTol) then
+                if(dot_product(p,p)*a*a<ConjugateGradientTol) then
                     if(ConjugateGradientWarning) then
                         write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
