@@ -690,4 +690,28 @@ contains
     !=================== End ===================
 !------------------- End --------------------
 
+!Use Wilson GF method to analyze vibration from Hessian in internal coordinate
+!Input:  intdim order real symmetric matrix H = Hessian in internal coordinate
+!        intdim x cartdim matrix B = Wilson B matrix
+!        NAtoms order array mass = mass of each atom
+!Output: freqr =   real    part of vibrational angular frequencies
+!        freqi = imaginary part of vibrational angular frequencies
+!        H = normal coordinates in input frame
+subroutine VibrationAnalysis(freqr,freqi,H,intdim,B,cartdim,mass,NAtoms)
+    integer,intent(in)::intdim,cartdim,NAtoms
+    real*8,dimension(intdim),intent(out)::freqr,freqi
+    real*8,dimension(intdim,intdim),intent(inout)::H
+    real*8,dimension(intdim,cartdim),intent(inout)::B
+    real*8,dimension(NAtoms),intent(in)::mass
+    integer::i
+    real*8,dimension(intdim,intdim)::GF
+    real*8,dimension(intdim,cartdim)::Btemp
+    forall(i=1:NAtoms)
+        Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
+    end forall
+    call syL2U(H,intdim)
+    GF=matmul(matmul(Btemp,transpose(B)),H)
+    call My_dgeev('V',GF,freqr,freqi,H,intdim)
+end subroutine VibrationAnalysis
+
 end module GeometryTransformation
