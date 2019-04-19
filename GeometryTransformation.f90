@@ -259,6 +259,7 @@ contains
                 moi(:,3)=-moi(:,3)
             case(4)
                 moi(:,2:3)=-moi(:,2:3)
+            case default
         end select
         forall(i=1:NAtoms)
             grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
@@ -328,6 +329,7 @@ contains
                 moi(:,3)=-moi(:,3)
             case(4)
                 moi(:,2:3)=-moi(:,2:3)
+            case default
         end select
         forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
             grad(3*i-2:3*i,istate,jstate)=matmul(moi,grad(3*i-2:3*i,istate,jstate))
@@ -408,6 +410,9 @@ contains
                             case('torsion')
                                 allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
                                 read(99,'(A28,I5,1x,I9,1x,I9,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom
+                            case default!Throw a warning
+                                write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',MotionType(k)
+                                stop
                         end select
                         k=k+1
                     else
@@ -427,6 +432,9 @@ contains
                                     allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
                                     read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')CharTemp24,&
                                         GeometryTransformation_IntCDef(i).motion(j).coeff,GeometryTransformation_IntCDef(i).motion(j).atom
+                                case default!Throw a warning
+                                    write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',MotionType(k)
+                                    stop
                             end select
                             k=k+1
                             DbTemp=DbTemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
