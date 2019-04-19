@@ -655,12 +655,9 @@ contains
                 real*8,dimension(cartdim),intent(in)::cartgrad
                 real*8,dimension(intdim),intent(out)::intgrad
                 real*8,dimension(intdim,cartdim),intent(in)::B
-                real*8,dimension(intdim,intdim)::BBT
-                real*8,dimension(intdim,cartdim)::GT
-                BBT=matmul(B,transpose(B))
-                call My_dpotri(BBT,intdim)
-                call syL2U(BBT,intdim)
-                GT=matmul(BBT,B)!G = the generalized inversion of B
+                real*8,dimension(intdim,cartdim)::GT!G = the generalized inversion of B
+                GT=B
+                call dGeneralizedInverseTranspose(GT,intdim,cartdim)
                 intgrad=matmul(GT,cartgrad)
             end subroutine Cartesian2InternalGradient
             !In nonadiabatic process, we need the gradient of NStates order matrix
@@ -670,12 +667,9 @@ contains
                 real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
                 real*8,dimension(intdim,cartdim),intent(in)::B
                 integer::i,j
-                real*8,dimension(intdim,intdim)::BBT
-                real*8,dimension(intdim,cartdim)::GT
-                BBT=matmul(B,transpose(B))
-                call My_dpotri(BBT,intdim)
-                call syL2U(BBT,intdim)
-                GT=matmul(BBT,B)!G = the generalized inversion of B
+                real*8,dimension(intdim,cartdim)::GT!G = the generalized inversion of B
+                GT=B
+                call dGeneralizedInverseTranspose(GT,intdim,cartdim)
                 forall(i=1:NStates,j=1:NStates)
                     intgrad(:,i,j)=matmul(GT,cartgrad(:,i,j))
                 end forall
