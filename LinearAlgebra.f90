@@ -673,7 +673,7 @@ contains
 
     !eigvalr harvests the real part of the eigenvalues,
     !eigvali harvests the imaginary part of the eigenvalues,
-    !eigvec harvests the eigenvectors
+    !eigvec harvests the normalized eigenvectors
     !Only right eigen: A . eigvec(:,j) = [ eigvalr(j) + i * eigvali(j) ] * eigvec(:,j)
     !A will be overwritten
     subroutine My_dgeev(jobtype,A,eigvalr,eigvali,eigvec,N)
@@ -688,7 +688,7 @@ contains
         call dgeev('N',jobtype,N,A,N,eigvalr,eigvali,vl,1,eigvec,N,work,5*N,info)
     end subroutine My_dgeev
     
-    !eigval harvests the eigenvalues, eigvec harvests the eigenvectors
+    !eigval harvests the eigenvalues, eigvec harvests the normalized eigenvectors
     !Only right eigen: A . eigvec(:,j) = eigval(j) * eigvec(:,j)
     !A will be overwritten
     subroutine My_zgeev(jobtype,A,eigval,eigvec,N)
@@ -704,7 +704,7 @@ contains
         call zgeev('N',jobtype,N,A,N,eigval,vl,1,eigvec,N,work,3*N,rwork,info)
     end subroutine My_zgeev
     
-    !eigval harvests the eigenvalues, A harvests the eigenvectors
+    !eigval harvests the eigenvalues in ascending order, A harvests the normalized eigenvectors
     !A will be overwritten even for 'N' job
     subroutine My_dsyev(jobtype,A,eigval,N)
         integer,intent(in)::N
@@ -716,7 +716,40 @@ contains
         call dsyev(jobtype,'L',N,A,N,eigval,work,3*N,info)
     end subroutine My_dsyev
     
-    !eigval harvests the eigenvalues, A harvests the eigenvectors
+    !gtype: 1, A . eigvec =  B . eigvec . diag(eigval)
+    !       2, A . B . eigvec = eigvec . diag(eigval)
+    !N order real symmetric positive definite matrix B
+    !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under B metric
+    !B harvests the Cholesky L . L^T decomposition
+    !A will be overwritten even for 'N' job
+    subroutine My_dsygv(gtype,jobtype,A,B,eigval,N)
+        integer,intent(in)::gtype,N
+        character,intent(in)::jobtype
+        real*8,dimension(N,N),intent(inout)::A,B
+        real*8,dimension(N),intent(out)::eigval
+        integer::info
+        real*8,dimension(3*N)::work
+        call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,info)
+    end subroutine My_dsygv
+
+    !gtype: 1, A . eigvec =  B . eigvec . diag(eigval)
+    !       2, A . B . eigvec = eigvec . diag(eigval)
+    !N order real symmetric positive definite matrix B
+    !If B is po, info returns 0; else, the info-th leading minor of B <= 0 and diagonalization fails
+    !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under B metric
+    !B harvests the Cholesky L . L^T decomposition. B will be overwritten even fail
+    !A will be overwritten even for 'N' job
+    subroutine My_dsygv_poQuery(gtype,jobtype,A,B,eigval,N,info)
+        integer,intent(in)::gtype,N
+        character,intent(in)::jobtype
+        real*8,dimension(N,N),intent(inout)::A,B
+        real*8,dimension(N),intent(out)::eigval
+        integer,intent(out)::info
+        real*8,dimension(3*N)::work
+        call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,info)
+    end subroutine My_dsygv_poQuery
+
+    !eigval harvests the eigenvalues in ascending order, A harvests the normalized eigenvectors
     !A will be overwritten even for 'N' job
     subroutine My_zheev(jobtype,A,eigval,N)
         integer,intent(in)::N
@@ -756,9 +789,8 @@ contains
     !=============== End ===============
 
     !========== F-norm square ==========
-        !Return Frobenius norm square of A
+        !Return Frobenius norm square of M x N matrix A
 
-        !M x N real matrix A
         real*8 function dgeFrobeniusSquare(A,M,N)
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(in)::A
@@ -769,7 +801,6 @@ contains
             end do
         end function dgeFrobeniusSquare
 
-        !N order real symmetric matrix A
         real*8 function dsyFrobeniusSquare(A,N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(in)::A
@@ -786,13 +817,13 @@ contains
     !=============== End ===============
     
     !=========== Other norms ===========
+        !M x N matrix A
         !jobtype: 'M', return max(abs(A(i,j))) (note this is not a subordinate norm)
         !         'F', return Frobenius norm = Sqrt(sum of element squares) = Sqrt[Tr(A^T.A)]
         !              also called Euclidean norm, note this is not a subordinate norm
         !         '1', return 1 norm
         !         'I', return infinity norm
 
-        !M x N real matrix A
         real*8 function My_dlange(jobtype,A,M,N)
             character,intent(in)::jobtype
             integer,intent(in)::M,N
@@ -802,7 +833,6 @@ contains
             My_dlange=dlange(jobtype,M,N,A,M,work)
         end function My_dlange
 
-        !M x N complex matrix A
         real*8 function My_zlange(jobtype,A,M,N)
             character,intent(in)::jobtype
             integer,intent(in)::M,N
@@ -812,7 +842,6 @@ contains
             My_zlange=zlange(jobtype,M,N,A,M,work)
         end function My_zlange
 
-        !N order real symmetric matrix A
         real*8 function My_dlansy(jobtype,A,N)
             character,intent(in)::jobtype
             integer,intent(in)::N
