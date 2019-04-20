@@ -212,17 +212,6 @@ contains
             end do
         end do
     end function asymatmulsy
-
-    !M x N real matrix A. A harvests the transpose of its generalized inverse
-    subroutine dGeneralizedInverseTranspose(A,M,N)
-        integer,intent(in)::M,N
-        real*8,dimension(M,N),intent(inout)::A
-        real*8,dimension(M,M)::AAT
-        AAT=matmul(A,transpose(A))
-        call My_dpotri(AAT,M)
-        call syL2U(AAT,M)
-        A=matmul(AAT,A)
-    end subroutine dGeneralizedInverseTranspose
 !----------------- End -----------------
 
 !---------- High order tensor ----------
@@ -660,6 +649,17 @@ contains
             if(info/=0) return
             call dpotri('L',N,A,N,info)
         end subroutine My_dpotri_poQuery
+
+        !M x N real matrix A. A harvests the transpose of its generalized inverse
+        subroutine dGeneralizedInverseTranspose(A,M,N)
+            integer,intent(in)::M,N
+            real*8,dimension(M,N),intent(inout)::A
+            real*8,dimension(M,M)::AAT
+            AAT=matmul(A,transpose(A))
+            call My_dpotri(AAT,M)
+            call syL2U(AAT,M)
+            A=matmul(AAT,A)
+        end subroutine dGeneralizedInverseTranspose
     !============ End ============
 !----------------- End -----------------
 
