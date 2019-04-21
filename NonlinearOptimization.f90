@@ -64,7 +64,8 @@ contains
     !On input x is an initial guess, on exit x is a local minimum of f(x)
 
     !Newton-Raphson method, requiring Wolfe condition
-    !Optional fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
+    !Optional argument:
+    !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
     subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
@@ -614,7 +615,8 @@ contains
     end subroutine BFGS
 
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
-    !Optional Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended
+    !Optional argument:
+    !    Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended
     subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
@@ -853,8 +855,9 @@ contains
     end subroutine LBFGS
 
     !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition 
-    !Optional Method: (default = DY) which conjugate gradient method to use, currently available:
-    !                 DY (Dai-Yun), PR (Polak-Ribiere+)
+    !Optional argument:
+    !    Method: (default = DY) which conjugate gradient method to use, currently available:
+    !            DY (Dai-Yun), PR (Polak-Ribiere+)
     subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
