@@ -1487,7 +1487,6 @@ contains
     !    Precision: (default = 1d-15) convergence considered when || f'(x) ||_2 < Precision
     !    MinStepLength: (default = 1d-15) terminate if search step < MinStepLength before || f'(x) ||_2 converges
     !On input x is an initial guess, on exit x is a solution of f'(x) = 0
-
     subroutine TrustRegion(fd,x,M,N,Jacobian,low,up,Warning,MaxIteration,MaxStepIteration,Precision,MinStepLength)
         !Required argument
             external::fd

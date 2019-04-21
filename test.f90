@@ -28,12 +28,12 @@ program main
     write(*,*)
 
 write(*,*)'Testing all mathematical routines...'
-    forall(i=1:16)
-        fftx(i)=(i-1)*0.1d0
-        fftpsy(i)=exp(ci*(pim2/1.6d0)*fftx(i))
-    end forall
-    call dFFT(fftx,fftpsy,4)
-    write(*,*)fftpsy
+    !forall(i=1:16)
+    !    fftx(i)=(i-1)*0.1d0
+    !    fftpsy(i)=exp(ci*(pim2/1.6d0)*fftx(i))
+    !end forall
+    !call dFFT(fftx,fftpsy,4)
+    !write(*,*)fftpsy
 write(*,*)'Mathematical routines test passed'
 write(*,*)
 
