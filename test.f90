@@ -297,12 +297,12 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     write(*,*)
     write(*,*)'Newton_S'
         call random_number(x)
-        call NewtonRaphson(f,fd,x,dim,fdd=fdd,Strong=.true.)
+        call NewtonRaphson(f,fd,x,dim,Strong=.true.)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'Newton_S_fdwithf'
         call random_number(x)
-        call NewtonRaphson(f,fd,x,dim,fdd=fdd,f_fd=f_fd)
+        call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS'
@@ -317,7 +317,7 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     write(*,*)
     write(*,*)'BFGS_NH'
         call random_number(x)
-        call BFGS(f,fd,x,dim)
+        call BFGS(f,fd,x,dim,ExactStep=5)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_S'
@@ -367,7 +367,7 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     write(*,*)
     write(*,*)'PR_fdwithf'
         call random_number(x)
-        call ConjugateGradient(f,fd,x,dim,f_fd=f_fd,Method='PR')
+        call ConjugateGradient(f,fd,x,dim,Method='PR',f_fd=f_fd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'dtrnlsp'

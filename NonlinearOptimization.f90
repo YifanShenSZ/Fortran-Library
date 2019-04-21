@@ -48,26 +48,25 @@ contains
     !    subroutine fd(f'(x),x,dim)
     !    integer function f_fd(f(x),f'(x),x,dim)
     !    integer function fdd(f''(x),x,dim)
-    !Data type:
-    !    dim dimensional vectors x & f'(x), dim order matrix f''(x)
-    !Optional argument:
-    !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
-    !         LBFGS and conjugate gradient do not have this argument because they do not need Hessian
+    !    dim dimensional vector x & f'(x), dim order matrix f''(x)
+    !Required argument:
+    !    external subroutine f & fd, integer dim, dim dimensional vector x
+    !Common optional argument:
     !    f_fd: presence means evaluating f(x) & f'(x) together is cheaper than separately,
     !          strong Wolfe condition is thus applied, because Wolfe does not benefit from this
     !    Strong: (default = true) if true, use strong Wolfe condition instead of Wolfe condition
-    !            PR conjugate gradient does not have this argument since it can only converge under strong Wolfe condition
     !    Warning: (default = true) if false, all warnings will be suppressed
     !    MaxIteration: (default = 1000) max number of iterations to perform
-    !    Tolerance: (default = 1d-15) convergence considered when || f'(x) || < Tolerance
+    !    Tolerance: (default = 1d-15) convergence considered when || f'(x) ||_2 < Tolerance
     !               if search step < Tolerance before converging, terminate and throw a warning
     !    WolfeConst1 & WolfeConst2: 0 < WolfeConst1 < WolfeConst2 <  1  for Newton & quasi-Newton
     !                               0 < WolfeConst1 < WolfeConst2 < 0.5 for conjugate gradient
     !On input x is an initial guess, on exit x is a local minimum of f(x)
 
     !Newton-Raphson method, requiring Wolfe condition
+    !Optional fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
     subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
-        !Non-optional argument
+        !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
@@ -269,10 +268,12 @@ contains
     end subroutine NewtonRaphson
 
     !Broyden–Fletcher–Goldfarb–Shanno (BFGS) quasi-Newton method, requiring Wolfe condition
-    !Optional ExactStep: (default = 20) every how many steps compute exact hessian. [10,50] is recommended
-    !                    if ExactStep <= 0, exact Hessian will not be computed at all
+    !Optional argument:
+    !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
+    !    ExactStep: (default = 20) every how many steps compute exact hessian. [10,50] is recommended
+    !               if ExactStep <= 0, exact Hessian will not be computed at all
     subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
-        !Non-optional argument
+        !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
@@ -615,7 +616,7 @@ contains
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
     !Optional Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended
     subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
-        !Non-optional argument
+        !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
@@ -855,7 +856,7 @@ contains
     !Optional Method: (default = DY) which conjugate gradient method to use, currently available:
     !                 DY (Dai-Yun), PR (Polak-Ribiere+)
     subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
-        !Non-optional argument
+        !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
