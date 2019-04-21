@@ -50,7 +50,7 @@ contains
     !    integer function fdd(f''(x),x,dim)
     !    dim dimensional vector x & f'(x), dim order matrix f''(x)
     !Required argument:
-    !    external subroutine f & fd, integer dim, dim dimensional vector x
+    !    subroutine f & fd, dim dimensional vector x, integer dim
     !Common optional argument:
     !    f_fd: presence means evaluating f(x) & f'(x) together is cheaper than separately,
     !          strong Wolfe condition is thus applied, because Wolfe does not benefit from this
@@ -81,8 +81,66 @@ contains
         real*8::tol,c1,c2,a,fnew,phidnew,phidold
         real*8,dimension(dim)::p,fdnew
         real*8,dimension(dim,dim)::Hessian
-        call Initialize()
-        if(terminate) return
+        !Initialize
+            terminate=.false.
+            !Set parameter according to optional argument
+                if(present(Strong)) then
+                    sw=Strong
+                else
+                    sw=.true.
+                end if
+                if(present(Warning)) then
+                    warn=Warning
+                else
+                    warn=.true.
+                end if
+                if(present(MaxIteration)) then
+                    maxit=MaxIteration
+                else
+                    maxit=1000
+                end if
+                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                    tol=Tolerance*Tolerance
+                else
+                    tol=1d-30
+                end if
+                if(present(WolfeConst1)) then
+                    c1=WolfeConst1
+                else
+                    c1=1d-4
+                end if
+                if(present(WolfeConst2)) then
+                    c2=WolfeConst2
+                else
+                    c2=0.9d0
+                end if
+            if(present(f_fd)) then!Initial f(x) & f'(x)
+                info=f_fd(fnew,fdnew,x,dim)
+            else
+                call f(fnew,x,dim)
+                call fd(fdnew,x,dim)
+            end if
+            !Initial direction & step length
+            if(present(fdd)) then
+                info=fdd(Hessian,x,dim)
+            else
+                info=djacobi(fd_j,dim,dim,Hessian,x,1d-8)
+            end if
+            p=-fdnew
+            call My_dposv(Hessian,p,dim,info)
+            if(info==0) then
+                phidnew=dot_product(fdnew,p)
+                a=1d0
+            else!Hessian is not positive definite, use steepest descent direction
+                p=-fdnew
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<tol) return
+                if(fnew==0d0) then
+                    a=1d0
+                else
+                    a=-fnew/phidnew
+                end if
+            end if
         if(present(fdd)) then!Analytical Hessian available
             if(present(f_fd)) then!Cheaper to evaluate f' along with f
                 do iIteration=1,maxit!Main loop
@@ -139,69 +197,6 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial direction & step length
-                terminate=.false.
-                !Set parameter according to optional argument
-                    if(present(Strong)) then
-                        sw=Strong
-                    else
-                        sw=.true.
-                    end if
-                    if(present(Warning)) then
-                        warn=Warning
-                    else
-                        warn=.true.
-                    end if
-                    if(present(MaxIteration)) then
-                        maxit=MaxIteration
-                    else
-                        maxit=1000
-                    end if
-                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                        tol=Tolerance*Tolerance
-                    else
-                        tol=1d-30
-                    end if
-                    if(present(WolfeConst1)) then
-                        c1=WolfeConst1
-                    else
-                        c1=1d-4
-                    end if
-                    if(present(WolfeConst2)) then
-                        c2=WolfeConst2
-                    else
-                        c2=0.9d0
-                    end if
-                if(present(f_fd)) then
-                    info=f_fd(fnew,fdnew,x,dim)
-                else
-                    call f(fnew,x,dim)
-                    call fd(fdnew,x,dim)
-                end if
-                if(present(fdd)) then
-                    info=fdd(Hessian,x,dim)
-                else
-                    info=djacobi(fd_j,dim,dim,Hessian,x,1d-8)
-                end if
-                p=-fdnew
-                call My_dposv(Hessian,p,dim,info)
-                if(info==0) then
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                else!Hessian is not positive definite, use steepest descent direction
-                    p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
-                    if(-phidnew<tol) then
-                        terminate=.true.
-                        return
-                    end if
-                    if(fnew==0d0) then
-                        a=1d0
-                    else
-                        a=-fnew/phidnew
-                    end if
-                end if
-            end subroutine Initialize
             subroutine After()!Check convergence, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
@@ -288,8 +283,108 @@ contains
         real*8::tol,c1,c2,a,fnew,phidnew,rho
         real*8,dimension(dim)::p,fdnew,s,y
         real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        call Initialize()
-        if(terminate) return
+        !Initialize
+            terminate=.false.
+            !Set parameter according to optional argument
+                if(present(ExactStep)) then
+                    freq=ExactStep
+                else
+                    freq=20
+                end if
+                if(present(Strong)) then
+                    sw=Strong
+                else
+                    sw=.true.
+                end if
+                if(present(Warning)) then
+                    warn=Warning
+                else
+                    warn=.true.
+                end if
+                if(present(MaxIteration)) then
+                    maxit=MaxIteration
+                else
+                    maxit=1000
+                end if
+                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                    tol=Tolerance*Tolerance
+                else
+                    tol=1d-30
+                end if
+                if(present(WolfeConst1)) then
+                    c1=WolfeConst1
+                else
+                    c1=1d-4
+                end if
+                if(present(WolfeConst2)) then
+                    c2=WolfeConst2
+                else
+                    c2=0.9d0
+                end if
+            if(present(f_fd)) then!Initial f(x) & f'(x)
+                i=f_fd(fnew,fdnew,x,dim)
+            else
+                call f(fnew,x,dim)
+                call fd(fdnew,x,dim)
+            end if
+            !Initial approximate inverse Hessian & direction & step length
+            if(freq>0) then
+                if(present(fdd)) then
+                    i=fdd(H,x,dim)
+                else
+                    i=djacobi(fd_j,dim,dim,H,x,1d-8)
+                end if
+                p=-fdnew
+                call My_dpotri(H,dim,i)
+                if(i==0) then
+                    call syL2U(H,dim)
+                    p=-matmul(H,fdnew)
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                end if
+            end if
+            if(freq<=0.or.i/=0) then!Hessian is either uncomputed or not positive definite, initial approximate inverse Hessian = a
+                p=-fdnew
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<tol) return
+                if(fnew==0d0) then
+                    a=1d0
+                else
+                    a=-fnew/phidnew
+                end if
+                s=x
+                y=fdnew
+                if(present(f_fd)) then
+                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                else
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    else
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    end if
+                end if
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) return
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    return
+                end if
+                s=x-s
+                y=fdnew-y
+                rho=1d0/dot_product(y,s)
+                U=-rho*vector_direct_product(y,s,dim,dim)
+                forall(i=1:dim)
+                    U(i,i)=U(i,i)+1d0
+                end forall
+                H=matmul(transpose(U),a*U)+rho*vector_direct_product(s,s,dim,dim)
+                p=-matmul(H,fdnew)
+                phidnew=dot_product(fdnew,p)
+                a=1d0
+            end if
         if(freq>0) then!Exact Hessian will be computed
             if(present(fdd)) then!Analytical Hessian is available
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
@@ -382,115 +477,6 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial approximate inverse Hessian & direction & step length
-                terminate=.false.
-                !Set parameter according to optional argument
-                    if(present(ExactStep)) then
-                        freq=ExactStep
-                    else
-                        freq=20
-                    end if
-                    if(present(Strong)) then
-                        sw=Strong
-                    else
-                        sw=.true.
-                    end if
-                    if(present(Warning)) then
-                        warn=Warning
-                    else
-                        warn=.true.
-                    end if
-                    if(present(MaxIteration)) then
-                        maxit=MaxIteration
-                    else
-                        maxit=1000
-                    end if
-                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                        tol=Tolerance*Tolerance
-                    else
-                        tol=1d-30
-                    end if
-                    if(present(WolfeConst1)) then
-                        c1=WolfeConst1
-                    else
-                        c1=1d-4
-                    end if
-                    if(present(WolfeConst2)) then
-                        c2=WolfeConst2
-                    else
-                        c2=0.9d0
-                    end if
-                if(present(f_fd)) then
-                    i=f_fd(fnew,fdnew,x,dim)
-                else
-                    call f(fnew,x,dim)
-                    call fd(fdnew,x,dim)
-                end if
-                if(freq>0) then
-                    if(present(fdd)) then
-                        i=fdd(H,x,dim)
-                    else
-                        i=djacobi(fd_j,dim,dim,H,x,1d-8)
-                    end if
-                    p=-fdnew
-                    call My_dpotri(H,dim,i)
-                    if(i==0) then
-                        call syL2U(H,dim)
-                        p=-matmul(H,fdnew)
-                        phidnew=dot_product(fdnew,p)
-                        a=1d0
-                    end if
-                end if
-                if(freq<=0.or.i/=0) then!Hessian is either uncomputed or not positive definite, initial approximate inverse Hessian = a
-                    p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
-                    if(-phidnew<tol) then
-                        terminate=.true.
-                        return
-                    end if
-                    if(fnew==0d0) then
-                        a=1d0
-                    else
-                        a=-fnew/phidnew
-                    end if
-                    s=x
-                    y=fdnew
-                    if(present(f_fd)) then
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-                    else
-                        if(sw) then
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                        else
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                        end if
-                    end if
-                    phidnew=dot_product(fdnew,fdnew)
-                    if(phidnew<tol) then
-                        terminate=.true.
-                        return
-                    end if
-                    if(dot_product(p,p)*a*a<tol) then
-                        if(warn) then
-                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        end if
-                        terminate=.true.
-                        return
-                    end if
-                    s=x-s
-                    y=fdnew-y
-                    rho=1d0/dot_product(y,s)
-                    U=-rho*vector_direct_product(y,s,dim,dim)
-                    forall(i=1:dim)
-                        U(i,i)=U(i,i)+1d0
-                    end forall
-                    H=matmul(transpose(U),a*U)+rho*vector_direct_product(s,s,dim,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                end if
-            end subroutine Initialize
             subroutine After()!Check convergence, update approximate inverse Hessian, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
@@ -633,8 +619,130 @@ contains
         real*8,dimension(dim)::p,fdnew,xold,fdold
         real*8,allocatable,dimension(:)::rho,alpha
         real*8,allocatable,dimension(:,:)::s,y
-        call Initialize()
-        if(terminate) return
+        !Initialize
+            terminate=.false.
+            !Set parameter according to optional argument
+                if(present(Memory)) then
+                    M=max(0,Memory)
+                else
+                    M=10
+                end if
+                if(present(Strong)) then
+                    sw=Strong
+                else
+                    sw=.true.
+                end if
+                if(present(Warning)) then
+                    warn=Warning
+                else
+                    warn=.true.
+                end if
+                if(present(MaxIteration)) then
+                    maxit=MaxIteration
+                else
+                    maxit=1000
+                end if
+                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                    tol=Tolerance*Tolerance
+                else
+                    tol=1d-30
+                end if
+                if(present(WolfeConst1)) then
+                    c1=WolfeConst1
+                else
+                    c1=1d-4
+                end if
+                if(present(WolfeConst2)) then
+                    c2=WolfeConst2
+                else
+                    c2=0.9d0
+                end if
+            allocate(rho(0:M))
+            allocate(alpha(0:M))
+            allocate(s(dim,0:M))
+            allocate(y(dim,0:M))
+            if(present(f_fd)) then!Initial f(x) & f'(x)
+                i=f_fd(fnew,fdnew,x,dim)
+            else
+                call f(fnew,x,dim)
+                call fd(fdnew,x,dim)
+            end if
+            !Initial iteration history
+            p=-fdnew
+            phidnew=-dot_product(fdnew,fdnew)
+            if(-phidnew<tol) return
+            if(fnew==0d0) then
+                a=1d0
+            else
+                a=-fnew/phidnew
+            end if
+            xold=x
+            fdold=fdnew
+            !Initial approximate inverse Hessian = a
+            if(present(f_fd)) then
+                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+            else
+                if(sw) then
+                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                else
+                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                end if
+            end if
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) return
+            if(dot_product(p,p)*a*a<tol) then
+                if(warn) then
+                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                end if
+                return
+            end if
+            recent=0
+            s(:,0)=x-xold
+            y(:,0)=fdnew-fdold
+            rho(0)=1d0/dot_product(y(:,0),s(:,0))
+            do iIteration=1,M-1!Preiterate to get enough history
+                xold=x!Prepare
+                fdold=fdnew
+                !Determine new direction
+                p=fdnew
+                do i=recent,0,-1
+                    alpha(i)=rho(i)*dot_product(s(:,i),p)
+                    p=p-alpha(i)*y(:,i)
+                end do
+                p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
+                do i=0,recent
+                    phidnew=rho(i)*dot_product(y(:,i),p)
+                    p=p+(alpha(i)-phidnew)*s(:,i)
+                end do
+                p=-p
+                phidnew=dot_product(fdnew,p)
+                a=1d0
+                if(present(f_fd)) then!Line search
+                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                else
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    else
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    end if
+                end if
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) return
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    return
+                end if
+                recent=recent+1
+                s(:,recent)=x-xold
+                y(:,recent)=fdnew-fdold
+                rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
+            end do
         if(present(f_fd)) then!Cheaper to evaluate f' along with f
             do iIteration=1,maxit!Main loop
                 call Before()!Before search
@@ -669,142 +777,6 @@ contains
             deallocate(s)
             deallocate(y)
         contains
-            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial iteration history
-                terminate=.false.
-                !Set parameter according to optional argument
-                    if(present(Memory)) then
-                        M=max(0,Memory)
-                    else
-                        M=10
-                    end if
-                    if(present(Strong)) then
-                        sw=Strong
-                    else
-                        sw=.true.
-                    end if
-                    if(present(Warning)) then
-                        warn=Warning
-                    else
-                        warn=.true.
-                    end if
-                    if(present(MaxIteration)) then
-                        maxit=MaxIteration
-                    else
-                        maxit=1000
-                    end if
-                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                        tol=Tolerance*Tolerance
-                    else
-                        tol=1d-30
-                    end if
-                    if(present(WolfeConst1)) then
-                        c1=WolfeConst1
-                    else
-                        c1=1d-4
-                    end if
-                    if(present(WolfeConst2)) then
-                        c2=WolfeConst2
-                    else
-                        c2=0.9d0
-                    end if
-                allocate(rho(0:M))
-                allocate(alpha(0:M))
-                allocate(s(dim,0:M))
-                allocate(y(dim,0:M))
-                if(present(f_fd)) then
-                    i=f_fd(fnew,fdnew,x,dim)
-                else
-                    call f(fnew,x,dim)
-                    call fd(fdnew,x,dim)
-                end if
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<tol) then
-                    terminate=.true.
-                    return
-                end if
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                xold=x
-                fdold=fdnew
-                !Initial approximate inverse Hessian = a
-                if(present(f_fd)) then
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-                else
-                    if(sw) then
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                    else
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                    end if
-                end if
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.
-                    return
-                end if
-                if(dot_product(p,p)*a*a<tol) then
-                    if(warn) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    end if
-                    terminate=.true.
-                    return
-                end if
-                recent=0
-                s(:,0)=x-xold
-                y(:,0)=fdnew-fdold
-                rho(0)=1d0/dot_product(y(:,0),s(:,0))
-                do iIteration=1,M-1!Preiterate to get enough history
-                    !Prepare
-                    xold=x
-                    fdold=fdnew
-                    !Determine new direction
-                    p=fdnew
-                    do i=recent,0,-1
-                        alpha(i)=rho(i)*dot_product(s(:,i),p)
-                        p=p-alpha(i)*y(:,i)
-                    end do
-                    p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-                    do i=0,recent
-                        phidnew=rho(i)*dot_product(y(:,i),p)
-                        p=p+(alpha(i)-phidnew)*s(:,i)
-                    end do
-                    p=-p
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    if(present(f_fd)) then!Line search
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-                    else
-                        if(sw) then
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                        else
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                        end if
-                    end if
-                    phidnew=dot_product(fdnew,fdnew)
-                    if(phidnew<tol) then
-                        terminate=.true.
-                        return
-                    end if
-                    if(dot_product(p,p)*a*a<tol) then
-                        if(warn) then
-                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        end if
-                        terminate=.true.
-                        return
-                    end if
-                    recent=recent+1
-                    s(:,recent)=x-xold
-                    y(:,recent)=fdnew-fdold
-                    rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-                end do
-            end subroutine Initialize
             subroutine Before()!Prepare, determine new direction & step length
                 xold=x!Prepare
                 fdold=fdnew
@@ -874,8 +846,59 @@ contains
         integer::maxit,iIteration,info
         real*8::tol,c1,c2,a,fnew,fold,phidnew,phidold
         real*8,dimension(dim)::p,fdnew,fdold
-        call Initialize()
-        if(terminate) return
+        !Initialize
+            terminate=.false.
+            !Set parameter according to optional argument
+                if(present(Method)) then
+                    type=Method
+                else
+                    type='DY'
+                end if
+                if(present(Strong)) then
+                    sw=Strong
+                else
+                    sw=.true.
+                end if
+                if(present(Warning)) then
+                    warn=Warning
+                else
+                    warn=.true.
+                end if
+                if(present(MaxIteration)) then
+                    maxit=MaxIteration
+                else
+                    maxit=1000
+                end if
+                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                    tol=Tolerance*Tolerance
+                else
+                    tol=1d-30
+                end if
+                if(present(WolfeConst1)) then
+                    c1=WolfeConst1
+                else
+                    c1=1d-4
+                end if
+                if(present(WolfeConst2)) then
+                    c2=WolfeConst2
+                else
+                    c2=0.45d0
+                end if
+            if(present(f_fd)) then!Initial f(x) & f'(x)
+                info=f_fd(fnew,fdnew,x,dim)
+            else
+                call f(fnew,x,dim)
+                call fd(fdnew,x,dim)
+            end if
+            !Initial direction & step length
+            p=-fdnew
+            phidnew=-dot_product(fdnew,fdnew)
+            if(-phidnew<tol) return
+            if(fnew==0d0) then
+                a=1d0
+            else
+                a=-fnew/phidnew
+            end if
         select case(type)
             case('DY')!Require Wolfe condition 
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
@@ -937,62 +960,6 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial direction & step length
-                terminate=.false.
-                !Set parameter according to optional argument
-                    if(present(Method)) then
-                        type=Method
-                    else
-                        type='DY'
-                    end if
-                    if(present(Strong)) then
-                        sw=Strong
-                    else
-                        sw=.true.
-                    end if
-                    if(present(Warning)) then
-                        warn=Warning
-                    else
-                        warn=.true.
-                    end if
-                    if(present(MaxIteration)) then
-                        maxit=MaxIteration
-                    else
-                        maxit=1000
-                    end if
-                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                        tol=Tolerance*Tolerance
-                    else
-                        tol=1d-30
-                    end if
-                    if(present(WolfeConst1)) then
-                        c1=WolfeConst1
-                    else
-                        c1=1d-4
-                    end if
-                    if(present(WolfeConst2)) then
-                        c2=WolfeConst2
-                    else
-                        c2=0.45d0
-                    end if
-                if(present(f_fd)) then
-                    info=f_fd(fnew,fdnew,x,dim)
-                else
-                    call f(fnew,x,dim)
-                    call fd(fdnew,x,dim)
-                end if
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<tol) then
-                    terminate=.true.
-                    return
-                end if
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-            end subroutine Initialize
             subroutine DY()!Check convergence, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
