@@ -21,23 +21,6 @@ module NonlinearOptimization
     implicit none
 
 !Parameter
-    real*8::jacobiPrecision=1d-8!DO NOT be too small: this might be the finite difference step length
-    !Line search
-        real*8::LineSearchStepLowerBound=1d-15
-        !Newton-Raphson
-            logical::NewtonRaphsonWarning=.true.
-            integer::MaxNewtonRaphsonIteration=1000
-            real*8::NewtonRaphsonTol=1d-30!Tolerence for 2-norm square of gradient
-        !Quasi-Newton
-            logical::QuasiNewtonWarning=.true.
-            integer::MaxQuasiNewtonIteration=1000
-            real*8::QuasiNewtonTol=1d-30!Tolerence for 2-norm square of gradient
-        !Conjugate gradient
-            logical::ConjugateGradientWarning=.true.
-            integer::MaxConjugateGradientIteration=1000
-            real*8::ConjugateGradientTol=1d-30!Tolerence for 2-norm square of gradient
-    !Trust region
-    !Heuristic
     !MKL solver
         logical::trnlspWarning=.true.
         integer::MaxMKLTrustRegionIteration=1000,MaxMKLTrialStepIteration=100
@@ -60,249 +43,552 @@ contains
     !    a = the line search step length
     !    p = the line search direction
     !    phi(a) = f( x + a * p ), so phi'(a) = f'( x + a * p ) . p
-    !External subroutine format:
+    !External procedure format:
     !    subroutine f(f(x),x,dim)
     !    subroutine fd(f'(x),x,dim)
-    !    subroutine f_fd(f(x),f'(x),x,dim)
-    !    subroutine fdd(f''(x),x,dim)
-    !IO format:
+    !    integer function f_fd(f(x),f'(x),x,dim)
+    !    integer function fdd(f''(x),x,dim)
+    !Data type:
     !    dim dimensional vectors x & f'(x), dim order matrix f''(x)
-    !    On input x is an initial guess, on exit x is a local minimum of f(x)
+    !Optional argument:
+    !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
+    !         LBFGS and conjugate gradient do not have this argument because they do not need Hessian
+    !    f_fd: presence means evaluating f(x) & f'(x) together is cheaper than separately,
+    !          strong Wolfe condition is thus applied, because Wolfe does not benefit from this
+    !    Strong: (default = false) if true, use strong Wolfe condition instead of Wolfe condition
+    !            PR conjugate gradient does not have this argument since it can only converge under strong Wolfe condition
+    !    Warning: (default = true) if false, all warnings will be suppressed
+    !    MaxIteration: (default = 1000) max number of iterations to perform
+    !    Tolerance: (default = 1d-15) convergence considered when || f'(x) || < Tolerance
+    !               if search step < Tolerance before converging, terminate and throw a warning
+    !    WolfeConst1 & WolfeConst2: 0 < WolfeConst1 < WolfeConst2 <  1  for Newton & quasi-Newton
+    !                               0 < WolfeConst1 < WolfeConst2 < 0.5 for conjugate gradient
+    !On input x is an initial guess, on exit x is a local minimum of f(x)
 
     !Newton-Raphson method, requiring Wolfe condition
-    subroutine NewtonRaphson(f,fd,fdd,x,dim)
-        external::f,fd,fdd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,info
-        real*8::a,fnew,phidnew,phidold
+    subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+        !Non-optional argument
+            external::f,fd
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(inout)::x
+        !Optional argument
+            integer,external,optional::fdd,f_fd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::MaxIteration
+            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+        logical::sw,warn,terminate
+        integer::maxit,iIteration,info
+        real*8::tol,c1,c2,a,fnew,phidnew,phidold
         real*8,dimension(dim)::p,fdnew
         real*8,dimension(dim,dim)::Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            call fdd(Hessian,x,dim)
-            p=-fdnew
-            call My_dposv_poQuery(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
+        call Initialize()
+        if(present(fdd)) then!Analytical Hessian available
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                do iIteration=1,maxit!Main loop
+                    phidold=phidnew!Prepare
+                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After()!After search
+                    if(terminate) return
+                end do
+            else
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 else
-                    a=-fnew/phidnew
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 end if
             end if
-        do iIteration=1,MaxNewtonRaphsonIteration
-            !Prepare
-            phidold=phidnew
-            !Line search
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<NewtonRaphsonTol) return
-            if(dot_product(p,p)*a*a<NewtonRaphsonTol) then
-                if(NewtonRaphsonWarning) then
-                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    NewtonRaphsonWarning=.false.
+        else
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                do iIteration=1,maxit!Main loop
+                    phidold=phidnew!Prepare
+                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After_NumericalHessian()!After search
+                    if(terminate) return
+                end do
+            else
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NumericalHessian()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NumericalHessian()!After search
+                        if(terminate) return
+                    end do
                 end if
-                return
             end if
-            !Determine new direction
-            p=-fdnew
-            call My_dposv_poQuery(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-phidnew
-                a=a*phidold/phidnew
-            end if
-        end do
-        if(iIteration>MaxNewtonRaphsonIteration.and.NewtonRaphsonWarning) then
+        end if
+        if(iIteration>maxit.and.warn) then
             write(*,*)'Failed Newton-Raphson: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            NewtonRaphsonWarning=.false.
         end if
+        contains
+            subroutine Initialize()!Parameters, initial direction and step length
+                external::fd_j
+                terminate=.false.
+                !Set parameter according to optional argument
+                    if(present(Strong)) then
+                        sw=Strong
+                    else
+                        sw=.false.
+                    end if
+                    if(present(Warning)) then
+                        warn=Warning
+                    else
+                        warn=.true.
+                    end if
+                    if(present(MaxIteration)) then
+                        maxit=MaxIteration
+                    else
+                        maxit=1000
+                    end if
+                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                        tol=Tolerance*Tolerance
+                    else
+                        tol=1d-30
+                    end if
+                    if(present(WolfeConst1)) then
+                        c1=WolfeConst1
+                    else
+                        c1=1d-4
+                    end if
+                    if(present(WolfeConst2)) then
+                        c2=WolfeConst2
+                    else
+                        c2=0.9d0
+                    end if
+                if(present(f_fd)) then
+                    info=f_fd(fnew,fdnew,x,dim)
+                else
+                    call f(fnew,x,dim)
+                    call fd(fdnew,x,dim)
+                end if
+                if(present(fdd)) then
+                    info=fdd(Hessian,x,dim)
+                else
+                    info=djacobi(fd_j,dim,dim,Hessian,x,1d-8)
+                end if
+                p=-fdnew
+                call My_dposv(Hessian,p,dim,info)
+                if(info==0) then
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                else!Hessian is not positive definite, use steepest descent direction
+                    p=-fdnew
+                    phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<tol) return
+                    if(fnew==0d0) then
+                        a=1d0
+                    else
+                        a=-fnew/phidnew
+                    end if
+                end if
+            end subroutine Initialize
+            subroutine After()!Check convergence, determine new direction and step length
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
+                !Determine new direction and step length
+                p=-fdnew
+                info=fdd(Hessian,x,dim)
+                call My_dposv(Hessian,p,dim,info)
+                if(info==0) then
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                else!Hessian is not positive definite, use steepest descent direction
+                    p=-fdnew
+                    phidnew=-phidnew
+                    a=a*phidold/phidnew
+                end if
+            end subroutine After
+            subroutine After_NumericalHessian()!Check convergence, determine new direction and step length
+                external::fd_j
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
+                !Determine new direction and step length
+                p=-fdnew
+                info=djacobi(fd_j,dim,dim,Hessian,x,1d-8)
+                call My_dposv(Hessian,p,dim,info)
+                if(info==0) then
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                else!Hessian is not positive definite, use steepest descent direction
+                    p=-fdnew
+                    phidnew=-phidnew
+                    a=a*phidold/phidnew
+                end if
+            end subroutine After_NumericalHessian
+            subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
+                integer,intent(in)::M,N
+                real*8,dimension(N),intent(in)::x
+                real*8,dimension(M),intent(in)::fdx
+                call fd(fdx,x,N)
+            end subroutine fd_j
     end subroutine NewtonRaphson
-    !Strong Wolfe condition usually performs better
-    subroutine NewtonRaphson_Strong(f,fd,fdd,x,dim)
-        external::f,fd,fdd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,info
-        real*8::a,fnew,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew
-        real*8,dimension(dim,dim)::Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            call fdd(Hessian,x,dim)
-            p=-fdnew
-            call My_dposv_poQuery(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-            end if
-        do iIteration=1,MaxNewtonRaphsonIteration
-            !Prepare
-            phidold=phidnew
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<NewtonRaphsonTol) return
-            if(dot_product(p,p)*a*a<NewtonRaphsonTol) then
-                if(NewtonRaphsonWarning) then
-                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    NewtonRaphsonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew
-            call My_dposv_poQuery(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-phidnew
-                a=a*phidold/phidnew
-            end if
-        end do
-        if(iIteration>MaxNewtonRaphsonIteration.and.NewtonRaphsonWarning) then
-            write(*,*)'Failed Newton-Raphson: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            NewtonRaphsonWarning=.false.
-        end if
-    end subroutine NewtonRaphson_Strong
-    !When it is cheap to evaluate f' along with f
-    subroutine NewtonRaphson_Strong_fdwithf(f,fd,f_fd,fdd,x,dim)
-        external::f,fd,f_fd,fdd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,info
-        real*8::a,fnew,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew
-        real*8,dimension(dim,dim)::Hessian
-        !Initialize
-            call f_fd(fnew,fdnew,x,dim)
-            call fdd(Hessian,x,dim)
-            p=-fdnew
-            call My_dposv_poQuery(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-            end if
-        do iIteration=1,MaxNewtonRaphsonIteration
-            !Prepare
-            phidold=phidnew
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<NewtonRaphsonTol) return
-            if(dot_product(p,p)*a*a<NewtonRaphsonTol) then
-                if(NewtonRaphsonWarning) then
-                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    NewtonRaphsonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew
-            call My_dposv_poQuery(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-phidnew
-                a=a*phidold/phidnew
-            end if
-        end do
-        if(iIteration>MaxNewtonRaphsonIteration.and.NewtonRaphsonWarning) then
-            write(*,*)'Failed Newton-Raphson: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            NewtonRaphsonWarning=.false.
-        end if
-    end subroutine NewtonRaphson_Strong_fdwithf
 
-    !On entry and every freq steps compute exact Hessian. 9 < freq < 51 is recommended 
     !Broyden–Fletcher–Goldfarb–Shanno (BFGS) quasi-Newton method, requiring Wolfe condition
-    subroutine BFGS(f,fd,fdd,x,dim,freq)
-        external::f,fd,fdd
-        integer,intent(in)::dim,freq
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
+    !Optional ExactStep: (default = 20) every how many steps compute exact hessian. [10,50] is recommended
+    !                    if ExactStep <= 0, exact Hessian will not be computed at all
+    subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+        !Non-optional argument
+            external::f,fd
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(inout)::x
+        !Optional argument
+            integer,external,optional::fdd,f_fd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::ExactStep,MaxIteration
+            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+        logical::sw,warn,terminate
+        integer::freq,maxit,iIteration,i
+        real*8::tol,c1,c2,a,fnew,phidnew,rho
         real*8,dimension(dim)::p,fdnew,s,y
         real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            call fdd(H,x,dim)
-            p=-fdnew
-            call My_dpotri_poQuery(H,dim,i)
-            if(i==0) then
-                call syL2U(H,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use a as initial approximate inverse Hessian
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
+        call Initialize()
+        if(terminate) return
+        if(freq>0) then!Exact Hessian will be computed
+            if(present(fdd)) then!Analytical Hessian is available
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit!Main loop
+                        s=x!Prepare
+                        y=fdnew
+                        call SrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 else
-                    a=-fnew/phidnew
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
-                s=x
-                y=fdnew
-                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+            else
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit!Main loop
+                        s=x!Prepare
+                        y=fdnew
+                        call SrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NumericalHessian()!After search
+                        if(terminate) return
+                    end do
+                else
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                end if
+            end if
+        else
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                do iIteration=1,maxit!Main loop
+                    s=x!Prepare
+                    y=fdnew
+                    call SrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After_NoHessian()!After search
+                    if(terminate) return
+                end do
+            else
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        s=x!Prepare
+                        y=fdnew
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NoHessian()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        s=x!Prepare
+                        y=fdnew
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NoHessian()!After search
+                        if(terminate) return
+                    end do
+                end if
+            end if
+        end if
+        if(iIteration>maxit.and.warn) then
+            write(*,*)'Failed BFGS: max iteration exceeded!'
+            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
+        end if
+        contains
+            subroutine Initialize()!Parameters, initial approximate inverse Hessian, direction, step length
+                external::fd_j
+                terminate=.false.
+                !Set parameter according to optional argument
+                    if(present(ExactStep)) then
+                        freq=ExactStep
+                    else
+                        freq=20
+                    end if
+                    if(present(Strong)) then
+                        sw=Strong
+                    else
+                        sw=.false.
+                    end if
+                    if(present(Warning)) then
+                        warn=Warning
+                    else
+                        warn=.true.
+                    end if
+                    if(present(MaxIteration)) then
+                        maxit=MaxIteration
+                    else
+                        maxit=1000
+                    end if
+                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                        tol=Tolerance*Tolerance
+                    else
+                        tol=1d-30
+                    end if
+                    if(present(WolfeConst1)) then
+                        c1=WolfeConst1
+                    else
+                        c1=1d-4
+                    end if
+                    if(present(WolfeConst2)) then
+                        c2=WolfeConst2
+                    else
+                        c2=0.9d0
+                    end if
+                if(present(f_fd)) then
+                    i=f_fd(fnew,fdnew,x,dim)
+                else
+                    call f(fnew,x,dim)
+                    call fd(fdnew,x,dim)
+                end if
+                if(freq>0) then
+                    if(present(fdd)) then
+                        i=fdd(H,x,dim)
+                    else
+                        i=djacobi(fd_j,dim,dim,H,x,1d-8)
+                    end if
+                    p=-fdnew
+                    call My_dpotri(H,dim,i)
+                    if(i==0) then
+                        call syL2U(H,dim)
+                        p=-matmul(H,fdnew)
+                        phidnew=dot_product(fdnew,p)
+                        a=1d0
+                    end if
+                end if
+                if(freq<=0.or.i/=0) then!Hessian is either uncomputed or not positive definite, initial approximate inverse Hessian = a
+                    p=-fdnew
+                    phidnew=-dot_product(fdnew,fdnew)
+                    if(-phidnew<tol) return
+                    if(fnew==0d0) then
+                        a=1d0
+                    else
+                        a=-fnew/phidnew
+                    end if
+                    s=x
+                    y=fdnew
+                    if(present(f_fd)) then
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    else
+                        if(sw) then
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                        else
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                        end if
+                    end if
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<tol) then
+                        terminate=.true.
+                        return
+                    end if
+                    if(dot_product(p,p)*a*a<tol) then
+                        if(warn) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        end if
+                        terminate=.true.
+                        return
+                    end if
+                    s=x-s
+                    y=fdnew-y
+                    rho=1d0/dot_product(y,s)
+                    U=-rho*vector_direct_product(y,s,dim,dim)
+                    forall(i=1:dim)
+                        U(i,i)=U(i,i)+1d0
+                    end forall
+                    H=matmul(transpose(U),a*U)+rho*vector_direct_product(s,s,dim,dim)
+                    p=-matmul(H,fdnew)
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                end if
+            end subroutine Initialize
+            subroutine After()!Check convergence, determine new direction and step length, update approximate inverse Hessian
+                !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<QuasiNewtonTol) return
-                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                    if(QuasiNewtonWarning) then
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        QuasiNewtonWarning=.false.
                     end if
-                    return 
+                    terminate=.true.
+                    return
                 end if
+                !Determine new direction and step length, update approximate inverse Hessian
+                i=mod(iIteration,freq)
+                if(i==0) then!Every freq steps compute exact Hessian
+                    i=fdd(U,x,dim)
+                    call My_dpotri(U,dim,i)
+                    if(i==0) then!Use exact Hessian if positive definite
+                        call sycp(H,U,dim)
+                        call syL2U(H,dim)
+                        p=-matmul(H,fdnew)
+                        phidnew=dot_product(fdnew,p)
+                        a=1d0
+                    end if
+                end if
+                if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
+                    s=x-s
+                    y=fdnew-y
+                    rho=1d0/dot_product(y,s)
+                    U=-rho*vector_direct_product(y,s,dim,dim)
+                    forall(i=1:dim)
+                        U(i,i)=U(i,i)+1d0
+                    end forall
+                    H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
+                    p=-matmul(H,fdnew)
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                end if
+            end subroutine After
+            subroutine After_NumericalHessian()!Check convergence, determine new direction and step length, update approximate inverse Hessian
+                external::fd_j
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
+                !Determine new direction and step length, update approximate inverse Hessian
+                i=mod(iIteration,freq)
+                if(i==0) then!Every freq steps compute exact Hessian
+                    i=djacobi(fd_j,dim,dim,U,x,1d-8)
+                    call My_dpotri(U,dim,i)
+                    if(i==0) then!Use exact Hessian if positive definite
+                        call sycp(H,U,dim)
+                        call syL2U(H,dim)
+                        p=-matmul(H,fdnew)
+                        phidnew=dot_product(fdnew,p)
+                        a=1d0
+                    end if
+                end if
+                if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
+                    s=x-s
+                    y=fdnew-y
+                    rho=1d0/dot_product(y,s)
+                    U=-rho*vector_direct_product(y,s,dim,dim)
+                    forall(i=1:dim)
+                        U(i,i)=U(i,i)+1d0
+                    end forall
+                    H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
+                    p=-matmul(H,fdnew)
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                end if
+            end subroutine After_NumericalHessian
+            subroutine After_NoHessian()!Check convergence, determine new direction and step length, update approximate inverse Hessian
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
+                !Determine new direction and step length, update approximate inverse Hessian
                 s=x-s
                 y=fdnew-y
                 rho=1d0/dot_product(y,s)
@@ -310,837 +596,21 @@ contains
                 forall(i=1:dim)
                     U(i,i)=U(i,i)+1d0
                 end forall
-                H=a*U
-                H=matmul(transpose(U),H)+rho*vector_direct_product(s,s,dim,dim)
+                H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
                 p=-matmul(H,fdnew)
                 phidnew=dot_product(fdnew,p)
                 a=1d0
-            end if
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            if(mod(iIteration,freq)==0) then!Every freq steps compute exact Hessian
-                call fdd(U,x,dim)
-                call My_dpotri_poQuery(U,dim,i)
-                if(i==0) then!Use exact Hessian if positive definite
-                    call sycp(H,U,dim)
-                    call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    cycle
-                end if
-            end if
-            !Otherwise use approximate Hessian
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
+            end subroutine After_NoHessian
+            subroutine fd_j(M,N,x,fdx)!Reformat for djacobi
+                integer,intent(in)::M,N
+                real*8,dimension(N),intent(in)::x
+                real*8,dimension(M),intent(in)::fdx
+                call fd(fdx,x,N)
+            end subroutine fd_j
     end subroutine BFGS
-    !Do not compute exact Hessian at all
-    subroutine BFGS_cheap(f,fd,x,dim)
-        external::f,fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<QuasiNewtonTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-            s=x
-            y=fdnew
-            !Initial approximate inverse Hessian = a
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=a*matmul(transpose(U),U)+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_cheap
-    !Compute Hessian numerically through central difference by calling djacobi
-    !djacobi requires fd_j has the form of: subroutine fd_j(dim,dim,x,f'(x))
-    subroutine BFGS_NumericalHessian(f,fd,fd_j,x,dim,freq)
-        external::f,fd,fd_j
-        integer,intent(in)::dim,freq
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            i=djacobi(fd_j,dim,dim,H,x,jacobiPrecision)
-            p=-fdnew
-            call My_dpotri_poQuery(H,dim,i)
-            if(i==0) then
-                call syL2U(H,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use a as initial approximate inverse Hessian
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                s=x
-                y=fdnew
-                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<QuasiNewtonTol) return
-                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                    if(QuasiNewtonWarning) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        QuasiNewtonWarning=.false.
-                    end if
-                    return 
-                end if
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
-                U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
-                H=a*U
-                H=matmul(transpose(U),H)+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            end if
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            if(mod(iIteration,freq)==0) then!Every freq steps compute exact Hessian
-                i=djacobi(fd_j,dim,dim,U,x,jacobiPrecision)
-                call My_dpotri_poQuery(U,dim,i)
-                if(i==0) then!Use exact Hessian if positive definite
-                    call sycp(H,U,dim)
-                    call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    cycle
-                end if
-            end if
-            !Otherwise use approximate Hessian
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_NumericalHessian
-    !Strong Wolfe condition usually performs better
-    subroutine BFGS_Strong(f,fd,fdd,x,dim,freq)
-        external::f,fd,fdd
-        integer,intent(in)::dim,freq
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            call fdd(H,x,dim)
-            p=-fdnew
-            call My_dpotri_poQuery(H,dim,i)
-            if(i==0) then
-                call syL2U(H,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use a as initial approximate inverse Hessian
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                s=x
-                y=fdnew
-                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<QuasiNewtonTol) return
-                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                    if(QuasiNewtonWarning) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        QuasiNewtonWarning=.false.
-                    end if
-                    return 
-                end if
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
-                U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
-                H=a*U
-                H=matmul(transpose(U),H)+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            end if
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            if(mod(iIteration,freq)==0) then!Every freq steps compute exact Hessian
-                call fdd(U,x,dim)
-                call My_dpotri_poQuery(U,dim,i)
-                if(i==0) then!Use exact Hessian if positive definite
-                    call sycp(H,U,dim)
-                    call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    cycle
-                end if
-            end if
-            !Otherwise use approximate Hessian
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_Strong
-    subroutine BFGS_Strong_cheap(f,fd,x,dim)
-        external::f,fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<QuasiNewtonTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-            s=x
-            y=fdnew
-            !Initial approximate inverse Hessian = a
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=a*matmul(transpose(U),U)+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_Strong_cheap
-    subroutine BFGS_Strong_NumericalHessian(f,fd,fd_j,x,dim,freq)
-        external::f,fd,fd_j
-        integer,intent(in)::dim,freq
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            i=djacobi(fd_j,dim,dim,H,x,jacobiPrecision)
-            p=-fdnew
-            call My_dpotri_poQuery(H,dim,i)
-            if(i==0) then
-                call syL2U(H,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use a as initial approximate inverse Hessian
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                s=x
-                y=fdnew
-                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<QuasiNewtonTol) return
-                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                    if(QuasiNewtonWarning) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        QuasiNewtonWarning=.false.
-                    end if
-                    return 
-                end if
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
-                U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
-                H=a*U
-                H=matmul(transpose(U),H)+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            end if
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            if(mod(iIteration,freq)==0) then!Every freq steps compute exact Hessian
-                i=djacobi(fd_j,dim,dim,U,x,jacobiPrecision)
-                call My_dpotri_poQuery(U,dim,i)
-                if(i==0) then!Use exact Hessian if positive definite
-                    call sycp(H,U,dim)
-                    call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    cycle
-                end if
-            end if
-            !Otherwise use approximate Hessian
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_Strong_NumericalHessian
-    !When it is cheap to evaluate f' along with f
-    subroutine BFGS_Strong_fdwithf(f,fd,f_fd,fdd,x,dim,freq)
-        external::f,fd,f_fd,fdd
-        integer,intent(in)::dim,freq
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f_fd(fnew,fdnew,x,dim)
-            call fdd(H,x,dim)
-            p=-fdnew
-            call My_dpotri_poQuery(H,dim,i)
-            if(i==0) then
-                call syL2U(H,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use a as initial approximate inverse Hessian
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                s=x
-                y=fdnew
-                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<QuasiNewtonTol) return
-                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                    if(QuasiNewtonWarning) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        QuasiNewtonWarning=.false.
-                    end if
-                    return 
-                end if
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
-                U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
-                H=a*U
-                H=matmul(transpose(U),H)+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            end if
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            if(mod(iIteration,freq)==0) then!Every freq steps compute exact Hessian
-                call fdd(U,x,dim)
-                call My_dpotri_poQuery(U,dim,i)
-                if(i==0) then!Use exact Hessian if positive definite
-                    call sycp(H,U,dim)
-                    call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    cycle
-                end if
-            end if
-            !Otherwise use approximate Hessian
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_Strong_fdwithf
-    subroutine BFGS_Strong_cheap_fdwithf(f,fd,f_fd,x,dim)
-        external::f,fd,f_fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f_fd(fnew,fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<QuasiNewtonTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-            s=x
-            y=fdnew
-            !Initial approximate inverse Hessian = a
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=a*matmul(transpose(U),U)+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_Strong_cheap_fdwithf
-    subroutine BFGS_Strong_NumericalHessian_fdwithf(f,fd,f_fd,fd_j,x,dim,freq)
-        external::f,fd,f_fd,fd_j
-        integer,intent(in)::dim,freq
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i
-        real*8::a,fnew,phidnew,rho
-        real*8,dimension(dim)::p,fdnew,s,y
-        real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
-        !Initialize
-            call f_fd(fnew,fdnew,x,dim)
-            i=djacobi(fd_j,dim,dim,H,x,jacobiPrecision)
-            p=-fdnew
-            call My_dpotri_poQuery(H,dim,i)
-            if(i==0) then
-                call syL2U(H,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            else!Hessian is not positive definite, use a as initial approximate inverse Hessian
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<QuasiNewtonTol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                s=x
-                y=fdnew
-                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<QuasiNewtonTol) return
-                if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                    if(QuasiNewtonWarning) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                        QuasiNewtonWarning=.false.
-                    end if
-                    return 
-                end if
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
-                U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
-                H=a*U
-                H=matmul(transpose(U),H)+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
-            end if
-        do iIteration=1,MaxQuasiNewtonIteration
-            !Prepare
-            s=x
-            y=fdnew
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            if(mod(iIteration,freq)==0) then!Every freq steps compute exact Hessian
-                i=djacobi(fd_j,dim,dim,U,x,jacobiPrecision)
-                call My_dpotri_poQuery(U,dim,i)
-                if(i==0) then!Use exact Hessian if positive definite
-                    call sycp(H,U,dim)
-                    call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                    cycle
-                end if
-            end if
-            !Otherwise use approximate Hessian
-            s=x-s
-            y=fdnew-y
-            rho=1d0/dot_product(y,s)
-            U=-rho*vector_direct_product(y,s,dim,dim)
-            forall(i=1:dim)
-                U(i,i)=U(i,i)+1d0
-            end forall
-            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-            p=-matmul(H,fdnew)
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine BFGS_Strong_NumericalHessian_fdwithf
 
-    !Memory usage = O( M * dim ). 2 < M < 31 is recommended
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
+    !Optional Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended
     subroutine LBFGS(f,fd,x,dim,M)
         external::f,fd
         integer,intent(in)::dim,M
@@ -1253,6 +723,9 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
             QuasiNewtonWarning=.false.
         end if
+        contains
+            subroutine Initialize()
+            end subroutine Initialize
     end subroutine LBFGS
     !Strong Wolfe condition usually performs better
     subroutine LBFGS_Strong(f,fd,x,dim,M)
@@ -1599,7 +1072,7 @@ contains
         real*8::a,fnew,fold,phidnew,phidold
         real*8,dimension(dim)::p,fdnew,fdold
         !Initialize
-            call f_fd(fnew,fdnew,x,dim)
+            info=f_fd(fnew,fdnew,x,dim)
             p=-fdnew
             phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<ConjugateGradientTol) return
@@ -1705,7 +1178,7 @@ contains
         real*8::a,fnew,fold,phidnew,phidold
         real*8,dimension(dim)::p,fdnew,fdold
         !Initialize
-            call f_fd(fnew,fdnew,x,dim)
+            info=f_fd(fnew,fdnew,x,dim)
             p=-fdnew
             phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<ConjugateGradientTol) return
@@ -1753,10 +1226,10 @@ contains
         !Goldstein is only suitable for Newton, but not even for quasi-Newton
         !For Newton and quasi-Newton, the initial guess can always be a = 1, because their direction vector is well scaled
         !However, for methods whose direction is not determined by inverted (approximate) Hessian multiplying -gradient,
-        !e.g., conjugate gradient and stochastic gradient descent, user has to come up with a good initial guess
+        !e.g., steepest descent and conjugate gradient, user has to come up with a good initial guess
 
         !Line search for a step length satisfying Wolfe condition
-        !This subroutine is designed to minimize gradient computation
+        !This routine is designed to minimize gradient computation
         !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
         !       a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
         !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
@@ -1821,7 +1294,7 @@ contains
                         end if
                         return
                     end if
-                    if(a<LineSearchStepLowerBound) then
+                    if(a<1d-37) then
                         call fd(fdx,x,dim)
                         return
                     end if
@@ -1923,7 +1396,7 @@ contains
                             fx=fx0
                             return
                         end if
-                        if(a<LineSearchStepLowerBound) return
+                        if(a<1d-37) return
                     end do
                 else!Search for larger a
                     do
@@ -1992,11 +1465,11 @@ contains
                                     fx=fx0
                                     return
                                 end if
-                                if(a<LineSearchStepLowerBound) return
+                                if(a<1d-37) return
                             end do
                         end if
                     end if
-                    if(a<LineSearchStepLowerBound) then
+                    if(a<1d-37) then
                         call fd(fdx,x,dim)
                         return
                     end if
@@ -2066,7 +1539,6 @@ contains
         end subroutine StrongWolfeZoom
         
         !Almost same to StrongWolfe, but modified for cheap to evaluate f' along with f case
-        !f_fd has the form of: subroutine f_fd(f(x),f'(x),x,dim)
         subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim)
             real*8,intent(in)::c1,c2
             external::f,fd,f_fd
@@ -2078,6 +1550,7 @@ contains
             real*8,intent(in)::phid0
             real*8,dimension(dim),intent(out)::fdx
             real*8,parameter::increment=1.05d0! > 1
+            integer::info
             real*8::c2_m_abs_phid0,fx0,atemp,aold,fold,phidnew,phidold
             real*8,dimension(dim)::x0
             !Initialize
@@ -2086,7 +1559,7 @@ contains
                 c2_m_abs_phid0=c2*Abs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
             x=x0+a*p
-            call f_fd(fx,fdx,x,dim)
+            info=f_fd(fx,fdx,x,dim)
             if(fx<=fx0+c1*a*phid0) then!Satisfied, try to search for larger a
                 phidnew=dot_product(fdx,p)
                 if(phidnew>0d0) then!Curve is heading up
@@ -2097,7 +1570,7 @@ contains
                         phidold=phidnew
                         a=aold/increment
                         x=x0+a*p
-                        call f_fd(fx,fdx,x,dim)
+                        info=f_fd(fx,fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(fx>=fold.or.phidnew<=0d0) then
                             x=x0
@@ -2106,7 +1579,7 @@ contains
                             fx=fx0
                             return
                         end if
-                        if(a<LineSearchStepLowerBound) return
+                        if(a<1d-37) return
                     end do
                 else!Search for larger a
                     do
@@ -2115,7 +1588,7 @@ contains
                         phidold=phidnew
                         a=aold*increment
                         x=x0+a*p
-                        call f_fd(fx,fdx,x,dim)
+                        info=f_fd(fx,fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
                             x=x0
@@ -2161,7 +1634,7 @@ contains
                                 phidold=phidnew
                                 a=aold/increment
                                 x=x0+a*p
-                                call f_fd(fx,fdx,x,dim)
+                                info=f_fd(fx,fdx,x,dim)
                                 phidnew=dot_product(fdx,p)
                                 if(fx>=fold.or.phidnew<=0d0) then
                                     x=x0
@@ -2170,11 +1643,11 @@ contains
                                     fx=fx0
                                     return
                                 end if
-                                if(a<LineSearchStepLowerBound) return
+                                if(a<1d-37) return
                             end do
                         end if
                     end if
-                    if(a<LineSearchStepLowerBound) then
+                    if(a<1d-37) then
                         call fd(fdx,x,dim)
                         return
                     end if
@@ -2193,6 +1666,7 @@ contains
             real*8,intent(in)::phid0
             real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
             real*8,dimension(dim),intent(out)::fdx
+            integer::info
             real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
             real*8,dimension(dim)::x0
             !Initialize
@@ -2211,7 +1685,7 @@ contains
                     a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
                     if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
                 x=x0+a*p
-                call f_fd(fx,fdx,x,dim)
+                info=f_fd(fx,fdx,x,dim)
                 phidnew=dot_product(fdx,p)
                 if(fx>fx0+c1*a*phid0.or.fx>=flow) then
                     up=a
@@ -2230,16 +1704,9 @@ contains
                 end if
                 if(Abs(up-low)<LineSearchStepLowerBound) return
             end do
-        end subroutine StrongWolfeZoom_fdwithf        
+        end subroutine StrongWolfeZoom_fdwithf
 
-        subroutine Goldstein(c,f,x,p,phid0,dim)!Not implemented
-            real*8,intent(in)::c! 0 < c < 0.5
-            external::f
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(in)::phid0
-            stop 'Program abort: line search under Goldstein condition has not been implemented yet'
+        subroutine Goldstein()!Not implemented
         end subroutine Goldstein
     !================ End =================
 !------------------ End -------------------
@@ -2388,7 +1855,7 @@ contains
                 case (1)
                     call fd(M,N,x,fdx)
                 case (2)
-                    if(djacobi(fd,N,M,J,x,jacobiPrecision)/=TR_SUCCESS) then
+                    if(djacobi(fd,N,M,J,x,1d-8)/=TR_SUCCESS) then
                         call mkl_free_buffers
                         return
                     end if
@@ -2564,7 +2031,7 @@ contains
                 case (1)
                     call fd(M,N,x,fdx)
                 case (2)
-                    if(djacobi(fd,N,M,J,x,jacobiPrecision)/=TR_SUCCESS) then
+                    if(djacobi(fd,N,M,J,x,1d-8)/=TR_SUCCESS) then
                         call mkl_free_buffers
                         return
                     end if
@@ -2633,7 +2100,8 @@ contains
     !    dim dimensional vectors x & f'(x), dim order matrix f''(x)
     !    On input x is an initial guess, on exit x is a local minimum of f(x)
 
-    subroutine AugmentedLagrangian()
+    subroutine AugmentedLagrangian(f)
+        external::f
     end subroutine AugmentedLagrangian
 
     subroutine AugmentedLagrangianBC()!Not implemented

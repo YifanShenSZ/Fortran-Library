@@ -574,36 +574,38 @@ contains
         end subroutine My_dsysvM
     
         !N order vector b
-        !A harvests the Cholesky L . L^T decomposition
-        subroutine My_dposv(A,b,N)
+        !Optional info: If A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
+        !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
+        !b will not be overwritten if fail
+        subroutine My_dposv(A,b,N,info)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N),intent(inout)::b
-            integer::info
-            call dposv('L',N,1,A,N,b,N,info)
+            integer,intent(out),optional::info
+            integer::temp
+            if(present(info)) then
+                call dposv('L',N,1,A,N,b,N,info)
+            else
+                call dposv('L',N,1,A,N,b,N,temp)
+            end if
         end subroutine My_dposv
     
         !N x M matrix b
-        !A harvests the Cholesky L . L^T decomposition
-        subroutine My_dposvM(A,b,N,M)
+        !Optional info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
+        !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
+        !b will not be overwritten if fail
+        subroutine My_dposvM(A,b,N,M,info)
             integer,intent(in)::N,M
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N,M),intent(inout)::b
-            integer::info
-            call dposv('L',N,M,A,N,b,N,info)
+            integer,intent(out),optional::info
+            integer::temp
+            if(present(info)) then
+                call dposv('L',N,M,A,N,b,N,info)
+            else
+                call dposv('L',N,M,A,N,b,N,temp)
+            end if
         end subroutine My_dposvM
-    
-        !N order vector b
-        !If A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving fails
-        !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
-        !b will not be overwritten if fail
-        subroutine My_dposv_poQuery(A,b,N,info)
-            integer,intent(in)::N
-            real*8,dimension(N,N),intent(inout)::A
-            real*8,dimension(N),intent(inout)::b
-            integer,intent(out)::info
-            call dposv('L',N,1,A,N,b,N,info)
-        end subroutine My_dposv_poQuery
     !============ End ============
 
     !========== Inverse ==========
@@ -623,32 +625,30 @@ contains
         subroutine My_dsytri(A,N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
-            integer::i,j,info
+            integer::info
             integer,dimension(N)::ipiv
             real*8,dimension(N)::work
             call dsytrf('L',N,A,N,ipiv,work,N,info)
             call dsytri('L',N,A,N,ipiv,work,info)
         end subroutine My_dsytri
 
-        subroutine My_dpotri(A,N)
-            integer,intent(in)::N
-            real*8,dimension(N,N),intent(inout)::A
-            integer::i,j,info
-            call dpotrf('L',N,A,N,info)
-            call dpotri('L',N,A,N,info)
-        end subroutine My_dpotri
-
-        !If A is po, info returns 0; else, the info-th leading minor of A <= 0 and inversing fails
+        !Optional info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and inversing failed
         !A will be overwritten even fail
-        subroutine My_dpotri_poQuery(A,N,info)
+        subroutine My_dpotri(A,N,info)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
-            integer,intent(out)::info
-            integer::i,j
-            call dpotrf('L',N,A,N,info)
-            if(info/=0) return
-            call dpotri('L',N,A,N,info)
-        end subroutine My_dpotri_poQuery
+            integer,intent(out),optional::info
+            integer::temp
+            if(present(info)) then
+                call dpotrf('L',N,A,N,info)
+                if(info/=0) return
+                call dpotri('L',N,A,N,info)
+            else
+                call dpotrf('L',N,A,N,temp)
+                if(temp/=0) return
+                call dpotri('L',N,A,N,temp)
+            end if
+        end subroutine My_dpotri
 
         !M x N real matrix A. A harvests the transpose of its generalized inverse
         subroutine dGeneralizedInverseTranspose(A,M,N)
@@ -715,39 +715,28 @@ contains
         real*8,dimension(3*N)::work
         call dsyev(jobtype,'L',N,A,N,eigval,work,3*N,info)
     end subroutine My_dsyev
-    
-    !gtype: 1, A . eigvec =  B . eigvec . diag(eigval)
-    !       2, A . B . eigvec = eigvec . diag(eigval)
-    !N order real symmetric positive definite matrix B
-    !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under B metric
-    !B harvests the Cholesky L . L^T decomposition
-    !A will be overwritten even for 'N' job
-    subroutine My_dsygv(gtype,jobtype,A,B,eigval,N)
-        integer,intent(in)::gtype,N
-        character,intent(in)::jobtype
-        real*8,dimension(N,N),intent(inout)::A,B
-        real*8,dimension(N),intent(out)::eigval
-        integer::info
-        real*8,dimension(3*N)::work
-        call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,info)
-    end subroutine My_dsygv
 
-    !gtype: 1, A . eigvec =  B . eigvec . diag(eigval)
+    !gtype: 1, A . eigvec = B . eigvec . diag(eigval)
     !       2, A . B . eigvec = eigvec . diag(eigval)
     !N order real symmetric positive definite matrix B
-    !If B is po, info returns 0; else, the info-th leading minor of B <= 0 and diagonalization fails
+    !Optional info: if B is po, info returns 0; else, the info-th leading minor of B <= 0 and diagonalization failed
     !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under B metric
     !B harvests the Cholesky L . L^T decomposition. B will be overwritten even fail
     !A will be overwritten even for 'N' job
-    subroutine My_dsygv_poQuery(gtype,jobtype,A,B,eigval,N,info)
+    subroutine My_dsygv(gtype,jobtype,A,B,eigval,N,info)
         integer,intent(in)::gtype,N
         character,intent(in)::jobtype
         real*8,dimension(N,N),intent(inout)::A,B
         real*8,dimension(N),intent(out)::eigval
-        integer,intent(out)::info
+        integer,intent(out),optional::info
+        integer::temp
         real*8,dimension(3*N)::work
-        call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,info)
-    end subroutine My_dsygv_poQuery
+        if(present(info)) then
+            call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,info)
+        else
+            call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,temp)
+        end if
+    end subroutine My_dsygv
 
     !eigval harvests the eigenvalues in ascending order, A harvests the normalized eigenvectors
     !A will be overwritten even for 'N' job

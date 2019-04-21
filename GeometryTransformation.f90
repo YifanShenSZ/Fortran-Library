@@ -692,10 +692,10 @@ contains
 
 !Use Wilson GF method to analyze vibration from Hessian in internal coordinate
 !Input:  intdim order real symmetric matrix H = Hessian in internal coordinate
-!        intdim x cartdim matrix B = Wilson B matrix
-!        NAtoms order array mass = mass of each atom
+!             intdim x cartdim matrix B       = Wilson B matrix
+!              NAtoms order array mass        = mass of each atom
 !Output: freq = vibrational angular frequencies (negative if imaginary)
-!        H = normal coordinates in input frame
+!         H   = normal coordinates in input frame
 subroutine VibrationAnalysis(freq,H,intdim,B,cartdim,mass,NAtoms)
     integer,intent(in)::intdim,cartdim,NAtoms
     real*8,dimension(intdim),intent(out)::freq
@@ -714,14 +714,13 @@ subroutine VibrationAnalysis(freq,H,intdim,B,cartdim,mass,NAtoms)
         call syL2U(H,intdim)
         GF=matmul(matmul(Btemp,transpose(B)),H)
         call My_dgeev('V',GF,freq,freqtemp,H,intdim)
-    !freq^2 -> freq
-        do i=1,intdim
-            if(freq(i)<0d0) then
-                freq(i)=-dSqrt(-freq(i))
-            else
-                freq(i)=dSqrt(freq(i))
-            end if
-        end do
+    do i=1,intdim!freq^2 -> freq
+        if(freq(i)<0d0) then
+            freq(i)=-dSqrt(-freq(i))
+        else
+            freq(i)=dSqrt(freq(i))
+        end if
+    end do
     !Sort freq ascendingly, then sort normal coordinates accordingly
         forall(i=1:intdim)
             indices(i)=i
