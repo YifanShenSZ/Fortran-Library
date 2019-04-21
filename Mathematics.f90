@@ -19,31 +19,19 @@ module Mathematics
             KInAU=3.166813539739535d-6,barInAU=3.39882737736419d-9
 
 !Parameter
-    !Combinatorics:
-        !Factorial
-        logical::FactorialWarning=.true.
-    !Special function:
-        !Gamma function
-        integer::MaxGammaIteration=20
-        real*8::GammaTol=1d-15
     !Ordinary differential equation:
         !Predict-correct
         logical::PredictCorrectWarning=.true.
         integer::MaxCorrectionIteration=20
         real*8::PredictCorrectAbsTol=1d-15,PredictCorrectRelTol=1d-15
-    !Integration:
-        !Romberg
-        logical::RombergWarning=.true.
-        integer::MinRombergDivide=4,MaxRombergDivide=25
-        real*8::RombergAbsTol=1d-15,RombergRelTol=1d-15
 
 contains
 !------------------ Combinatorics -------------------
-    !Exact factorial for N<=20
-    !Double precision for 21<=N<=40
-    !8 significant figures for N>=41
-    real*8 function dFactorial(N)
+    !Exact factorial for 0 <= N <= 20, double precision for 21 <= N <= 40, 8 significant figures for N >= 41
+    !Optional argument: Warning: (default = true) if true, throw a warning when using 8 significant figures approximation
+    real*8 function dFactorial(N,Warning)
         integer,intent(in)::N
+        logical,intent(in),optional::Warning
         integer::i
         real*8::temp
         select case(N)
@@ -130,16 +118,13 @@ contains
             case(40)
                 dFactorial=815915283247897734345611269596115894272d9
             case default
-                if(FactorialWarning) then
-                    write(*,*)'Not accurate factorial'
-                    FactorialWarning=.false.
-                end if
+                if((.not.present(Warning)).or.Warning) write(*,'(1x,A22)')'Not accurate factorial'
                 temp=(9d0*N)**3.141592653589793d0
                 dFactorial=Sqrt(6.283185307179586d0*N)*(N/enature)**N*Exp(1d0/12d0/N-Log(9d0*N)/(temp-1d0/temp))
         end select
     end function dFactorial
 
-    !Depend on dFactorial
+    !Exact double factorial for -1 <= N <= 30, double precision for 31 <= N <= 40, depend on factorial for N >= 41
     real*8 function dFactorial2(N)
         integer,intent(in)::N
         integer::i
@@ -203,11 +188,11 @@ contains
             case(27)
                 dFactorial2=213458046676875d0
             case(28)
-                dFactorial2=1428329123020800d0
+                dFactorial2=14283291230208d2
             case(29)
                 dFactorial2=6190283353629375d0
             case(30)
-                dFactorial2=42849873690624000d0
+                dFactorial2=42849873690624d3
             case(31)
                 dFactorial2=191898783962510625d0
             case(32)
@@ -237,7 +222,7 @@ contains
         end select
     end function dFactorial2
 
-    !Depend on dFactorial
+    !Exact permutation for 0 <= M <= 10 or N < 10, depend on factorial otherwise
     real*8 function dPermutation(M,N)
         integer,intent(in)::M,N
         integer::i
@@ -336,7 +321,7 @@ contains
         end if
     end function dPermutation
 
-    !Depend on dPermutation and dFactorial
+    !Exact combination for 0 <= M <= 11 or ( N = 0 or N = 1 or N = M - 1 or N = M ), depend on permutation and factorial otherwise
     real*8 function dCombination(M,N)
         integer,intent(in)::M,N
         integer::ntemp
@@ -418,10 +403,10 @@ contains
         end if
     end function dCombination
 
-    !Exact factorial for N<=23
-    !8 bits integer cannot represent N>=24
-    integer*8 function iFactorial(N)
+    !Exact factorial for N <= 23, 8 bits integer cannot represent N >= 24
+    integer*8 function iFactorial(N,Warning)
         integer,intent(in)::N
+        logical,intent(in),optional::Warning
         integer::i
         select case(N)
             case(0)
@@ -473,15 +458,11 @@ contains
             case(23)
                 iFactorial=2585201673888497664  
             case default
-                if(FactorialWarning) then
-                    write(*,'(1x,A62)')'Failed integer factorial: 8 bits integer upper limit exceeded!'
-                    FactorialWarning=.false.
-                end if
+                write(*,'(1x,A62)')'Failed integer factorial: 8 bits integer upper limit exceeded!'
         end select
     end function iFactorial
 
-    !Exact double factorial for N<=33
-    !8 bits integer cannot represent N>=34
+    !Exact double factorial for N <= 33, 8 bits integer cannot represent N >= 34
     integer*8 function iFactorial2(N)
         integer,intent(in)::N
         integer::i
@@ -558,11 +539,10 @@ contains
                 iFactorial2=6332659870762850625 
             case default
                 write(*,'(1x,A69)')'Failed integer double factorial: 8 bits integer upper limit exceeded!'
-                FactorialWarning=.false.
         end select
     end function iFactorial2
 
-    !Depend on iFactorial
+    !Exact permutation for 0 <= M <= 10 or N < 10, depend on factorial otherwise
     integer*8 function iPermutation(M,N)
         integer,intent(in)::M,N
         integer::i
@@ -661,7 +641,7 @@ contains
         end if
     end function iPermutation
 
-    !Depend on iPermutation and iFactorial
+    !Exact combination for 0 <= M <= 11 or ( N = 0 or N = 1 or N = M - 1 or N = M ), depend on permutation and factorial otherwise
     integer*8 function iCombination(M,N)
         integer,intent(in)::M,N
         integer::ntemp
@@ -746,8 +726,7 @@ contains
 
 !----------------- Special function -----------------
     !========== Gaussian integral ==========
-        !Integrate[1/Sqrt(2d0*pi)/sigma*Exp(-0.5d0*(x/sigma)**2)*x**i,{x,-Infinity,Infinity}]
-        !Depend on dFactorial2
+        !Integrate[ 1 / Sqrt(2pi) / sigma * Exp(-0.5 * (x / sigma)^2) * x^i, {x, -Infinity, Infinity}]
         real*8 function GaussianIntegral(i,sigma)
             integer,intent(in)::i
             real*8,intent(in)::sigma
@@ -757,8 +736,7 @@ contains
             end if
         end function GaussianIntegral
 
-        !Divide sigma**i to make GaussianIntegral dimensionless
-        !Depend on dFactorial2
+        !Divide sigma^i to make GaussianIntegral dimensionless
         real*8 function GaussianIntegraldsig(i)
             integer,intent(in)::i
             GaussianIntegraldsig=0d0
@@ -767,7 +745,7 @@ contains
             end if
         end function GaussianIntegraldsig
 
-        !Depend on dFactorial2, dPermutation, dCombination
+        !Extend to two variable x & p case x^i * p^j
         real*8 function BinaryGaussianIntegral(i,j,sigmax,sigmap,rho)
             integer,intent(in)::i,j
             real*8,intent(in)::sigmax,sigmap,rho
@@ -784,7 +762,6 @@ contains
             end if
         end function BinaryGaussianIntegral
 
-        !Depend on dFactorial2, dPermutation, dCombination
         real*8 function BinaryGaussianIntegraldsig(i,j,rho)
             integer,intent(in)::i,j
             real*8,intent(in)::rho
@@ -855,7 +832,7 @@ contains
                 gin=1d0
                 term=1d0
                 rn=p
-                do while ( term > GammaTol)
+                do while(term>1d-15)
                     rn=rn+1d0
                     term=term*x/rn
                     gin=gin+term
@@ -881,7 +858,7 @@ contains
                     if(pn(6)/=0d0) then
                         rn=pn(5)/pn(6)
                         dif=abs(gin-rn)
-                        if(dif<GammaTol.and.dif<GammaTol*rn) then
+                        if(dif<1d-15.and.dif<1d-15*rn) then
                             gamma_regularized_inc_lower = 1.0d0 - factor * gin
                             exit
                         end if
@@ -900,22 +877,82 @@ contains
         end function gamma_regularized_inc_lower
 
         !Incomplete gamma function
-        !Depend on gamma_regularized_inc_lower
         real*8 function gamma_inc(p,x)
-            real*8,intent(in)::p,x
-            integer::i
-            real*8::old
-            if(p<1d-37) then
-                gamma_inc=-eulergamma-log(x)+x-x**2/4d0+x**3/1.8d1-x**4/9.6d1+x**5/6d2
-                do i=6,MaxGammaIteration
-                    old=gamma_inc
-                    gamma_inc=gamma_inc-(-1)**i/(i*dFactorial(i))
-                    if(abs((gamma_inc-old)/gamma_inc)<GammaTol) then
-                        exit
-                    end if
-                end do
+            real*8 ,intent(in)::p,x
+            real*8::temp,temp2,temp3,temp6
+            if(p<1d-15) then!10 significant figures
+                if(x>18.78741462316355d0) then
+                    gamma_inc=0d0
+                else if(x>13.29d0) then
+                    temp=x-15.99d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +3.3491791984585926d0+temp*0.06253907982075221d0-temp2*(0.0019555649204058842d0+temp2*3.823889781974916d-6)&
+                        +temp3*(8.153164493904012d-5+temp2*1.9125482223137583d-7)&
+                        +temp6*(-9.95754526846618d-9+temp*5.323631012903137d-10-temp2*2.8955510452797626d-11&
+                        +temp3*1.5900561610283544d-12-temp*temp3*8.753766072858468d-14)
+                else if(x>9.29d0) then
+                    temp=x-11.26d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +2.998473344163554d0+temp*0.08880880303082772d0-temp2*(0.003942980690850256d0+temp2*1.548920196156643d-5)&
+                        +temp3*(0.00023325998949853596d0+temp2*1.0909454673108656d-6)&
+                        +temp6*(-7.915055845502563d-8+temp*5.798241768265512d-9-temp2*4.222086908296498d-10&
+                        +temp3*3.01783879825018d-11-temp*temp3*2.096958494268975d-12)
+                else if(x>6.24d0) then
+                    temp=x-7.74d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +2.623667685122219d0+temp*0.12914275561045493d0-temp2*(0.008314449873086318+temp2*6.614403525922297d-5)&
+                        +temp3*(7.067770869351106d-4+temp2*6.368169476536038d-6)&
+                        +temp6*(-6.075635427151326d-7+temp*5.6129848279670643d-8-temp2*4.951311575317511d-9&
+                        +temp3*4.1372418821110844d-10-temp*temp3*3.2617274753582414d-11)
+                else if(x>3.82d0) then
+                    temp=x-5.01d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +2.1897864802195994d0+temp*0.19826928077719455d0-temp2*(0.01912159455797797d0+temp2*0.00029220534183235477d0)&
+                        +temp3*(0.002322537422676534d0+temp2*3.5563555405274084d-5)&
+                        +temp6*(-4.066098341347632d-6+temp*4.3146411654336176d-7-temp2*4.2331758731517724d-8&
+                        +temp3*3.841319120017832d-9-temp*temp3*3.231267642291151d-10)
+                else if(x>1.85d0) then
+                    temp=x-2.81d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +1.6270397285101232d0+temp*0.33444662192442226d0-temp2*(0.048797442977232874d0+temp2*0.0012441706978081175)&
+                        +temp3*(0.008006214680697388d0+temp2*0.00017566843000357574d0)&
+                        +temp6*(-2.233890154694154d-5+temp*2.5630586828795826d-6-temp2*2.667249013198523d-7&
+                        +temp3*2.533095435935187d-8-temp*temp3*2.2088886053649257d-9)
+                else if(x>0.723d0) then
+                    temp=x-1.25d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +0.9467725887416528d0+temp*0.570796162511848d0-temp2*(0.11371654626066321d0+temp2*0.003918751159257355d0)&
+                        +temp3*(0.022448185090995054d0+temp2*0.000597968762856782d0)&
+                        +temp6*(-8.030717872653526d-5+temp*9.590827815628838d-6-temp2*1.0289604856217327d-6&
+                        +temp3*1.0008090251673041d-7-temp*temp3*8.895816642345844d-9)
+                else
+                    temp2=x*x
+                    temp3=x*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +x-temp2*(0.25d0+temp2/96d0)+temp3*(0.05555555555555555d0+temp2/600d0)&
+                        +temp6*(-2.314814814814815d-4+x/35280d0-temp2/322560d0+temp3/3265920d0-x*temp3/36288d3)
+                end if
             else
-                gamma_inc=(1-gamma_regularized_inc_lower(p,x))*gamma(p)
+                gamma_inc=(1d0-gamma_regularized_inc_lower(p,x))*gamma(p)
             end if
         end function gamma_inc
     !================= End =================
@@ -1025,39 +1062,64 @@ contains
 !----------------------- End ------------------------
 
 !------------------- Integration --------------------
-    !Integrate[f(x)],{x,low,up}]
-    real*8 function dRomberg(f,low,up)
-        real*8,external::f
-        real*8,intent(in)::low,up
-        integer::i,j,grids
-        real*8::t,told,s,sold,c,cold,rold,&
-                dx,dxm,temp,start,absdev,reldev
-        !t_0
-            dx=(up-low)/2d0
-            t=(f(low)+f(up))*dx
-        !s_0
-            told=t
-            t=told/2d0+dx*f(low+dx)
-            s=(4d0*t-told)/3d0
-            dx=dx/2d0
-        !c_0
-            told=t
-            sold=s
-            t=told/2d0+dx*(f(low+dx)+f(up-dx))
-            s=(4d0*t-told)/3d0
-            c=(16d0*s-sold)/15d0
-            dx=dx/2d0
-        !s_0
-            told=t
-            sold=s
-            cold=c
-            temp=dx*3d0
-            t=told/2d0+dx*(f(low+dx)+f(low+temp)+f(up-temp)+f(up-dx))
-            s=(4d0*t-told)/3d0
-            c=(16d0*s-sold)/15d0
-            dromberg=(64d0*c-cold)/63d0
-        grids=8
-        do i=4,MinRombergDivide
+    !Integrate[f(x),{x,low,up}]
+    !Optional argument:
+    !    MinIteration: (default = 4) numerical integration may fraudulently converge with too few grids
+    !                  at least 2^MinIteration grid points will be used (must >= 4)
+    !    MaxIteration (default = 25), AbsolutePrecision (default = 1d-15), RelativePrecision (default = 1d-15)
+    real*8 function dRomberg(f,low,up,Warning,MinIteration,MaxIteration,AbsolutePrecision,RelativePrecision)
+        !Required argument
+            real*8,external::f
+            real*8,intent(in)::low,up
+        !Optional argument
+            logical,intent(in),optional::Warning
+            integer,intent(in),optional::MinIteration,MaxIteration
+            real*8 ,intent(in),optional::AbsolutePrecision,RelativePrecision
+        integer::minit,maxit,i,j,grids
+        real*8::abstol,reltol,absdev,reldev,t,told,s,sold,c,cold,rold,dx,dxm,temp,start
+        !Set parameter according to optional argument
+            if(present(MinIteration)) then
+                minit=max(4,MinIteration)
+            else
+                minit=4
+            end if
+            if(present(MaxIteration)) then
+                maxit=max(5,MaxIteration)
+            else
+                maxit=25
+            end if
+            if(present(AbsolutePrecision)) then
+                abstol=dAbs(AbsolutePrecision)
+            else
+                abstol=1d-15
+            end if
+            if(present(RelativePrecision)) then
+                reltol=dAbs(RelativePrecision)
+            else
+                reltol=1d-15
+            end if
+        dx=(up-low)/2d0!t_0
+        t=(f(low)+f(up))*dx
+        told=t!s_0
+        t=told/2d0+dx*f(low+dx)
+        s=(4d0*t-told)/3d0
+        dx=dx/2d0
+        told=t!c_0
+        sold=s
+        t=told/2d0+dx*(f(low+dx)+f(up-dx))
+        s=(4d0*t-told)/3d0
+        c=(16d0*s-sold)/15d0
+        dx=dx/2d0
+        told=t!s_0
+        sold=s
+        cold=c
+        temp=dx*3d0
+        t=told/2d0+dx*(f(low+dx)+f(low+temp)+f(up-temp)+f(up-dx))
+        s=(4d0*t-told)/3d0
+        c=(16d0*s-sold)/15d0
+        dromberg=(64d0*c-cold)/63d0
+        grids=8!Preiteration
+        do i=4,minit
             temp=0d0
             dxm=dx
             dx=dx/2d0
@@ -1076,7 +1138,7 @@ contains
             c=(16d0*s-sold)/15d0
             dromberg=(64d0*c-cold)/63d0
         end do
-        do i=MinRombergDivide+1,MaxRombergDivide
+        do i=minit+1,maxit!Main loop
             temp=0d0
             dxm=dx
             dx=dx/2d0
@@ -1096,38 +1158,74 @@ contains
             dromberg=(64d0*c-cold)/63d0
             absdev=abs(dromberg-rold)
             reldev=absdev/abs(dromberg)
-            if(absdev<RombergAbsTol.or.reldev<RombergRelTol) then
-                Exit
-            end if
+            if(absdev<abstol.or.reldev<reltol) exit
         end do
-        if(i>MaxRombergDivide.and.RombergWarning) then
-            write(*,*)'Failed Romberg integration: max divide exceed!'
-            write(*,*)'absdev =',absdev
-            write(*,*)'reldev =',reldev
-            RombergWarning=.false.
+        if(i>maxit.and.((.not.present(Warning)).or.Warning)) then
+            write(*,'(1x,A46)')'Failed Romberg integration: max divide exceed!'
+            write(*,*)'Absolute deviation =',absdev
+            write(*,*)'Relative deviation =',reldev
         end if
     end function dRomberg
 !----------------------- End ------------------------
 
-!-------------- Fast Fourier transform --------------
-    !Depend on Reverse
+!---------------- Fourier transform -----------------
+    !Fourier and inverse Fourier transform is defined by: (This definition is unitary transformation)
+    !    f(k) = Integrate[ exp(-ikx) * f(x), { x, -Infinity, Infinity }] / Sqrt(2pi)
+    !    f(x) = Integrate[ exp( ikx) * f(k), { k, -Infinity, Infinity }] / Sqrt(2pi)
+    !Naive way is obtain enough data points and numerically integrate
+    !Fast Fourier transform is an interpolation on 2^r data points subject to periodic boundary condition
+
+    !Fourier transform N data points (x,psy) into (k,phi)
+    !Input:  N dimensional real vector x & k, N dimensional complex vector psy
+    !Output: N dimensional complex vector phi
+    subroutine dFourierTransform(x,psy,k,phi,N)
+        integer,intent(in)::N
+        real*8,dimension(N),intent(in)::x,k
+        complex*16,dimension(N),intent(in)::psy
+        complex*16,dimension(N),intent(out)::phi
+        integer::i,j
+        phi=(0d0,0d0)
+        do j=1,N
+            do i=1,N
+                phi(j)=phi(j)+exp(-ci*k(j)*x(i))*psy(i)
+            end do
+        end do
+        phi=phi*(x(2)-x(1))/2.506628274631d0
+    end subroutine dFourierTransform
+
+    !Inverse Fourier transform N data points (k,phi) into (x,psy)
+    !Input:  N dimensional real vector k & x, N dimensional complex vector phi
+    !Output: N dimensional complex vector psy
+    subroutine dInverseFourierTransform(k,phi,x,psy,N)
+        integer,intent(in)::N
+        real*8,dimension(N),intent(in)::k,x
+        complex*16,dimension(N),intent(in)::phi
+        complex*16,dimension(N),intent(out)::psy
+        integer::i,j
+        psy=(0d0,0d0)
+        do j=1,N
+            do i=1,N
+                psy(j)=psy(j)+exp(ci*k(i)*x(j))*phi(i)
+            end do
+        end do
+        psy=psy*(k(2)-k(1))/2.506628274631d0
+    end subroutine dInverseFourierTransform
+
     !Fast fourier transform 2**r data points (x,psy) into (k,phi)
     !k=numpy.linspace(0,pim2/(x(N)+x(2)-2*x(1)),2**r)
-    subroutine dFFT(x,psy,k,phi,r)
-        integer::r,N,i,j,l,m,p,mmax,jmin,jmax,t,r1
-        real*8::temp,s,length,dk
-        real*8,dimension(2**r)::x,k
+    !On input x & psy is (x,psy), on exit x & psy harvest (k,phi)
+    subroutine dFFT(x,psy,r)!NEED DEBUG
+        integer,intent(in)::r
+        real*8,dimension(2**r),intent(inout)::x
+        complex*16,dimension(2**r),intent(inout)::psy
+        integer::N,i,j,l,m,p,mmax,jmin,jmax,t,r1
+        real*8::temp,s,length
         complex*16::tempc
-        complex*16,dimension(2**r)::psy,phi
         N=Ishft(1,r)
-        if(N/=size(x)) then
-            write(*,*)'parameter error: not 2**r data points'
-            return
-        end if
         length=x(N)+x(2)-2d0*x(1)
-        dk=6.283185307179586d0/length
+        temp=6.283185307179586d0/length
         forall(i=1:N)
-            k(i)=(i-1)*dk
+            x(i)=(i-1)*temp
         end forall
         s=length/N
         r1=r+1
@@ -1138,52 +1236,32 @@ contains
                 t=IShft(N,-l)
                 jmax=jmin+t
                 do j=jmin,jmax-1
-                    p=IShft(j,l-r)
-                    p=Reverse(p,r)
+                    p=Reverse(IShft(j,l-r),r)
                     temp=s*p
                     tempc=exp(ci*temp)
-                    phi(j+1)=tempc*phi(p+1)
-                    phi(p+1)=phi(j+1)-2d0*tempc
+                    psy(j+1)=tempc*psy(p+1)
+                    psy(p+1)=psy(j+1)-2d0*tempc
                 end do
             end do
         end do
         l=Reverse(1,r)
         do i=1,l-1
             p=Reverse(i,r)
-            temp=phi(i+1)
-            phi(i+1)=phi(p+1)
-            phi(p+1)=temp
+            temp=psy(i+1)
+            psy(i+1)=psy(p+1)
+            psy(p+1)=temp
         end do
+        contains
+            !Convert decimal p into r digit binary number, then reverse p
+            integer function Reverse(p,r)
+                integer,intent(in)::p,r
+                integer::i
+                Reverse=0
+                do i=r-1,-1,-1
+                    Reverse=Reverse+Ishft(Ishft(Iand(p,Ishft(1,i)),-i),r-1-i)
+                end do
+            end function Reverse
     end subroutine dFFT
-
-    !Inverse FFT 2**r data points (k,y) into (x,y)
-    subroutine dInverseFFT(k,phi,x,psy,r)
-        integer::r,N,i,j
-        real*8,dimension(2**r)::x,k
-        complex*16,dimension(2**r)::psy,phi
-        N=Ishft(1,r)
-        if(N/=size(k)) then
-            write(*,*)'parameter error: not 2**r data points'
-            return
-        end if
-        psy=(0d0,0d0)
-        do j=1,N
-            do i=1,N
-                psy(j)=phi(i)*exp(ci*6.283185307179586d0*i*j/N)
-            end do
-        end do
-        psy=psy/N
-    end subroutine dInverseFFT
-
-    !Support dFFT, convert decimal p into r digit binary number, then reverse p
-    integer function Reverse(p,r)
-        integer,intent(in)::p,r
-        integer::i
-        Reverse=0
-        do i=r-1,-1,-1
-            Reverse=Reverse+Ishft(Ishft(Iand(p,Ishft(1,i)),-i),r-1-i)
-        end do
-    end function Reverse
 !----------------------- End ------------------------
 
 end module Mathematics

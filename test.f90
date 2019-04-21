@@ -14,16 +14,28 @@ program main
     real*8,dimension(4)::quaternion
     real*8,dimension(9)::H2Ogeom,H2Ogeom1,H2Ogeom2
     real*8,dimension(10)::eigval,x,low,up
+    real*8,dimension(16)::fftx
     real*8,dimension(10,10)::A,B,C,eigvec
     real*8,dimension(10,10,10)::A3,B3,C3
     real*8,dimension(10,10,10,10)::A4
     complex*16,dimension(10)::zeigval
+    complex*16,dimension(16)::fftpsy
     complex*16,dimension(10,10)::zA,zB,zeigvec
 
     call BetterRandomSeed()
     write(*,*)'This is a test program on Fortran-Library'
     write(*,*)'Correct routines should print close to 0'
     write(*,*)
+
+write(*,*)'Testing all mathematical routines...'
+    forall(i=1:16)
+        fftx(i)=(i-1)*0.1d0
+        fftpsy(i)=exp(ci*(pim2/1.6d0)*fftx(i))
+    end forall
+    call dFFT(fftx,fftpsy,4)
+    write(*,*)fftpsy
+write(*,*)'Mathematical routines test passed'
+write(*,*)
 
 write(*,*)'Testing all linear algebra routines...'
     write(*,*)
@@ -372,28 +384,24 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     write(*,*)
     write(*,*)'dtrnlsp'
         call random_number(x)
-        trnlspWarning=.true.
-        call my_dtrnlsp(fd_tr,fdd_tr,x,M,N)
+        call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr)
         write(*,*)norm2(x)
     write(*,*)
-    !write(*,*)'dtrnlsp_NJ'
-    !    call random_number(x)
-    !    trnlspWarning=.true.
-    !    call my_dtrnlsp_NumericalJacobian(fd_j,x,M,N)
-    !    write(*,*)norm2(x)
-    !write(*,*)
+    write(*,*)'dtrnlsp_NJ'
+        call random_number(x)
+        call TrustRegion(fd_tr,x,M,N)
+        write(*,*)norm2(x)
+    write(*,*)
     write(*,*)'dtrnlspbc'
         call random_number(x)
-        trnlspWarning=.true.
-        call my_dtrnlspbc(fd_tr,fdd_tr,x,low,up,M,N)
+        call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr,low=low,up=up)
         write(*,*)norm2(x)
     write(*,*)
-    !write(*,*)'dtrnlspbc_NJ'
-    !    call random_number(x)
-    !    trnlspWarning=.true.
-    !    call My_dtrnlspbc_NumericalJacobian(fd_j,x,low,up,M,N)
-    !    write(*,*)norm2(x)
-    !write(*,*)
+    write(*,*)'dtrnlspbc_NJ'
+        call random_number(x)
+        call TrustRegion(fd_tr,x,M,N,low=low,up=up)
+        write(*,*)norm2(x)
+    write(*,*)
 write(*,*)'Nonlinear-optimization solvers test passed'
 write(*,*)
 
@@ -550,7 +558,7 @@ contains
         end forall
     end subroutine fd_tr
 
-    subroutine fdd_tr(fddx,x,M,N)
+    integer function fdd_tr(fddx,x,M,N)
         integer,intent(in)::M,N
         real*8,dimension(M,N),intent(out)::fddx
         real*8,dimension(N),intent(in)::x
@@ -559,16 +567,7 @@ contains
         forall(i=1:dim)
             fddx(i,i)=12d0*x(i)*x(i)
         end forall
-    end subroutine fdd_tr
-
-    subroutine fd_j(M,N,x,fdx)
-        integer,intent(in)::M,N
-        real*8,dimension(M),intent(out)::fdx
-        real*8,dimension(N),intent(in)::x
-        integer::i
-        forall(i=1:dim)
-            fdx(i)=4d0*x(i)**3
-        end forall
-    end subroutine fd_j
+        fdd_tr=0!return 0
+    end function fdd_tr
 
 end program main

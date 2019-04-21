@@ -15,23 +15,10 @@
 !    so you have to construct your own hopper based on your specific problem
 !    Heuristic algorithm is general but naive: pay exponentially for NP-completeness
 module NonlinearOptimization
-    use LinearAlgebra!NewtonRaphson and BFGS need it
-    use mkl_rci_type !BFGS_NumericalHessian and Trust region section need it
-    use mkl_rci      !BFGS_NumericalHessian and Trust region section need it
+    use LinearAlgebra!For inverting exact Hessian
+    use mkl_rci_type !For numerical exact Hessian & Trust region solver
+    use mkl_rci      !For numerical exact Hessian & Trust region solver
     implicit none
-
-!Parameter
-    !MKL solver
-        logical::trnlspWarning=.true.
-        integer::MaxMKLTrustRegionIteration=1000,MaxMKLTrialStepIteration=100
-        !MKLTrustRegionTol(1:5) contains the stopping criteria for solving f'(x) = 0:
-        !    1, trust region radius < MKLTrustRegionTol(1)
-        !    2, || f'(x) ||_2 < MKLTrustRegionTol(2)
-        !    3, for all j in [1,N], || Jacobian(:,j) ||_2 < MKLTrustRegionTol(3) 
-        !    4, || s ||_2 < MKLTrustRegionTol(4), where s is the trial step
-        !    5, || f'(x) ||_2 - || f'(x) - Jacobian . s ||_2 < MKLTrustRegionTol(5)
-        !MKLTrustRegionTol(6) is the precision of s calculation
-        real*8,dimension(6)::MKLTrustRegionTol=[1d-15,1d-15,1d-15,1d-15,1d-15,1d-15]
 
 contains
 !-------------- Line search ---------------
@@ -57,16 +44,15 @@ contains
     !    Strong: (default = true) if true, use strong Wolfe condition instead of Wolfe condition
     !    Warning: (default = true) if false, all warnings will be suppressed
     !    MaxIteration: (default = 1000) max number of iterations to perform
-    !    Tolerance: (default = 1d-15) convergence considered when || f'(x) ||_2 < Tolerance
-    !               if search step < Tolerance before converging, terminate and throw a warning
+    !    Precision: (default = 1d-15) convergence considered when || f'(x) ||_2 < Precision
+    !    MinStepLength: (default = 1d-15) terminate if search step < MinStepLength before || f'(x) ||_2 converges
     !    WolfeConst1 & WolfeConst2: 0 < WolfeConst1 < WolfeConst2 <  1  for Newton & quasi-Newton
     !                               0 < WolfeConst1 < WolfeConst2 < 0.5 for conjugate gradient
     !On input x is an initial guess, on exit x is a local minimum of f(x)
 
     !Newton-Raphson method, requiring Wolfe condition
-    !Optional argument:
-    !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
-    subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+    !Optional argument: fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
+    subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -75,10 +61,10 @@ contains
             integer,external,optional::fdd,f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration
-            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
         logical::sw,warn,terminate
         integer::maxit,iIteration,info
-        real*8::tol,c1,c2,a,fnew,phidnew,phidold
+        real*8::tol,minstep,c1,c2,a,fnew,phidnew,phidold
         real*8,dimension(dim)::p,fdnew
         real*8,dimension(dim,dim)::Hessian
         !Initialize
@@ -99,18 +85,23 @@ contains
                 else
                     maxit=1000
                 end if
-                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                    tol=Tolerance*Tolerance
+                if(present(Precision)) then!To save sqrt cost, precision is squared
+                    tol=Precision*Precision
                 else
                     tol=1d-30
                 end if
+                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
+                    minstep=MinStepLength*MinStepLength
+                else
+                    minstep=1d-30
+                end if
                 if(present(WolfeConst1)) then
-                    c1=WolfeConst1
+                    c1=max(1d-15,WolfeConst1)!Fail safe
                 else
                     c1=1d-4
                 end if
                 if(present(WolfeConst2)) then
-                    c2=WolfeConst2
+                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                 else
                     c2=0.9d0
                 end if
@@ -204,11 +195,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -233,11 +224,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -268,7 +259,7 @@ contains
     !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
     !    ExactStep: (default = 20) every how many steps compute exact hessian. [10,50] is recommended
     !               if ExactStep <= 0, exact Hessian will not be computed at all
-    subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+    subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -277,10 +268,10 @@ contains
             integer,external,optional::fdd,f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::ExactStep,MaxIteration
-            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
         logical::sw,warn,terminate
         integer::freq,maxit,iIteration,i
-        real*8::tol,c1,c2,a,fnew,phidnew,rho
+        real*8::tol,minstep,c1,c2,a,fnew,phidnew,rho
         real*8,dimension(dim)::p,fdnew,s,y
         real*8,dimension(dim,dim)::U,H!Approximate inverse Hessian
         !Initialize
@@ -306,18 +297,23 @@ contains
                 else
                     maxit=1000
                 end if
-                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                    tol=Tolerance*Tolerance
+                if(present(Precision)) then!To save sqrt cost, precision is squared
+                    tol=Precision*Precision
                 else
                     tol=1d-30
                 end if
+                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
+                    minstep=MinStepLength*MinStepLength
+                else
+                    minstep=1d-30
+                end if
                 if(present(WolfeConst1)) then
-                    c1=WolfeConst1
+                    c1=max(1d-15,WolfeConst1)!Fail safe
                 else
                     c1=1d-4
                 end if
                 if(present(WolfeConst2)) then
-                    c2=WolfeConst2
+                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                 else
                     c2=0.9d0
                 end if
@@ -365,11 +361,11 @@ contains
                 end if
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) return
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     return
                 end if
@@ -484,11 +480,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -527,11 +523,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -570,11 +566,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -601,9 +597,8 @@ contains
     end subroutine BFGS
 
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
-    !Optional argument:
-    !    Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended
-    subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+    !Optional argument: Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
+    subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -612,10 +607,10 @@ contains
             integer,external,optional::f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::Memory,MaxIteration
-            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
         logical::sw,warn,terminate
         integer::M,maxit,iIteration,i,recent
-        real*8::tol,c1,c2,a,fnew,phidnew
+        real*8::tol,minstep,c1,c2,a,fnew,phidnew
         real*8,dimension(dim)::p,fdnew,xold,fdold
         real*8,allocatable,dimension(:)::rho,alpha
         real*8,allocatable,dimension(:,:)::s,y
@@ -623,7 +618,7 @@ contains
             terminate=.false.
             !Set parameter according to optional argument
                 if(present(Memory)) then
-                    M=max(0,Memory)
+                    M=max(1,Memory)!Fail safe
                 else
                     M=10
                 end if
@@ -642,18 +637,23 @@ contains
                 else
                     maxit=1000
                 end if
-                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                    tol=Tolerance*Tolerance
+                if(present(Precision)) then!To save sqrt cost, precision is squared
+                    tol=Precision*Precision
                 else
                     tol=1d-30
                 end if
+                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
+                    minstep=MinStepLength*MinStepLength
+                else
+                    minstep=1d-30
+                end if
                 if(present(WolfeConst1)) then
-                    c1=WolfeConst1
+                    c1=max(1d-15,WolfeConst1)!Fail safe
                 else
                     c1=1d-4
                 end if
                 if(present(WolfeConst2)) then
-                    c2=WolfeConst2
+                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                 else
                     c2=0.9d0
                 end if
@@ -690,11 +690,11 @@ contains
             end if
             phidnew=dot_product(fdnew,fdnew)
             if(phidnew<tol) return
-            if(dot_product(p,p)*a*a<tol) then
+            if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
                     write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 return
             end if
@@ -730,11 +730,11 @@ contains
                 end if
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) return
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     return
                 end if
@@ -810,11 +810,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -826,11 +826,10 @@ contains
             end subroutine After
     end subroutine LBFGS
 
-    !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition 
-    !Optional argument:
-    !    Method: (default = DY) which conjugate gradient method to use, currently available:
-    !            DY (Dai-Yun), PR (Polak-Ribiere+)
-    subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+    !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
+    !Available methods: DY (Dai-Yun), PR (Polak-Ribiere+)
+    !Optional argument: Method: (default = DY) which conjugate gradient method to use
+    subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -840,11 +839,11 @@ contains
             integer,external,optional::f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration
-            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
         logical::sw,warn,terminate
         character*2::type
         integer::maxit,iIteration,info
-        real*8::tol,c1,c2,a,fnew,fold,phidnew,phidold
+        real*8::tol,minstep,c1,c2,a,fnew,fold,phidnew,phidold
         real*8,dimension(dim)::p,fdnew,fdold
         !Initialize
             terminate=.false.
@@ -869,18 +868,23 @@ contains
                 else
                     maxit=1000
                 end if
-                if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
-                    tol=Tolerance*Tolerance
+                if(present(Precision)) then!To save sqrt cost, precision is squared
+                    tol=Precision*Precision
                 else
                     tol=1d-30
                 end if
+                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
+                    minstep=MinStepLength*MinStepLength
+                else
+                    minstep=1d-30
+                end if
                 if(present(WolfeConst1)) then
-                    c1=WolfeConst1
+                    c1=max(1d-15,WolfeConst1)!Fail safe
                 else
                     c1=1d-4
                 end if
                 if(present(WolfeConst2)) then
-                    c2=WolfeConst2
+                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                 else
                     c2=0.45d0
                 end if
@@ -967,11 +971,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A106)')'Dai-Yun conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -992,11 +996,11 @@ contains
                     terminate=.true.
                     return
                 end if
-                if(dot_product(p,p)*a*a<tol) then
+                if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.
                     return
@@ -1021,26 +1025,34 @@ contains
         !Input:  c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
         !        a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
         !Output: a harvests the step length satisfying certain condition, x = x + a * p, fx = f(x), fdx = f'(x)
+        !Optional argument: Increment: (default = 1.05) each iteration change step length by how much time (must > 1)
 
         !Line search for a step length satisfying Wolfe condition
         !This routine is designed to minimize gradient computation
-        subroutine Wolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim)
-            real*8,intent(in)::c1,c2
-            external::f,fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,intent(inout)::a
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(inout)::fx
-            real*8,intent(in)::phid0
-            real*8,dimension(dim),intent(out)::fdx
-            real*8,parameter::increment=1.05d0! > 1
-            real*8::c2_m_phid0,fx0,ftemp,atemp,aold,fold,phidx
+        subroutine Wolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim,Increment)
+            !Required argument
+                real*8,intent(in)::c1,c2
+                external::f,fd
+                integer,intent(in)::dim
+                real*8,dimension(dim),intent(inout)::x
+                real*8,intent(inout)::a
+                real*8,dimension(dim),intent(in)::p
+                real*8,intent(inout)::fx
+                real*8,intent(in)::phid0
+                real*8,dimension(dim),intent(out)::fdx
+            !Optional argument
+                real*8,intent(in),optional::Increment
+            real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidx
             real*8,dimension(dim)::x0
             !Initialize
+                if(present(Increment)) then
+                    incrmt=max(1d0+1d-15,Increment)!Fail safe
+                else
+                    incrmt=1.05d0
+                end if
                 x0=x
                 fx0=fx
-                c2_m_phid0=c2*phid0
+                c2_m_abs_phid0=c2*Abs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
             x=x0+a*p
             call f(fx,x,dim)
@@ -1048,21 +1060,19 @@ contains
                 do
                     aold=a
                     fold=fx
-                    a=aold*increment
+                    a=aold*incrmt
                     x=x0+a*p
                     call f(fx,x,dim)
                     if(fx>fx0+c1*a*phid0) then
                         x=x0+aold*p
                         call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
-                        if(phidx>c2_m_phid0) then
+                        if(phidx>c2_m_abs_phid0) then
                             a=aold
                             fx=fold
                         else
                             atemp=a
                             ftemp=fx
-                            x=x0!Restore x and fx to input status before calling zoom
-                            fx=fx0
                             call WolfeZoom(aold,atemp,fold,ftemp,phidx)
                         end if
                         return
@@ -1072,22 +1082,20 @@ contains
                 do
                     aold=a
                     fold=fx
-                    a=aold/increment
+                    a=aold/incrmt
                     x=x0+a*p
                     call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then
                         call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
-                        if(phidx<c2_m_phid0) then
+                        if(phidx<c2_m_abs_phid0) then
                             atemp=a
                             ftemp=fx
-                            x=x0!Restore x and fx to input status before calling zoom
-                            fx=fx0
                             call WolfeZoom(atemp,aold,ftemp,fold,phidx)
                         end if
                         return
                     end if
-                    if(a<1d-37) then
+                    if(a<1d-15) then
                         call fd(fdx,x,dim)
                         return
                     end if
@@ -1100,57 +1108,57 @@ contains
                 !    phi'(low) < 0
                 subroutine WolfeZoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
                     real*8,intent(inout)::low,up,flow,fup,phidlow
-                    real*8::c2_m_phid0,fx0,phidnew,phidlow_m_a
-                    real*8,dimension(dim)::x0
-                    !Initialize
-                        x0=x
-                        fx0=fx
-                        c2_m_phid0=c2*phid0
-                        phidlow_m_a=phidlow*a
+                    real*8::phidnew,phidlow_m_a
+                    phidlow_m_a=phidlow*a!Initialize
                     do
                         !Updata a by quadratic interpolation
                             a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
-                            if(.not.(a>up.and.a<low)) a=(low+up)/2d0
+                            if(.not.(a>low.and.a<up)) a=(low+up)/2d0!Fail safe
                         x=x0+a*p
                         call f(fx,x,dim)
                         if(fx>fx0+c1*a*phid0) then
                             up=a
+                            if(Abs(up-low)<1d-15) then
+                                call fd(fdx,x,dim)
+                                return
+                            end if
                             fup=fx
                         else
                             call fd(fdx,x,dim)
                             phidnew=dot_product(fdx,p)
-                            if(phidnew>c2_m_phid0) return
+                            if(phidnew>c2_m_abs_phid0) return
                             low=a
+                            if(Abs(up-low)<1d-15) return
                             flow=fx
                             phidlow=phidnew
                             phidlow_m_a=phidlow*a
-                        end if
-                        if(Abs(up-low)<1d-37) then
-                            call fd(fdx,x,dim)
-                            return
                         end if
                     end do
                 end subroutine WolfeZoom
         end subroutine Wolfe
         
         !Line search for a step length satisfying strong Wolfe condition
-        !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
-        !       a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
-        !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
-        subroutine StrongWolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim)
-            real*8,intent(in)::c1,c2
-            external::f,fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,intent(inout)::a
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(inout)::fx
-            real*8,intent(in)::phid0
-            real*8,dimension(dim),intent(out)::fdx
-            real*8,parameter::increment=1.05d0! > 1
-            real*8::c2_m_abs_phid0,fx0,atemp,aold,fold,phidnew,phidold
+        subroutine StrongWolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim,Increment)
+            !Required argument
+                real*8,intent(in)::c1,c2
+                external::f,fd
+                integer,intent(in)::dim
+                real*8,dimension(dim),intent(inout)::x
+                real*8,intent(inout)::a
+                real*8,dimension(dim),intent(in)::p
+                real*8,intent(inout)::fx
+                real*8,intent(in)::phid0
+                real*8,dimension(dim),intent(out)::fdx
+            !Optional argument
+                real*8,intent(in),optional::Increment
+            real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidnew,phidold
             real*8,dimension(dim)::x0
             !Initialize
+                if(present(Increment)) then
+                    incrmt=max(1d0+1d-15,Increment)!Fail safe
+                else
+                    incrmt=1.05d0
+                end if
                 x0=x
                 fx0=fx
                 c2_m_abs_phid0=c2*Abs(phid0)
@@ -1166,46 +1174,43 @@ contains
                         aold=a
                         fold=fx
                         phidold=phidnew
-                        a=aold/increment
+                        a=aold/incrmt
                         x=x0+a*p
                         call f(fx,x,dim)
                         call fd(fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(fx>=fold.or.phidnew<=0d0) then
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidold,phidnew,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
-                        if(a<1d-37) return
+                        if(a<1d-15) return
                     end do
                 else!Search for larger a
                     do
                         aold=a
                         fold=fx
                         phidold=phidnew
-                        a=aold*increment
+                        a=aold*incrmt
                         x=x0+a*p
                         call f(fx,x,dim)
                         call fd(fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidold,phidnew,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(phidnew>0d0) then
                             if(Abs(phidnew)<=c2_m_abs_phid0) then
                                 return
                             else
-                                x=x0
                                 atemp=a
-                                call StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,atemp,aold,fx,fold,phidnew,phidold,fdx,dim)
+                                ftemp=fx
+                                call StrongWolfeZoom(atemp,aold,ftemp,fold,phidnew,phidold)
                                 fx=fx0
-                                return
                             end if
                         end if
                     end do
@@ -1214,7 +1219,7 @@ contains
                 do
                     aold=a
                     fold=fx
-                    a=aold/increment
+                    a=aold/incrmt
                     x=x0+a*p
                     call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then!Found, then look at slope
@@ -1225,33 +1230,31 @@ contains
                             x=x0+aold*p
                             call fd(fdx,x,dim)
                             phidold=dot_product(fdx,p)
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,atemp,aold,fx,fold,phidnew,phidold,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         else!Search for such an a that phi(a) < phi(aold) & phid(a) > 0 is false
                             do
                                 aold=a
                                 fold=fx
                                 phidold=phidnew
-                                a=aold/increment
+                                a=aold/incrmt
                                 x=x0+a*p
                                 call f(fx,x,dim)
                                 call fd(fdx,x,dim)
                                 phidnew=dot_product(fdx,p)
                                 if(fx>=fold.or.phidnew<=0d0) then
-                                    x=x0
                                     atemp=a
-                                    call StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidold,phidnew,fdx,dim)
-                                    fx=fx0
+                                    ftemp=fx
+                                    call StrongWolfeZoom(aold,atemp,fold,ftemp,phidold,phidnew)
                                     return
                                 end if
-                                if(a<1d-37) return
+                                if(a<1d-15) return
                             end do
                         end if
                     end if
-                    if(a<1d-37) then
+                    if(a<1d-15) then
                         call fd(fdx,x,dim)
                         return
                     end if
@@ -1266,37 +1269,20 @@ contains
                 !            up violates the sufficient decrease condition
                 !            phi(up) >= phi(low)
                 !            up < low & phi'(up) <= 0
-                !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x, p is current p, fx = f(x), phid0 = phi'(0)
-                !       low & up are explained above, flow/up & phidlow/up corresponds to low/up
-                !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
-                subroutine StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
-                    real*8,intent(in)::c1,c2
-                    external::f,fd
-                    integer,intent(in)::dim
-                    real*8,dimension(dim),intent(inout)::x
-                    real*8,intent(out)::a
-                    real*8,dimension(dim),intent(in)::p
-                    real*8,intent(inout)::fx
-                    real*8,intent(in)::phid0
+                subroutine StrongWolfeZoom(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
-                    real*8,dimension(dim),intent(out)::fdx
-                    real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
-                    real*8,dimension(dim)::x0
-                    !Initialize
-                        x0=x
-                        fx0=fx
-                        c2_m_abs_phid0=c2*Abs(phid0)
-                    do
+                    real*8::phidnew,d1,d2
+                    do while(Abs(up-low)>1d-15)
                         !Updata a by cubic interpolation
                             d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
                             d2=up-low
                             if(d2>0d0) then
-                                d2=Sqrt(d1*d1-phidlow*phidup)
+                                d2=dSqrt(d1*d1-phidlow*phidup)
                             else
-                                d2=-Sqrt(d1*d1-phidlow*phidup)
+                                d2=-dSqrt(d1*d1-phidlow*phidup)
                             end if
                             a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
-                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
+                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0!Fail safe
                         x=x0+a*p
                         call f(fx,x,dim)
                         call fd(fdx,x,dim)
@@ -1316,28 +1302,33 @@ contains
                             flow=fx
                             phidlow=phidnew
                         end if
-                        if(Abs(up-low)<1d-37) return
                     end do
                 end subroutine StrongWolfeZoom
         end subroutine StrongWolfe
-        
-        !Almost same to StrongWolfe, but modified for cheap to evaluate f' along with f case
-        subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim)
-            real*8,intent(in)::c1,c2
-            external::f,fd
-            integer,external::f_fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,intent(inout)::a
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(inout)::fx
-            real*8,intent(in)::phid0
-            real*8,dimension(dim),intent(out)::fdx
-            real*8,parameter::increment=1.05d0! > 1
+        !When it is cheaper to evaluate f' along with f
+        subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)
+            !Required argument
+                real*8,intent(in)::c1,c2
+                external::f,fd
+                integer,external::f_fd
+                integer,intent(in)::dim
+                real*8,dimension(dim),intent(inout)::x
+                real*8,intent(inout)::a
+                real*8,dimension(dim),intent(in)::p
+                real*8,intent(inout)::fx
+                real*8,intent(in)::phid0
+                real*8,dimension(dim),intent(out)::fdx
+            !Optional argument
+                real*8,intent(in),optional::Increment
             integer::info
-            real*8::c2_m_abs_phid0,fx0,atemp,aold,fold,phidnew,phidold
+            real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidnew,phidold
             real*8,dimension(dim)::x0
             !Initialize
+                if(present(Increment)) then
+                    incrmt=max(1d0+1d-15,Increment)!Fail safe
+                else
+                    incrmt=1.05d0
+                end if
                 x0=x
                 fx0=fx
                 c2_m_abs_phid0=c2*Abs(phid0)
@@ -1352,41 +1343,38 @@ contains
                         aold=a
                         fold=fx
                         phidold=phidnew
-                        a=aold/increment
+                        a=aold/incrmt
                         x=x0+a*p
                         info=f_fd(fx,fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(fx>=fold.or.phidnew<=0d0) then
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidold,phidnew,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom_fdwithf(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
-                        if(a<1d-37) return
+                        if(a<1d-15) return
                     end do
                 else!Search for larger a
                     do
                         aold=a
                         fold=fx
                         phidold=phidnew
-                        a=aold*increment
+                        a=aold*incrmt
                         x=x0+a*p
                         info=f_fd(fx,fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidold,phidnew,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom_fdwithf(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(phidnew>0d0) then
                             if(Abs(phidnew)<=c2_m_abs_phid0) return
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx0,phid0,atemp,aold,fx,fold,phidnew,phidold,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom_fdwithf(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         end if
                     end do
@@ -1395,7 +1383,7 @@ contains
                 do
                     aold=a
                     fold=fx
-                    a=aold/increment
+                    a=aold/incrmt
                     x=x0+a*p
                     call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then!Found, then look at slope
@@ -1406,67 +1394,50 @@ contains
                             x=x0+aold*p
                             call fd(fdx,x,dim)
                             phidold=dot_product(fdx,p)
-                            x=x0
                             atemp=a
-                            call StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx0,phid0,atemp,aold,fx,fold,phidnew,phidold,fdx,dim)
-                            fx=fx0
+                            ftemp=fx
+                            call StrongWolfeZoom_fdwithf(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         else!Search for such an a that phi(a) < phi(aold) & phid(a) > 0 is false
                             do
                                 aold=a
                                 fold=fx
                                 phidold=phidnew
-                                a=aold/increment
+                                a=aold/incrmt
                                 x=x0+a*p
                                 info=f_fd(fx,fdx,x,dim)
                                 phidnew=dot_product(fdx,p)
                                 if(fx>=fold.or.phidnew<=0d0) then
-                                    x=x0
                                     atemp=a
-                                    call StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidold,phidnew,fdx,dim)
-                                    fx=fx0
+                                    ftemp=fx
+                                    call StrongWolfeZoom_fdwithf(aold,atemp,fold,ftemp,phidold,phidnew)
                                     return
                                 end if
-                                if(a<1d-37) return
+                                if(a<1d-15) return
                             end do
                         end if
                     end if
-                    if(a<1d-37) then
+                    if(a<1d-15) then
                         call fd(fdx,x,dim)
                         return
                     end if
                 end do
             end if
             contains
-                subroutine StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
-                    real*8,intent(in)::c1,c2
-                    integer,external::f_fd
-                    integer,intent(in)::dim
-                    real*8,dimension(dim),intent(inout)::x
-                    real*8,intent(out)::a
-                    real*8,dimension(dim),intent(in)::p
-                    real*8,intent(inout)::fx
-                    real*8,intent(in)::phid0
+                subroutine StrongWolfeZoom_fdwithf(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
-                    real*8,dimension(dim),intent(out)::fdx
-                    integer::info
-                    real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
-                    real*8,dimension(dim)::x0
-                    !Initialize
-                        x0=x
-                        fx0=fx
-                        c2_m_abs_phid0=c2*Abs(phid0)
-                    do
+                    real*8::phidnew,d1,d2
+                    do while(Abs(up-low)>1d-15)
                         !Updata a by cubic interpolation
                             d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
                             d2=up-low
                             if(d2>0d0) then
-                                d2=Sqrt(d1*d1-phidlow*phidup)
+                                d2=dSqrt(d1*d1-phidlow*phidup)
                             else
-                                d2=-Sqrt(d1*d1-phidlow*phidup)
+                                d2=-dSqrt(d1*d1-phidlow*phidup)
                             end if
                             a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
-                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
+                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0!Fail safe
                         x=x0+a*p
                         info=f_fd(fx,fdx,x,dim)
                         phidnew=dot_product(fdx,p)
@@ -1485,7 +1456,6 @@ contains
                             flow=fx
                             phidlow=phidnew
                         end if
-                        if(Abs(up-low)<1d-37) return
                     end do
                 end subroutine StrongWolfeZoom_fdwithf
         end subroutine StrongWolfe_fdwithf
@@ -1496,212 +1466,98 @@ contains
     !MKL trust-region nonlinear least square problem (trnlsp) solver wrapper
     !Solve f'(x) = 0 by minimizing merit function F(x) = f'(x)^2 through trust-region method
     !with model function m(p) = [ f'(x) + J(x) . p ]^2, where J(x) is the Jacobian
-    !This procedure can be interpreted in different ways other than f'(x) = 0:
+    !This algorithm can be interpreted in different ways other than f'(x) = 0:
     !    f'(x) can be viewed as Sqrt(weight)*residual terms,
     !        then trnlsp minimizes the square penalty (this is where its name comes from)
     !    When M = N, f'(x) can also be considered as the gradient of f(x), Jacobian = Hessian,
     !        but trnlsp doesn't necessarily optimize f(x) (unless f(x) = const * F(x) by coincidence),
     !        it merely return a stationary point of f(x)
-    !trnlspbc solves f'(x) = 0 subject to boundary condition low <= x <= up ( low < up )
-    !External subroutine format:
+    !External procedure format:
     !    subroutine fd(f'(x),x,M,N)
-    !    subroutine Jacobian(J(x),x,M,N)
-    !IO format:
-    !    M dimensional vector f'(x), N dimensional vectors x & low & up, M x N matrix J(x)
-    !    On input x is an initial guess, on exit x is a solution of f'(x) = 0
-    
-    subroutine My_dtrnlsp(fd,Jacobian,x,M,N)
-        external::fd,Jacobian
-        integer,intent(in)::M,N
-        real*8,dimension(N),intent(inout)::x
+    !    integer function Jacobian(J(x),x,M,N)
+    !    M dimensional vector f'(x), N dimensional vector x, M x N matrix J(x)
+    !Required argument:
+    !    subroutine fd, N dimensional vector x, integer M & N
+    !Optional argument:
+    !    Jacobian: presence means analytical Jacobian is available, otherwise call djacobi for central difference Jacobian
+    !    low & up: presence means x subjects to boundary condition low <= x <= up (must both present & low < up)
+    !    Warning: (default = true) if false, all warnings will be suppressed
+    !    MaxIteration: (default = 1000) max number of iterations to perform
+    !    MaxStepIteration: (default = 100) max number of iterations for determining each step length
+    !    Precision: (default = 1d-15) convergence considered when || f'(x) ||_2 < Precision
+    !    MinStepLength: (default = 1d-15) terminate if search step < MinStepLength before || f'(x) ||_2 converges
+    !On input x is an initial guess, on exit x is a solution of f'(x) = 0
+
+    subroutine TrustRegion(fd,x,M,N,Jacobian,low,up,Warning,MaxIteration,MaxStepIteration,Precision,MinStepLength)
+        !Required argument
+            external::fd
+            integer,intent(in)::M,N
+            real*8,dimension(N),intent(inout)::x
+        !Optional argument
+            integer,external,optional::Jacobian
+            real*8,dimension(N),intent(in),optional::low,up
+            logical,intent(in),optional::Warning
+            integer,intent(in),optional::MaxIteration,MaxStepIteration
+            real*8 ,intent(in),optional::Precision,MinStepLength
+        !Reverse communication interface (RCI)
+            integer::RCI_request!Recieve job request
+            integer,dimension(6)::info!Results of input parameter checking
+            type(handle_tr)::handle!Trust-region solver handle
+        !Job control
+            logical::warn
+            integer::maxit=1000,maxstepit=1000
+            !tol(1:5) contains the stopping criteria for solving f'(x) = 0:
+            !    1, trust region radius < tol(1)
+            !    2, || f'(x) ||_2 < tol(2)
+            !    3, || Jacobian ||_1 < tol(3) 
+            !    4, || s ||_2 < tol(4), where s is the trial step
+            !    5, || f'(x) ||_2 - || f'(x) - Jacobian . s ||_2 < tol(5)
+            !tol(6) is the precision of s calculation
+            real*8,dimension(6)::tol
         !TotalIteration harvests the solver stops after how many interations
         !StopReason harvests why the solver has stopped:
         !    1,   max iteration exceeded
-        !    2-6, MKLTrustRegionTol(StopReason-1) is met
-        integer::TotalIteration,StopReason
+        !    2-6, tol(StopReason-1) is met
+        integer::i,TotalIteration,StopReason
         real*8::InitialResidual,FinalResidual,StepBound
         real*8,dimension(M)::fdx
         real*8,dimension(M,N)::J
-        integer::RCI_request!Reverse communication interface parameter
-        integer,dimension(6)::info!Results of input parameter checking
-        type(handle_tr)::handle!Trust-region solver handle
         !Initialize
-            fdx=0d0
-            J=0d0
-            StepBound=100d0
-            if(dtrnlsp_init(handle,N,M,x,MKLTrustRegionTol,MaxMKLTrustRegionIteration,MaxMKLTrialStepIteration,StepBound)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            if(dtrnlsp_check(handle,N,M,J,fdx,MKLTrustRegionTol,info)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            else
-                if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
-                    call mkl_free_buffers
-                    return
+            !Set parameter according to optional argument
+                if(present(Warning)) then
+                    warn=Warning
+                else
+                    warn=.true.
                 end if
-            end if
-            RCI_request=0
-        do
-            if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            select case (RCI_request)
-                case (-1,-2,-3,-4,-5,-6)
-                    exit
-                case (1)
-                    call fd(fdx,x,M,N)
-                case (2)
-                    call Jacobian(J,x,M,N)
-            end select
-        end do
-        !Clean up
-            if (dtrnlsp_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            if (dtrnlsp_delete(handle)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            call mkl_free_buffers
-        if(StopReason/=3) then
-            select case(StopReason)
-                case(1)
-                    if(trnlspWarning) then
-                        write(*,*)'Failed trust region: max iteration exceeded!'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-                case(4)
-                    if(trnlspWarning) then
-                        write(*,*)'Failed trust region: singular Jacobian encountered!'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-                case default
-                    if(trnlspWarning) then
-                        write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-            end select
-        end if
-    end subroutine My_dtrnlsp
-    !Cost warning: Jacobian is computed through central difference by calling djacobi
-    subroutine My_dtrnlsp_NumericalJacobian(fd,x,M,N)
-        external::fd
-        integer,intent(in)::M,N
-        real*8,dimension(N),intent(inout)::x
-        !TotalIteration harvests the solver stops after how many interations
-        !StopReason harvests why the solver has stopped:
-        !    1,   max iteration exceeded
-        !    2-6, MKLTrustRegionTol(StopReason-1) is met
-        integer::TotalIteration,StopReason
-        real*8::InitialResidual,FinalResidual,StepBound
-        real*8,dimension(M)::fdx
-        real*8,dimension(M,N)::J
-        integer::RCI_request!Reverse communication interface parameter
-        integer,dimension(6)::info!Results of input parameter checking
-        type(handle_tr)::handle!Trust-region solver handle
-        !Initialize
-            fdx=0d0
-            J=0d0
-            StepBound=100d0
-            if(dtrnlsp_init(handle,N,M,x,MKLTrustRegionTol,MaxMKLTrustRegionIteration,MaxMKLTrialStepIteration,StepBound)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            if(dtrnlsp_check(handle,N,M,J,fdx,MKLTrustRegionTol,info)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            else
-                if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
-                    call mkl_free_buffers
-                    return
+                if(present(MaxIteration)) then
+                    maxit=MaxIteration
+                else
+                    maxit=1000
                 end if
-            end if
-            RCI_request=0
-        do
-            if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            select case (RCI_request)
-                case (-1,-2,-3,-4,-5,-6)
-                    exit
-                case (1)
-                    call fd(M,N,x,fdx)
-                case (2)
-                    if(djacobi(fd,N,M,J,x,1d-8)/=TR_SUCCESS) then
-                        call mkl_free_buffers
-                        return
-                    end if
-            end select
-        end do
-        !Clean up
-            if(dtrnlsp_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            if(dtrnlsp_delete(handle)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            call mkl_free_buffers
-        if(StopReason/=3) then
-            select case(StopReason)
-                case(1)
-                    if(trnlspWarning) then
-                        write(*,*)'Failed trust region: max iteration exceeded!'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-                case(4)
-                    if(trnlspWarning) then
-                        write(*,*)'Failed trust region: singular Jacobian encountered!'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-                case default
-                    if(trnlspWarning) then
-                        write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-            end select
-        end if
-    end subroutine My_dtrnlsp_NumericalJacobian
-    
-    subroutine My_dtrnlspbc(fd,Jacobian,x,low,up,M,N)
-        external::fd,Jacobian
-        integer,intent(in)::M,N
-        real*8,dimension(N),intent(inout)::x
-        real*8,dimension(N),intent(in)::low,up
-        !TotalIteration harvests the solver stops after how many interations
-        !StopReason harvests why the solver has stopped:
-        !    1,   max iteration exceeded
-        !    2-6, MKLTrustRegionTol(StopReason-1) is met
-        integer::TotalIteration,StopReason
-        real*8::InitialResidual,FinalResidual,StepBound
-        real*8,dimension(M)::fdx
-        real*8,dimension(M,N)::J
-        integer::RCI_request!Reverse communication interface parameter
-        integer,dimension(6)::info!Results of input parameter checking
-        type(handle_tr)::handle!Trust-region solver handle
-        !Initialize
+                if(present(MaxStepIteration)) then
+                    maxstepit=MaxStepIteration
+                else
+                    maxstepit=100
+                end if
+                tol=[1d-15,1d-15,1d-15,1d-15,1d-15,1d-15]
+                if(present(Precision)) then
+                    tol(2)=Precision
+                    tol(5)=Precision
+                end if
+                if(present(MinStepLength)) then
+                    tol(1)=MinStepLength
+                    tol(4)=MinStepLength
+                end if
             fdx=0d0
             J=0d0
             StepBound=100d0
-            if(dtrnlspbc_init(handle,N,M,x,low,up,MKLTrustRegionTol,MaxMKLTrustRegionIteration,MaxMKLTrialStepIteration,StepBound)/=TR_SUCCESS) then
+            RCI_request=0
+        if(present(low).and.present(up)) then
+            if(dtrnlspbc_init(handle,N,M,x,low,up,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
                 call mkl_free_buffers
                 return
             end if
-            if(dtrnlspbc_check(handle,N,M,J,fdx,low,up,MKLTrustRegionTol,info)/=TR_SUCCESS) then
+            if(dtrnlspbc_check(handle,N,M,J,fdx,low,up,tol,info)/=TR_SUCCESS) then
                 call mkl_free_buffers
                 return
             else
@@ -1710,155 +1566,142 @@ contains
                     return
                 end if
             end if
-            RCI_request=0
-        do
-            if (dtrnlspbc_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
+            if(present(Jacobian)) then
+                do!Main loop
+                    if (dtrnlspbc_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
+                        call mkl_free_buffers
+                        return
+                    end if
+                    select case (RCI_request)
+                        case (-1,-2,-3,-4,-5,-6)
+                            exit
+                        case (1)
+                            call fd(fdx,x,M,N)
+                        case (2)
+                            i=Jacobian(J,x,M,N)
+                    end select
+                end do
+            else
+                do!Main loop
+                    if (dtrnlspbc_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
+                        call mkl_free_buffers
+                        return
+                    end if
+                    select case (RCI_request)
+                        case (-1,-2,-3,-4,-5,-6)
+                            exit
+                        case (1)
+                            call fd(fdx,x,M,N)
+                        case (2)
+                            if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
+                                call mkl_free_buffers
+                                return
+                            end if
+                    end select
+                end do
             end if
-            select case (RCI_request)
-                case (-1,-2,-3,-4,-5,-6)
+            !Clean up
+                if (dtrnlspbc_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
+                    call mkl_free_buffers
+                    return
+                end if
+                if (dtrnlspbc_delete(handle)/=TR_SUCCESS) then
+                    call mkl_free_buffers
+                    return
+                end if
+            do i=1,N
+                if((x(i)<low(i).or.x(i)>up(i)).and.warn) then
+                    write(*,'(1x,A49)')'Failed trust region: boundary condition violated!'
                     exit
-                case (1)
-                    call fd(fdx,x,M,N)
-                case (2)
-                    call Jacobian(J,x,M,N)
-            end select
-        end do
-        !Clean up
-            if (dtrnlspbc_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
+                end if
+            end do
+        else
+            if(dtrnlsp_init(handle,N,M,x,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
                 call mkl_free_buffers
                 return
             end if
-            if (dtrnlspbc_delete(handle)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            call mkl_free_buffers
-        do RCI_request=1,N
-            if((x(RCI_request)<low(RCI_request).or.x(RCI_request)>up(RCI_request)).and.trnlspWarning) then
-                write(*,*)'Failed trust region: boundary condition violated!'
-                trnlspWarning=.false.
-                exit
-            end if
-        end do
-        if(StopReason/=3) then
-            select case(StopReason)
-                case(1)
-                    if(trnlspWarning) then
-                        write(*,*)'Failed trust region: max iteration exceeded!'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-                case(4)
-                    if(trnlspWarning) then
-                        write(*,*)'Failed trust region: singular Jacobian encountered!'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-                case default
-                    if(trnlspWarning) then
-                        write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
-                    end if
-            end select
-        end if
-    end subroutine My_dtrnlspbc
-    !Cost warning: Jacobian is computed through central difference by calling djacobi
-    subroutine My_dtrnlspbc_NumericalJacobian(fd,x,low,up,M,N)
-        external::fd
-        integer,intent(in)::M,N
-        real*8,dimension(N),intent(inout)::x
-        real*8,dimension(N),intent(in)::low,up
-        !TotalIteration harvests the solver stops after how many interations
-        !StopReason harvests why the solver has stopped:
-        !    1,   max iteration exceeded
-        !    2-6, MKLTrustRegionTol(StopReason-1) is met
-        integer::TotalIteration,StopReason
-        real*8::InitialResidual,FinalResidual,StepBound
-        real*8,dimension(M)::fdx
-        real*8,dimension(M,N)::J
-        integer::RCI_request!Reverse communication interface parameter
-        integer,dimension(6)::info!Results of input parameter checking
-        type(handle_tr)::handle!Trust-region solver handle
-        !Initialize
-            fdx=0d0
-            J=0d0
-            StepBound=100d0
-            if(dtrnlspbc_init(handle,N,M,x,low,up,MKLTrustRegionTol,MaxMKLTrustRegionIteration,MaxMKLTrialStepIteration,StepBound)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            if(dtrnlspbc_check(handle,N,M,J,fdx,low,up,MKLTrustRegionTol,info)/=TR_SUCCESS) then
+            if(dtrnlsp_check(handle,N,M,J,fdx,tol,info)/=TR_SUCCESS) then
                 call mkl_free_buffers
                 return
             else
-                if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0.or.info(5)/=0.or.info(6)/=0) then
+                if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
                     call mkl_free_buffers
                     return
                 end if
             end if
-            RCI_request=0
-        do
-            if (dtrnlspbc_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            select case (RCI_request)
-                case (-1,-2,-3,-4,-5,-6)
-                    exit
-                case (1)
-                    call fd(M,N,x,fdx)
-                case (2)
-                    if(djacobi(fd,N,M,J,x,1d-8)/=TR_SUCCESS) then
+            if(present(Jacobian)) then
+                do!Main loop
+                    if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
                         call mkl_free_buffers
                         return
                     end if
-            end select
-        end do
-        !Clean up
-            if (dtrnlspbc_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
+                    select case (RCI_request)
+                        case (-1,-2,-3,-4,-5,-6)
+                            exit
+                        case (1)
+                            call fd(fdx,x,M,N)
+                        case (2)
+                            i=Jacobian(J,x,M,N)
+                    end select
+                end do
+            else
+                do!Main loop
+                    if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
+                        call mkl_free_buffers
+                        return
+                    end if
+                    select case (RCI_request)
+                        case (-1,-2,-3,-4,-5,-6)
+                            exit
+                        case (1)
+                            call fd(fdx,x,M,N)
+                        case (2)
+                            if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
+                                call mkl_free_buffers
+                                return
+                            end if
+                    end select
+                end do
             end if
-            if (dtrnlspbc_delete(handle)/=TR_SUCCESS) then
-                call mkl_free_buffers
-                return
-            end if
-            call mkl_free_buffers
-        do RCI_request=1,N
-            if((x(RCI_request)<low(RCI_request).or.x(RCI_request)>up(RCI_request)).and.trnlspWarning) then
-                write(*,*)'Failed trust region: boundary condition violated!'
-                trnlspWarning=.false.
-                exit
-            end if
-        end do
+            !Clean up
+                if (dtrnlsp_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
+                    call mkl_free_buffers
+                    return
+                end if
+                if (dtrnlsp_delete(handle)/=TR_SUCCESS) then
+                    call mkl_free_buffers
+                    return
+                end if
+        end if
+        call mkl_free_buffers
         if(StopReason/=3) then
             select case(StopReason)
                 case(1)
-                    if(trnlspWarning) then
+                    if(warn) then
                         write(*,*)'Failed trust region: max iteration exceeded!'
                         write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
                     end if
                 case(4)
-                    if(trnlspWarning) then
+                    if(warn) then
                         write(*,*)'Failed trust region: singular Jacobian encountered!'
                         write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
                     end if
                 case default
-                    if(trnlspWarning) then
+                    if(warn) then
                         write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Final residual =',FinalResidual
-                        trnlspWarning=.false.
                     end if
             end select
         end if
-    end subroutine My_dtrnlspbc_NumericalJacobian
+        contains
+            subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
+                integer,intent(in)::M,N
+                real*8,dimension(N),intent(in)::x
+                real*8,dimension(M),intent(out)::fdx
+                call fd(fdx,x,N)
+            end subroutine fd_j
+    end subroutine TrustRegion
 !------------------ End -------------------
 
 !---------- Augmented Lagrangian ----------
