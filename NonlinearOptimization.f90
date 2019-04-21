@@ -1047,16 +1047,16 @@ contains
 
     !=========== Line searcher ============
         !Some direction finders can only converge under strong Wolfe condition
-        !Goldstein is only suitable for Newton, but not even for quasi-Newton
+        !Goldstein is only suitable for Newton, but not even for quasi-Newton (so it has not been implemented)
         !For Newton and quasi-Newton, the initial guess can always be a = 1, because their direction vector is well scaled
         !However, for methods whose direction is not determined by inverted (approximate) Hessian multiplying -gradient,
         !e.g., steepest descent and conjugate gradient, user has to come up with a good initial guess
+        !Input:  c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
+        !        a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
+        !Output: a harvests the step length satisfying certain condition, x = x + a * p, fx = f(x), fdx = f'(x)
 
         !Line search for a step length satisfying Wolfe condition
         !This routine is designed to minimize gradient computation
-        !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
-        !       a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
-        !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
         subroutine Wolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim)
             real*8,intent(in)::c1,c2
             external::f,fd
@@ -1068,7 +1068,7 @@ contains
             real*8,intent(in)::phid0
             real*8,dimension(dim),intent(out)::fdx
             real*8,parameter::increment=1.05d0! > 1
-            real*8::c2_m_phid0,fx0,atemp,aold,fold,phidx
+            real*8::c2_m_phid0,fx0,ftemp,atemp,aold,fold,phidx
             real*8,dimension(dim)::x0
             !Initialize
                 x0=x
@@ -1092,10 +1092,11 @@ contains
                             a=aold
                             fx=fold
                         else
-                            x=x0
                             atemp=a
-                            call WolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,aold,atemp,fold,fx,phidx,fdx,dim)
+                            ftemp=fx
+                            x=x0!Restore x and fx to input status before calling zoom
                             fx=fx0
+                            call WolfeZoom(aold,atemp,fold,ftemp,phidx)
                         end if
                         return
                     end if
@@ -1111,10 +1112,11 @@ contains
                         call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
                         if(phidx<c2_m_phid0) then
-                            x=x0
                             atemp=a
-                            call WolfeZoom(c1,c2,f,fd,x,a,p,fx0,phid0,atemp,aold,fx,fold,phidx,fdx,dim)
+                            ftemp=fx
+                            x=x0!Restore x and fx to input status before calling zoom
                             fx=fx0
+                            call WolfeZoom(atemp,aold,ftemp,fold,phidx)
                         end if
                         return
                     end if
@@ -1124,57 +1126,46 @@ contains
                     end if
                 end do
             end if
+            contains
+                !Support Wolfe. low and up must satisfy:
+                !    low < up
+                !    low satisfies sufficient decrease condition, but up violates
+                !    phi'(low) < 0
+                subroutine WolfeZoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
+                    real*8,intent(inout)::low,up,flow,fup,phidlow
+                    real*8::c2_m_phid0,fx0,phidnew,phidlow_m_a
+                    real*8,dimension(dim)::x0
+                    !Initialize
+                        x0=x
+                        fx0=fx
+                        c2_m_phid0=c2*phid0
+                        phidlow_m_a=phidlow*a
+                    do
+                        !Updata a by quadratic interpolation
+                            a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
+                            if(.not.(a>up.and.a<low)) a=(low+up)/2d0
+                        x=x0+a*p
+                        call f(fx,x,dim)
+                        if(fx>fx0+c1*a*phid0) then
+                            up=a
+                            fup=fx
+                        else
+                            call fd(fdx,x,dim)
+                            phidnew=dot_product(fdx,p)
+                            if(phidnew>c2_m_phid0) return
+                            low=a
+                            flow=fx
+                            phidlow=phidnew
+                            phidlow_m_a=phidlow*a
+                        end if
+                        if(Abs(up-low)<1d-37) then
+                            call fd(fdx,x,dim)
+                            return
+                        end if
+                    end do
+                end subroutine WolfeZoom
         end subroutine Wolfe
-        !Support Wolfe. low and up must satisfy:
-        !    low < up
-        !    low satisfies sufficient decrease condition, but up violates
-        !    phi'(low) < 0
-        !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x, p is current p, fx = f(x), phid0 = phi'(0)
-        !       low & up are explained above, flow/up & phidlow/up corresponds to low/up
-        !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
-        subroutine WolfeZoom(c1,c2,f,fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,fdx,dim)
-            real*8,intent(in)::c1,c2! 0 < c1 < c2 < 1
-            external::f,fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,intent(out)::a
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(inout)::fx
-            real*8,intent(in)::phid0
-            real*8,intent(inout)::low,up,flow,fup,phidlow
-            real*8,dimension(dim),intent(out)::fdx
-            real*8::c2_m_phid0,fx0,phidnew,phidlow_m_a
-            real*8,dimension(dim)::x0
-            !Initialize
-                x0=x
-                fx0=fx
-                c2_m_phid0=c2*phid0
-                phidlow_m_a=phidlow*a
-            do
-                !Updata a by quadratic interpolation
-                    a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
-                    if(.not.(a>up.and.a<low)) a=(low+up)/2d0
-                x=x0+a*p
-                call f(fx,x,dim)
-                if(fx>fx0+c1*a*phid0) then
-                    up=a
-                    fup=fx
-                else
-                    call fd(fdx,x,dim)
-                    phidnew=dot_product(fdx,p)
-                    if(phidnew>c2_m_phid0) return
-                    low=a
-                    flow=fx
-                    phidlow=phidnew
-                    phidlow_m_a=phidlow*a
-                end if
-                if(Abs(up-low)<1d-37) then
-                    call fd(fdx,x,dim)
-                    return
-                end if
-            end do
-        end subroutine WolfeZoom
-
+        
         !Line search for a step length satisfying strong Wolfe condition
         !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
         !       a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
@@ -1299,68 +1290,69 @@ contains
                     end if
                 end do
             end if
+            contains
+                !Support StrongWolfe. low and up must satisfy:
+                !    low satisfies sufficient decrease condition
+                !    ( up - low ) * phi'(low) < 0
+                !    [ low, up ] (or [ up, low ]) contains a step length satisfying strong Wolfe condition
+                !        This means at least 1 of 3 following statements is true:
+                !            up violates the sufficient decrease condition
+                !            phi(up) >= phi(low)
+                !            up < low & phi'(up) <= 0
+                !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x, p is current p, fx = f(x), phid0 = phi'(0)
+                !       low & up are explained above, flow/up & phidlow/up corresponds to low/up
+                !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
+                subroutine StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
+                    real*8,intent(in)::c1,c2
+                    external::f,fd
+                    integer,intent(in)::dim
+                    real*8,dimension(dim),intent(inout)::x
+                    real*8,intent(out)::a
+                    real*8,dimension(dim),intent(in)::p
+                    real*8,intent(inout)::fx
+                    real*8,intent(in)::phid0
+                    real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
+                    real*8,dimension(dim),intent(out)::fdx
+                    real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
+                    real*8,dimension(dim)::x0
+                    !Initialize
+                        x0=x
+                        fx0=fx
+                        c2_m_abs_phid0=c2*Abs(phid0)
+                    do
+                        !Updata a by cubic interpolation
+                            d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
+                            d2=up-low
+                            if(d2>0d0) then
+                                d2=Sqrt(d1*d1-phidlow*phidup)
+                            else
+                                d2=-Sqrt(d1*d1-phidlow*phidup)
+                            end if
+                            a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
+                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
+                        x=x0+a*p
+                        call f(fx,x,dim)
+                        call fd(fdx,x,dim)
+                        phidnew=dot_product(fdx,p)
+                        if(fx>fx0+c1*a*phid0.or.fx>=flow) then
+                            up=a
+                            fup=fx
+                            phidup=phidnew
+                        else
+                            if(Abs(phidnew)<=c2_m_abs_phid0) return
+                            if(phidnew*(up-low)>=0d0) then
+                                up=low
+                                fup=flow
+                                phidup=phidlow
+                            end if
+                            low=a
+                            flow=fx
+                            phidlow=phidnew
+                        end if
+                        if(Abs(up-low)<1d-37) return
+                    end do
+                end subroutine StrongWolfeZoom
         end subroutine StrongWolfe
-        !Support StrongWolfe. low and up must satisfy:
-        !    low satisfies sufficient decrease condition
-        !    ( up - low ) * phi'(low) < 0
-        !    [ low, up ] (or [ up, low ]) contains a step length satisfying strong Wolfe condition
-        !        This means at least 1 of 3 following statements is true:
-        !            up violates the sufficient decrease condition
-        !            phi(up) >= phi(low)
-        !            up < low & phi'(up) <= 0
-        !Input: c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x, p is current p, fx = f(x), phid0 = phi'(0)
-        !       low & up are explained above, flow/up & phidlow/up corresponds to low/up
-        !Output: a harvests the step length satisfying strong Wolfe condition, x = x + a * p, fx = f(x), fdx = f'(x)
-        subroutine StrongWolfeZoom(c1,c2,f,fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
-            real*8,intent(in)::c1,c2
-            external::f,fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,intent(out)::a
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(inout)::fx
-            real*8,intent(in)::phid0
-            real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
-            real*8,dimension(dim),intent(out)::fdx
-            real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
-            real*8,dimension(dim)::x0
-            !Initialize
-                x0=x
-                fx0=fx
-                c2_m_abs_phid0=c2*Abs(phid0)
-            do
-                !Updata a by cubic interpolation
-                    d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
-                    d2=up-low
-                    if(d2>0d0) then
-                        d2=Sqrt(d1*d1-phidlow*phidup)
-                    else
-                        d2=-Sqrt(d1*d1-phidlow*phidup)
-                    end if
-                    a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
-                    if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
-                x=x0+a*p
-                call f(fx,x,dim)
-                call fd(fdx,x,dim)
-                phidnew=dot_product(fdx,p)
-                if(fx>fx0+c1*a*phid0.or.fx>=flow) then
-                    up=a
-                    fup=fx
-                    phidup=phidnew
-                else
-                    if(Abs(phidnew)<=c2_m_abs_phid0) return
-                    if(phidnew*(up-low)>=0d0) then
-                        up=low
-                        fup=flow
-                        phidup=phidlow
-                    end if
-                    low=a
-                    flow=fx
-                    phidlow=phidnew
-                end if
-                if(Abs(up-low)<1d-37) return
-            end do
-        end subroutine StrongWolfeZoom
         
         !Almost same to StrongWolfe, but modified for cheap to evaluate f' along with f case
         subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim)
@@ -1478,62 +1470,58 @@ contains
                     end if
                 end do
             end if
+            contains
+                subroutine StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
+                    real*8,intent(in)::c1,c2
+                    integer,external::f_fd
+                    integer,intent(in)::dim
+                    real*8,dimension(dim),intent(inout)::x
+                    real*8,intent(out)::a
+                    real*8,dimension(dim),intent(in)::p
+                    real*8,intent(inout)::fx
+                    real*8,intent(in)::phid0
+                    real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
+                    real*8,dimension(dim),intent(out)::fdx
+                    integer::info
+                    real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
+                    real*8,dimension(dim)::x0
+                    !Initialize
+                        x0=x
+                        fx0=fx
+                        c2_m_abs_phid0=c2*Abs(phid0)
+                    do
+                        !Updata a by cubic interpolation
+                            d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
+                            d2=up-low
+                            if(d2>0d0) then
+                                d2=Sqrt(d1*d1-phidlow*phidup)
+                            else
+                                d2=-Sqrt(d1*d1-phidlow*phidup)
+                            end if
+                            a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
+                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
+                        x=x0+a*p
+                        info=f_fd(fx,fdx,x,dim)
+                        phidnew=dot_product(fdx,p)
+                        if(fx>fx0+c1*a*phid0.or.fx>=flow) then
+                            up=a
+                            fup=fx
+                            phidup=phidnew
+                        else
+                            if(Abs(phidnew)<=c2_m_abs_phid0) return
+                            if(phidnew*(up-low)>=0d0) then
+                                up=low
+                                fup=flow
+                                phidup=phidlow
+                            end if
+                            low=a
+                            flow=fx
+                            phidlow=phidnew
+                        end if
+                        if(Abs(up-low)<1d-37) return
+                    end do
+                end subroutine StrongWolfeZoom_fdwithf
         end subroutine StrongWolfe_fdwithf
-        !Support StrongWolfe_fdwithf
-        subroutine StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
-            real*8,intent(in)::c1,c2
-            integer,external::f_fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-            real*8,intent(out)::a
-            real*8,dimension(dim),intent(in)::p
-            real*8,intent(inout)::fx
-            real*8,intent(in)::phid0
-            real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
-            real*8,dimension(dim),intent(out)::fdx
-            integer::info
-            real*8::c2_m_abs_phid0,fx0,phidnew,d1,d2
-            real*8,dimension(dim)::x0
-            !Initialize
-                x0=x
-                fx0=fx
-                c2_m_abs_phid0=c2*Abs(phid0)
-            do
-                !Updata a by cubic interpolation
-                    d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
-                    d2=up-low
-                    if(d2>0d0) then
-                        d2=Sqrt(d1*d1-phidlow*phidup)
-                    else
-                        d2=-Sqrt(d1*d1-phidlow*phidup)
-                    end if
-                    a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
-                    if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0
-                x=x0+a*p
-                info=f_fd(fx,fdx,x,dim)
-                phidnew=dot_product(fdx,p)
-                if(fx>fx0+c1*a*phid0.or.fx>=flow) then
-                    up=a
-                    fup=fx
-                    phidup=phidnew
-                else
-                    if(Abs(phidnew)<=c2_m_abs_phid0) return
-                    if(phidnew*(up-low)>=0d0) then
-                        up=low
-                        fup=flow
-                        phidup=phidlow
-                    end if
-                    low=a
-                    flow=fx
-                    phidlow=phidnew
-                end if
-                if(Abs(up-low)<1d-37) return
-            end do
-        end subroutine StrongWolfeZoom_fdwithf
-
-        subroutine Goldstein()!Not implemented
-            stop 'Program abort: Goldstein line search has not been implemented'
-        end subroutine Goldstein
     !================ End =================
 !------------------ End -------------------
 

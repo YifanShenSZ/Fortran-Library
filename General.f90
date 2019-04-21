@@ -186,41 +186,40 @@ end subroutine dScientificNotation
            call dQuickSort(item,mid+1,last,indices,N)
         end if
         contains
-        !Support dQuickSort
-        subroutine dSplit(item,low,high,mid,indices,N)
-            integer,intent(in)::N
-            real*8,dimension(N),intent(inout)::Item
-            integer,intent(in)::low,high
-            integer,intent(inout)::mid
-            integer,dimension(N),intent(inout)::indices
-            integer::left,right,iPivot,iSwap
-            real*8::pivot,swap
-            left=low
-            right=high
-            pivot=item(low)
-            iPivot=indices(low)
-            do while ( left < right )
-                do while ( left < right .and. item(right) >= pivot )
-                    right = right - 1
+            subroutine dSplit(item,low,high,mid,indices,N)
+                integer,intent(in)::N
+                real*8,dimension(N),intent(inout)::Item
+                integer,intent(in)::low,high
+                integer,intent(inout)::mid
+                integer,dimension(N),intent(inout)::indices
+                integer::left,right,iPivot,iSwap
+                real*8::pivot,swap
+                left=low
+                right=high
+                pivot=item(low)
+                iPivot=indices(low)
+                do while ( left < right )
+                    do while ( left < right .and. item(right) >= pivot )
+                        right = right - 1
+                    end do
+                    do while ( left < right .and. item(left) <= pivot )
+                        left = left + 1
+                    end do
+                    if (left < right) then
+                        swap        = item(left)
+                        item(left)  = item(right)
+                        item(right) = swap
+                        iSwap          = indices(left)
+                        indices(left)  = indices(right)
+                        indices(right) = iSwap
+                    end if
                 end do
-                do while ( left < right .and. item(left) <= pivot )
-                    left = left + 1
-                end do
-                if (left < right) then
-                    swap        = item(left)
-                    item(left)  = item(right)
-                    item(right) = swap
-                    iSwap          = indices(left)
-                    indices(left)  = indices(right)
-                    indices(right) = iSwap
-                end if
-            end do
-            item(low)   = item(right)
-            item(right) = pivot
-            mid         = right
-            indices(low)   = indices(right)
-            indices(right) = iPivot
-        end subroutine dSplit
+                item(low)   = item(right)
+                item(right) = pivot
+                mid         = right
+                indices(low)   = indices(right)
+                indices(right) = iPivot
+            end subroutine dSplit
     end subroutine dQuickSort
     
     !Inputs: N order vector item & indices, item contains the elements to be sorted, indices(i)=i
@@ -239,40 +238,39 @@ end subroutine dScientificNotation
            call iQuickSort(item,mid+1,last,indices,N)
         end if
         contains
-        !Support iQuickSort
-        subroutine iSplit(item,low,high,mid,indices,N)
-            integer,intent(in)::N
-            integer,dimension(N),intent(inout)::Item
-            integer,intent(in)::low,high
-            integer,intent(inout)::mid
-            integer,dimension(N),intent(inout)::indices
-            integer::left,right,iPivot,iSwap,pivot,swap
-            left=low
-            right=high
-            pivot=item(low)
-            iPivot=indices(low)
-            do while ( left < right )
-                do while ( left < right .and. item(right) >= pivot )
-                    right = right - 1
+            subroutine iSplit(item,low,high,mid,indices,N)
+                integer,intent(in)::N
+                integer,dimension(N),intent(inout)::Item
+                integer,intent(in)::low,high
+                integer,intent(inout)::mid
+                integer,dimension(N),intent(inout)::indices
+                integer::left,right,iPivot,iSwap,pivot,swap
+                left=low
+                right=high
+                pivot=item(low)
+                iPivot=indices(low)
+                do while ( left < right )
+                    do while ( left < right .and. item(right) >= pivot )
+                        right = right - 1
+                    end do
+                    do while ( left < right .and. item(left) <= pivot )
+                        left = left + 1
+                    end do
+                    if (left < right) then
+                        swap        = item(left)
+                        item(left)  = item(right)
+                        item(right) = swap
+                        iSwap          = indices(left)
+                        indices(left)  = indices(right)
+                        indices(right) = iSwap
+                    end if
                 end do
-                do while ( left < right .and. item(left) <= pivot )
-                    left = left + 1
-                end do
-                if (left < right) then
-                    swap        = item(left)
-                    item(left)  = item(right)
-                    item(right) = swap
-                    iSwap          = indices(left)
-                    indices(left)  = indices(right)
-                    indices(right) = iSwap
-                end if
-            end do
-            item(low)   = item(right)
-            item(right) = pivot
-            mid         = right
-            indices(low)   = indices(right)
-            indices(right) = iPivot
-        end subroutine iSplit
+                item(low)   = item(right)
+                item(right) = pivot
+                mid         = right
+                indices(low)   = indices(right)
+                indices(right) = iPivot
+            end subroutine iSplit
     end subroutine iQuickSort
 !--------------- End ---------------
 
