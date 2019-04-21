@@ -7,7 +7,7 @@ program main
     use NonlinearOptimization
     use Nonadiabatic
     implicit none
-    integer::i,j,k,l,freq,memory,dim,M,N
+    integer::i,j,k,l,dim,M,N
     integer,dimension(10)::indicesort
     real*8::difference,DoubleTemp,dbtp
     real*8,dimension(3)::avec,bvec,cvec,mass
@@ -285,8 +285,6 @@ write(*,*)
 
 write(*,*)'Testing all nonlinear-optimization solvers...'
     write(*,*)
-    freq=10
-    memory=10
     dim=10
     M=10
     N=10
@@ -294,122 +292,82 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     up=1d0
     write(*,*)'Newton'
         call random_number(x)
-        NewtonRaphsonWarning=.true.
-        call NewtonRaphson(f,fd,fdd,x,dim)
+        call NewtonRaphson(f,fd,x,dim,fdd=fdd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'Newton_S'
         call random_number(x)
-        NewtonRaphsonWarning=.true.
-        call NewtonRaphson_Strong(f,fd,fdd,x,dim)
+        call NewtonRaphson(f,fd,x,dim,fdd=fdd,Strong=.true.)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'Newton_S_fdwithf'
         call random_number(x)
-        NewtonRaphsonWarning=.true.
-        call NewtonRaphson_Strong_fdwithf(f,fd,f_fd,fdd,x,dim)
+        call NewtonRaphson(f,fd,x,dim,fdd=fdd,f_fd=f_fd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS(f,fd,fdd,x,dim,freq)
+        call BFGS(f,fd,x,dim,fdd=fdd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_cheap'
-        x=0d0
-        QuasiNewtonWarning=.true.
-        call BFGS_cheap(f,fd,x,dim)
+        call random_number(x)
+        call BFGS(f,fd,x,dim,ExactStep=0)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_NH'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_NumericalHessian(f,fd,fd_j,x,dim,freq)
+        call BFGS(f,fd,x,dim)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_S'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_Strong(f,fd,fdd,x,dim,freq)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_S_cheap'
-        call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_Strong_cheap(f,fd,x,dim)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_S_NH'
-        call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_Strong_NumericalHessian(f,fd,fd_j,x,dim,freq)
+        call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'BFGS_S_fdwithf'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_Strong_fdwithf(f,fd,f_fd,fdd,x,dim,freq)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_S_cheap_fdwithf'
-        call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_Strong_cheap_fdwithf(f,fd,f_fd,x,dim)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_S_NH_fdwithf'
-        call random_number(x)
-        QuasiNewtonWarning=.true.
-        call BFGS_Strong_NumericalHessian_fdwithf(f,fd,f_fd,fd_j,x,dim,freq)
+        call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'LBFGS'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call LBFGS(f,fd,x,dim,memory)
+        call LBFGS(f,fd,x,dim)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'LBFGS_S'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call LBFGS_Strong(f,fd,x,dim,memory)
+        call LBFGS(f,fd,x,dim,Strong=.true.)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'LBFGS_S_fdwithf'
         call random_number(x)
-        QuasiNewtonWarning=.true.
-        call LBFGS_Strong_fdwithf(f,fd,f_fd,x,dim,memory)
+        call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'DY'
         call random_number(x)
-        ConjugateGradientWarning=.true.
-        call DYConjugateGradient(f,fd,x,dim)
+        call ConjugateGradient(f,fd,x,dim)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'DY_S'
         call random_number(x)
-        ConjugateGradientWarning=.true.
-        call DYConjugateGradient_Strong(f,fd,x,dim)
+        call ConjugateGradient(f,fd,x,dim,Strong=.true.)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'DY_S_fdwithf'
         call random_number(x)
-        ConjugateGradientWarning=.true.
-        call DYConjugateGradient_Strong_fdwithf(f,fd,f_fd,x,dim)
+        call ConjugateGradient(f,fd,x,dim,f_fd=f_fd)
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'PR'
         call random_number(x)
-        ConjugateGradientWarning=.true.
-        call PRConjugateGradient(f,fd,x,dim)
+        call ConjugateGradient(f,fd,x,dim,Method='PR')
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'PR_fdwithf'
         call random_number(x)
-        ConjugateGradientWarning=.true.
-        call PRConjugateGradient_fdwithf(f,fd,f_fd,x,dim)
+        call ConjugateGradient(f,fd,x,dim,f_fd=f_fd,Method='PR')
         write(*,*)norm2(x)
     write(*,*)
     write(*,*)'dtrnlsp'
@@ -418,24 +376,24 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
         call my_dtrnlsp(fd_tr,fdd_tr,x,M,N)
         write(*,*)norm2(x)
     write(*,*)
-    write(*,*)'dtrnlsp_NJ'
-        call random_number(x)
-        trnlspWarning=.true.
-        call my_dtrnlsp_NumericalJacobian(fd_j,x,M,N)
-        write(*,*)norm2(x)
-    write(*,*)
+    !write(*,*)'dtrnlsp_NJ'
+    !    call random_number(x)
+    !    trnlspWarning=.true.
+    !    call my_dtrnlsp_NumericalJacobian(fd_j,x,M,N)
+    !    write(*,*)norm2(x)
+    !write(*,*)
     write(*,*)'dtrnlspbc'
         call random_number(x)
         trnlspWarning=.true.
         call my_dtrnlspbc(fd_tr,fdd_tr,x,low,up,M,N)
         write(*,*)norm2(x)
     write(*,*)
-    write(*,*)'dtrnlspbc_NJ'
-        call random_number(x)
-        trnlspWarning=.true.
-        call My_dtrnlspbc_NumericalJacobian(fd_j,x,low,up,M,N)
-        write(*,*)norm2(x)
-    write(*,*)
+    !write(*,*)'dtrnlspbc_NJ'
+    !    call random_number(x)
+    !    trnlspWarning=.true.
+    !    call My_dtrnlspbc_NumericalJacobian(fd_j,x,low,up,M,N)
+    !    write(*,*)norm2(x)
+    !write(*,*)
 write(*,*)'Nonlinear-optimization solvers test passed'
 write(*,*)
 
@@ -556,7 +514,7 @@ contains
         end forall
     end subroutine fd
 
-    subroutine f_fd(fx,fdx,x,dim)
+    integer function f_fd(fx,fdx,x,dim)
         integer,intent(in)::dim
         real*8,intent(out)::fx
         real*8,dimension(dim),intent(out)::fdx
@@ -567,9 +525,10 @@ contains
             fx=fx+x(i)**4
             fdx(i)=4d0*x(i)**3
         end do
-    end subroutine f_fd
+        f_fd=0!return 0
+    end function f_fd
 
-    subroutine fdd(fddx,x,N)
+    integer function fdd(fddx,x,N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(out)::fddx
         real*8,dimension(N),intent(in)::x
@@ -578,7 +537,8 @@ contains
         forall(i=1:dim)
             fddx(i,i)=12d0*x(i)*x(i)
         end forall
-    end subroutine fdd
+        fdd=0!return 0
+    end function fdd
 
     subroutine fd_tr(fdx,x,M,N)
         integer,intent(in)::M,N
