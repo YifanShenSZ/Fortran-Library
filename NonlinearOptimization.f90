@@ -5,8 +5,8 @@
 !    adopt MKL trust region solver
 !    or build your own merit function then use other routines to search for its minimum
 !This module mainly provides unconstrained local minimizer
-!    Only solvers in Augmented Lagrangian section are constrained
-!    Only solvers in Heuristic section are global
+!    only solvers in Augmented Lagrangian section are constrained
+!    only solvers in Heuristic section are global
 !Global optimization remains an unsolved problem, since it is NP-complete
 !    2-step method is my favourite approach for global optimization:
 !        Step 1: A fast but inexact hopper to explore the phase space
@@ -55,7 +55,7 @@ contains
     !         LBFGS and conjugate gradient do not have this argument because they do not need Hessian
     !    f_fd: presence means evaluating f(x) & f'(x) together is cheaper than separately,
     !          strong Wolfe condition is thus applied, because Wolfe does not benefit from this
-    !    Strong: (default = false) if true, use strong Wolfe condition instead of Wolfe condition
+    !    Strong: (default = true) if true, use strong Wolfe condition instead of Wolfe condition
     !            PR conjugate gradient does not have this argument since it can only converge under strong Wolfe condition
     !    Warning: (default = true) if false, all warnings will be suppressed
     !    MaxIteration: (default = 1000) max number of iterations to perform
@@ -138,14 +138,14 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine Initialize()!Parameters, initial direction and step length
+            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial direction & step length
                 external::fd_j
                 terminate=.false.
                 !Set parameter according to optional argument
                     if(present(Strong)) then
                         sw=Strong
                     else
-                        sw=.false.
+                        sw=.true.
                     end if
                     if(present(Warning)) then
                         warn=Warning
@@ -199,7 +199,7 @@ contains
                     end if
                 end if
             end subroutine Initialize
-            subroutine After()!Check convergence, determine new direction and step length
+            subroutine After()!Check convergence, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
@@ -228,7 +228,7 @@ contains
                     a=a*phidold/phidnew
                 end if
             end subroutine After
-            subroutine After_NumericalHessian()!Check convergence, determine new direction and step length
+            subroutine After_NumericalHessian()!Check convergence, determine new direction & step length
                 external::fd_j
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
@@ -378,7 +378,7 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine Initialize()!Parameters, initial approximate inverse Hessian, direction, step length
+            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial approximate inverse Hessian & direction & step length
                 external::fd_j
                 terminate=.false.
                 !Set parameter according to optional argument
@@ -390,7 +390,7 @@ contains
                     if(present(Strong)) then
                         sw=Strong
                     else
-                        sw=.false.
+                        sw=.true.
                     end if
                     if(present(Warning)) then
                         warn=Warning
@@ -485,7 +485,7 @@ contains
                     a=1d0
                 end if
             end subroutine Initialize
-            subroutine After()!Check convergence, determine new direction and step length, update approximate inverse Hessian
+            subroutine After()!Check convergence, update approximate inverse Hessian, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
@@ -528,7 +528,7 @@ contains
                     a=1d0
                 end if
             end subroutine After
-            subroutine After_NumericalHessian()!Check convergence, determine new direction and step length, update approximate inverse Hessian
+            subroutine After_NumericalHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
                 external::fd_j
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
@@ -572,7 +572,7 @@ contains
                     a=1d0
                 end if
             end subroutine After_NumericalHessian
-            subroutine After_NoHessian()!Check convergence, determine new direction and step length, update approximate inverse Hessian
+            subroutine After_NoHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
@@ -611,48 +611,196 @@ contains
 
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
     !Optional Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended
-    subroutine LBFGS(f,fd,x,dim,M)
-        external::f,fd
-        integer,intent(in)::dim,M
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i,recent
-        real*8::a,fnew,phidnew
+    subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+        !Non-optional argument
+            external::f,fd
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(inout)::x
+        !Optional argument
+            integer,external,optional::f_fd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::Memory,MaxIteration
+            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+        logical::sw,warn,terminate
+        integer::M,maxit,iIteration,i,recent
+        real*8::tol,c1,c2,a,fnew,phidnew
         real*8,dimension(dim)::p,fdnew,xold,fdold
-        real*8,dimension(0:M)::rho,alpha
-        real*8,dimension(dim,0:M)::s,y
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<QuasiNewtonTol) return
-            if(fnew==0d0) then
-                a=1d0
+        real*8,allocatable,dimension(:)::rho,alpha
+        real*8,allocatable,dimension(:,:)::s,y
+        call Initialize()
+        if(terminate) return
+        if(present(f_fd)) then!Cheaper to evaluate f' along with f
+            do iIteration=1,maxit
+                call Before()
+                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                call After()
+                if(terminate) return
+            end do
+        else
+            if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                do iIteration=1,maxit
+                    call Before()
+                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After()
+                    if(terminate) return
+                end do
             else
-                a=-fnew/phidnew
+                do iIteration=1,maxit
+                    call Before()
+                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After()
+                    if(terminate) return
+                end do
             end if
-            xold=x
-            fdold=fdnew
-            !Initial approximate inverse Hessian = a
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
+        end if
+        if(iIteration>maxit.and.warn) then
+            write(*,'(1x,A38)')'Failed L-BFGS: max iteration exceeded!'
+            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
+        end if
+        !Clean up
+            deallocate(rho)
+            deallocate(alpha)
+            deallocate(s)
+            deallocate(y)
+        contains
+            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial iteration history
+                terminate=.false.
+                !Set parameter according to optional argument
+                    if(present(Memory)) then
+                        M=max(0,Memory)
+                    else
+                        M=10
+                    end if
+                    if(present(Strong)) then
+                        sw=Strong
+                    else
+                        sw=.true.
+                    end if
+                    if(present(Warning)) then
+                        warn=Warning
+                    else
+                        warn=.true.
+                    end if
+                    if(present(MaxIteration)) then
+                        maxit=MaxIteration
+                    else
+                        maxit=1000
+                    end if
+                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                        tol=Tolerance*Tolerance
+                    else
+                        tol=1d-30
+                    end if
+                    if(present(WolfeConst1)) then
+                        c1=WolfeConst1
+                    else
+                        c1=1d-4
+                    end if
+                    if(present(WolfeConst2)) then
+                        c2=WolfeConst2
+                    else
+                        c2=0.9d0
+                    end if
+                allocate(rho(0:M))
+                allocate(alpha(0:M))
+                allocate(s(dim,0:M))
+                allocate(y(dim,0:M))
+                if(present(f_fd)) then
+                    i=f_fd(fnew,fdnew,x,dim)
+                else
+                    call f(fnew,x,dim)
+                    call fd(fdnew,x,dim)
                 end if
-                return 
-            end if
-            recent=0
-            s(:,0)=x-xold
-            y(:,0)=fdnew-fdold
-            rho(0)=1d0/dot_product(y(:,0),s(:,0))
-            do iIteration=1,M-1
+                p=-fdnew
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(fnew==0d0) then
+                    a=1d0
+                else
+                    a=-fnew/phidnew
+                end if
                 xold=x
+                fdold=fdnew
+                !Initial approximate inverse Hessian = a
+                if(present(f_fd)) then
+                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                else
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    else
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    end if
+                end if
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
+                recent=0
+                s(:,0)=x-xold
+                y(:,0)=fdnew-fdold
+                rho(0)=1d0/dot_product(y(:,0),s(:,0))
+                do iIteration=1,M-1!Preiterate to get enough history
+                    !Prepare
+                    xold=x
+                    fdold=fdnew
+                    !Determine new direction
+                    p=fdnew
+                    do i=recent,0,-1
+                        alpha(i)=rho(i)*dot_product(s(:,i),p)
+                        p=p-alpha(i)*y(:,i)
+                    end do
+                    p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
+                    do i=0,recent
+                        phidnew=rho(i)*dot_product(y(:,i),p)
+                        p=p+(alpha(i)-phidnew)*s(:,i)
+                    end do
+                    p=-p
+                    phidnew=dot_product(fdnew,p)
+                    a=1d0
+                    if(present(f_fd)) then!Line search
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                    else
+                        if(sw) then
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                        else
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                        end if
+                    end if
+                    phidnew=dot_product(fdnew,fdnew)
+                    if(phidnew<tol) then
+                        terminate=.true.
+                        return
+                    end if
+                    if(dot_product(p,p)*a*a<tol) then
+                        if(warn) then
+                            write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                            write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                            write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                        end if
+                        terminate=.true.
+                        return
+                    end if
+                    recent=recent+1
+                    s(:,recent)=x-xold
+                    y(:,recent)=fdnew-fdold
+                    rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
+                end do
+            end subroutine Initialize
+            subroutine Before()!Prepare, determine new direction & step length
+                xold=x!Prepare
                 fdold=fdnew
                 !Determine new direction
                 p=fdnew
@@ -660,7 +808,15 @@ contains
                     alpha(i)=rho(i)*dot_product(s(:,i),p)
                     p=p-alpha(i)*y(:,i)
                 end do
+                do i=M-1,recent+1,-1
+                    alpha(i)=rho(i)*dot_product(s(:,i),p)
+                    p=p-alpha(i)*y(:,i)
+                end do
                 p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
+                do i=recent+1,M-1
+                    phidnew=rho(i)*dot_product(y(:,i),p)
+                    p=p+(alpha(i)-phidnew)*s(:,i)
+                end do
                 do i=0,recent
                     phidnew=rho(i)*dot_product(y(:,i),p)
                     p=p+(alpha(i)-phidnew)*s(:,i)
@@ -668,558 +824,211 @@ contains
                 p=-p
                 phidnew=dot_product(fdnew,p)
                 a=1d0
-                !Line search
-                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                recent=recent+1
+            end subroutine Before
+            subroutine After()!Check convergence, replace earliest iteration history with latest
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
+                end if
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
+                recent=mod(recent+1,M)
                 s(:,recent)=x-xold
                 y(:,recent)=fdnew-fdold
                 rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-            end do
-        do iIteration=1,MaxQuasiNewtonIteration
-            xold=x
-            fdold=fdnew
-            !Determine new direction
-            p=fdnew
-            do i=recent,0,-1
-                alpha(i)=rho(i)*dot_product(s(:,i),p)
-                p=p-alpha(i)*y(:,i)
-            end do
-            do i=M-1,recent+1,-1
-                alpha(i)=rho(i)*dot_product(s(:,i),p)
-                p=p-alpha(i)*y(:,i)
-            end do
-            p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-            do i=recent+1,M-1
-                phidnew=rho(i)*dot_product(y(:,i),p)
-                p=p+(alpha(i)-phidnew)*s(:,i)
-            end do
-            do i=0,recent
-                phidnew=rho(i)*dot_product(y(:,i),p)
-                p=p+(alpha(i)-phidnew)*s(:,i)
-            end do
-            p=-p
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-            !Line search
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
+            end subroutine After
+    end subroutine LBFGS
+
+    !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition 
+    !Optional Method: (default = DY) which conjugate gradient method to use, currently available:
+    !                 DY (Dai-Yun), PR (Polak-Ribiere+)
+    subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Tolerance,WolfeConst1,WolfeConst2)
+        !Non-optional argument
+            external::f,fd
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(inout)::x
+        !Optional argument
+            character*32,intent(in),optional::Method
+            integer,external,optional::f_fd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::MaxIteration
+            real*8,intent(in),optional::Tolerance,WolfeConst1,WolfeConst2
+        logical::sw,warn,terminate
+        character*32::type
+        integer::maxit,iIteration,info
+        real*8::tol,c1,c2,a,fnew,fold,phidnew,phidold
+        real*8,dimension(dim)::p,fdnew,fdold
+        select case(type)
+            case('DY')!Require Wolfe condition 
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit
+                        fold=fnew!Prepare
+                        fdold=fdnew
+                        phidold=phidnew
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call DY()
+                        if(terminate) return
+                    end do
+                else
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                        do iIteration=1,maxit
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()
+                            if(terminate) return
+                        end do
+                    end if
                 end if
-                return 
-            end if
-            recent=mod(recent+1,M)
-            s(:,recent)=x-xold
-            y(:,recent)=fdnew-fdold
-            rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed L-BFGS: max iteration exceeded!'
+            case('PR')!Require strong Wolfe condition 
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit
+                        fold=fnew!Prepare
+                        fdold=fdnew
+                        phidold=phidnew
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call PR()
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit
+                        fold=fnew!Prepare
+                        fdold=fdnew
+                        phidold=phidnew
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call PR()
+                        if(terminate) return
+                    end do
+                end if
+        end select
+        if(iIteration>maxit.and.warn) then
+            write(*,'(1x,A50)')'Failed conjugate gradient: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
         end if
         contains
-            subroutine Initialize()
+            subroutine Initialize()!Parameters, initial f(x) & f'(x), initial direction & step length
+                terminate=.false.
+                !Set parameter according to optional argument
+                    if(present(Method)) then
+                        type=Method
+                    else
+                        type='DY'
+                    end if
+                    if(present(Strong)) then
+                        sw=Strong
+                    else
+                        sw=.true.
+                    end if
+                    if(present(Warning)) then
+                        warn=Warning
+                    else
+                        warn=.true.
+                    end if
+                    if(present(MaxIteration)) then
+                        maxit=MaxIteration
+                    else
+                        maxit=1000
+                    end if
+                    if(present(Tolerance)) then!To save sqrt cost, tolerance is squared
+                        tol=Tolerance*Tolerance
+                    else
+                        tol=1d-30
+                    end if
+                    if(present(WolfeConst1)) then
+                        c1=WolfeConst1
+                    else
+                        c1=1d-4
+                    end if
+                    if(present(WolfeConst2)) then
+                        c2=WolfeConst2
+                    else
+                        c2=0.45d0
+                    end if
+                if(present(f_fd)) then
+                    info=f_fd(fnew,fdnew,x,dim)
+                else
+                    call f(fnew,x,dim)
+                    call fd(fdnew,x,dim)
+                end if
+                p=-fdnew
+                phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<tol) return
+                if(fnew==0d0) then
+                    a=1d0
+                else
+                    a=-fnew/phidnew
+                end if
             end subroutine Initialize
-    end subroutine LBFGS
-    !Strong Wolfe condition usually performs better
-    subroutine LBFGS_Strong(f,fd,x,dim,M)
-        external::f,fd
-        integer,intent(in)::dim,M
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i,recent
-        real*8::a,fnew,phidnew
-        real*8,dimension(dim)::p,fdnew,xold,fdold
-        real*8,dimension(0:M)::rho,alpha
-        real*8,dimension(dim,0:M)::s,y
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<QuasiNewtonTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-            xold=x
-            fdold=fdnew
-            !Initial approximate inverse Hessian = a
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
+            subroutine DY()!Check convergence, determine new direction & step length
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
                 end if
-                return 
-            end if
-            recent=0
-            s(:,0)=x-xold
-            y(:,0)=fdnew-fdold
-            rho(0)=1d0/dot_product(y(:,0),s(:,0))
-            do iIteration=1,M-1
-                xold=x
-                fdold=fdnew
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
                 !Determine new direction
-                p=fdnew
-                do i=recent,0,-1
-                    alpha(i)=rho(i)*dot_product(s(:,i),p)
-                    p=p-alpha(i)*y(:,i)
-                end do
-                p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-                do i=0,recent
-                    phidnew=rho(i)*dot_product(y(:,i),p)
-                    p=p+(alpha(i)-phidnew)*s(:,i)
-                end do
-                p=-p
+                p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
                 phidnew=dot_product(fdnew,p)
-                a=1d0
-                !Line search
-                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                recent=recent+1
-                s(:,recent)=x-xold
-                y(:,recent)=fdnew-fdold
-                rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-            end do
-        do iIteration=1,MaxQuasiNewtonIteration
-            xold=x
-            fdold=fdnew
-            !Determine new direction
-            p=fdnew
-            do i=recent,0,-1
-                alpha(i)=rho(i)*dot_product(s(:,i),p)
-                p=p-alpha(i)*y(:,i)
-            end do
-            do i=M-1,recent+1,-1
-                alpha(i)=rho(i)*dot_product(s(:,i),p)
-                p=p-alpha(i)*y(:,i)
-            end do
-            p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-            do i=recent+1,M-1
-                phidnew=rho(i)*dot_product(y(:,i),p)
-                p=p+(alpha(i)-phidnew)*s(:,i)
-            end do
-            do i=0,recent
-                phidnew=rho(i)*dot_product(y(:,i),p)
-                p=p+(alpha(i)-phidnew)*s(:,i)
-            end do
-            p=-p
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
+                if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                    p=-fdnew
+                    phidnew=-dot_product(fdnew,fdnew)
                 end if
-                return 
-            end if
-            recent=mod(recent+1,M)
-            s(:,recent)=x-xold
-            y(:,recent)=fdnew-fdold
-            rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed L-BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine LBFGS_Strong
-    !When it is cheap to evaluate f' along with f
-    subroutine LBFGS_Strong_fdwithf(f,fd,f_fd,x,dim,M)
-        external::f,fd,f_fd
-        integer,intent(in)::dim,M
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.9d0! 0 < c1 < c2 < 1: Wolfe constant
-        integer::iIteration,i,recent
-        real*8::a,fnew,phidnew
-        real*8,dimension(dim)::p,fdnew,xold,fdold
-        real*8,dimension(0:M)::rho,alpha
-        real*8,dimension(dim,0:M)::s,y
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<QuasiNewtonTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-            xold=x
-            fdold=fdnew
-            !Initial approximate inverse Hessian = a
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
+                a=a*phidold/phidnew
+            end subroutine DY
+            subroutine PR()!Check convergence, determine new direction & step length
+                !Check convergence
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) then
+                    terminate=.true.
+                    return
                 end if
-                return 
-            end if
-            recent=0
-            s(:,0)=x-xold
-            y(:,0)=fdnew-fdold
-            rho(0)=1d0/dot_product(y(:,0),s(:,0))
-            do iIteration=1,M-1
-                xold=x
-                fdold=fdnew
+                if(dot_product(p,p)*a*a<tol) then
+                    if(warn) then
+                        write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                        write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
+                    end if
+                    terminate=.true.
+                    return
+                end if
                 !Determine new direction
-                p=fdnew
-                do i=recent,0,-1
-                    alpha(i)=rho(i)*dot_product(s(:,i),p)
-                    p=p-alpha(i)*y(:,i)
-                end do
-                p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-                do i=0,recent
-                    phidnew=rho(i)*dot_product(y(:,i),p)
-                    p=p+(alpha(i)-phidnew)*s(:,i)
-                end do
-                p=-p
+                p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
                 phidnew=dot_product(fdnew,p)
-                a=1d0
-                !Line search
-                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-                recent=recent+1
-                s(:,recent)=x-xold
-                y(:,recent)=fdnew-fdold
-                rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-            end do
-        do iIteration=1,MaxQuasiNewtonIteration
-            xold=x
-            fdold=fdnew
-            !Determine new direction
-            p=fdnew
-            do i=recent,0,-1
-                alpha(i)=rho(i)*dot_product(s(:,i),p)
-                p=p-alpha(i)*y(:,i)
-            end do
-            do i=M-1,recent+1,-1
-                alpha(i)=rho(i)*dot_product(s(:,i),p)
-                p=p-alpha(i)*y(:,i)
-            end do
-            p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-            do i=recent+1,M-1
-                phidnew=rho(i)*dot_product(y(:,i),p)
-                p=p+(alpha(i)-phidnew)*s(:,i)
-            end do
-            do i=0,recent
-                phidnew=rho(i)*dot_product(y(:,i),p)
-                p=p+(alpha(i)-phidnew)*s(:,i)
-            end do
-            p=-p
-            phidnew=dot_product(fdnew,p)
-            a=1d0
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<QuasiNewtonTol) return
-            if(dot_product(p,p)*a*a<QuasiNewtonTol) then
-                if(QuasiNewtonWarning) then
-                    write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    QuasiNewtonWarning=.false.
+                if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                    p=-fdnew
+                    phidnew=-dot_product(fdnew,fdnew)
                 end if
-                return 
-            end if
-            recent=mod(recent+1,M)
-            s(:,recent)=x-xold
-            y(:,recent)=fdnew-fdold
-            rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-        end do
-        if(iIteration>MaxQuasiNewtonIteration.and.QuasiNewtonWarning) then
-            write(*,*)'Failed L-BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            QuasiNewtonWarning=.false.
-        end if
-    end subroutine LBFGS_Strong_fdwithf
-
-    !Dai-Yun conjugate gradient method, requiring Wolfe condition 
-    subroutine DYConjugateGradient(f,fd,x,dim)
-        external::f,fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.45d0! 0 < c1 < c2 < 0.5: Wolfe constant
-        integer::iIteration
-        real*8::a,fnew,fold,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew,fdold
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<ConjugateGradientTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-        do iIteration=1,MaxConjugateGradientIteration
-            !Prepare
-            fold=fnew
-            fdold=fdnew
-            phidold=phidnew
-            !Line search
-            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<ConjugateGradientTol) return
-            if(dot_product(p,p)*a*a<ConjugateGradientTol) then
-                if(ConjugateGradientWarning) then
-                    write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    ConjugateGradientWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-            end if
-            a=a*phidold/phidnew
-        end do
-        if(iIteration>MaxConjugateGradientIteration.and.ConjugateGradientWarning) then
-            write(*,*)'Failed conjugate gradient: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            ConjugateGradientWarning=.false.
-        end if
-    end subroutine DYConjugateGradient
-    !To meet Nocedal's performance suggestion, Dai-Yun requires strong Wolfe condition
-    subroutine DYConjugateGradient_Strong(f,fd,x,dim)
-        external::f,fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.45d0! 0 < c1 < c2 < 0.5: Wolfe constant
-        integer::iIteration
-        real*8::a,fnew,fold,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew,fdold
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<ConjugateGradientTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-        do iIteration=1,MaxConjugateGradientIteration
-            !Prepare
-            fold=fnew
-            fdold=fdnew
-            phidold=phidnew
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<ConjugateGradientTol) return
-            if(dot_product(p,p)*a*a<ConjugateGradientTol) then
-                if(ConjugateGradientWarning) then
-                    write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    ConjugateGradientWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-            end if
-            a=a*phidold/phidnew
-        end do
-        if(iIteration>MaxConjugateGradientIteration.and.ConjugateGradientWarning) then
-            write(*,*)'Failed conjugate gradient: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            ConjugateGradientWarning=.false.
-        end if
-    end subroutine DYConjugateGradient_Strong
-    !When it is cheap to evaluate f' along with f
-    subroutine DYConjugateGradient_Strong_fdwithf(f,fd,f_fd,x,dim)
-        external::f,fd,f_fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.45d0! 0 < c1 < c2 < 0.5: Wolfe constant
-        integer::iIteration
-        real*8::a,fnew,fold,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew,fdold
-        !Initialize
-            info=f_fd(fnew,fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<ConjugateGradientTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-        do iIteration=1,MaxConjugateGradientIteration
-            !Prepare
-            fold=fnew
-            fdold=fdnew
-            phidold=phidnew
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<ConjugateGradientTol) return
-            if(dot_product(p,p)*a*a<ConjugateGradientTol) then
-                if(ConjugateGradientWarning) then
-                    write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    ConjugateGradientWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-            end if
-            a=a*phidold/phidnew
-        end do
-        if(iIteration>MaxConjugateGradientIteration.and.ConjugateGradientWarning) then
-            write(*,*)'Failed conjugate gradient: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            ConjugateGradientWarning=.false.
-        end if
-    end subroutine DYConjugateGradient_Strong_fdwithf
-
-    !Polak-Ribiere+ conjugate gradient method, requiring strong Wolfe condition
-    subroutine PRConjugateGradient(f,fd,x,dim)
-        external::f,fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.45d0! 0 < c1 < c2 < 0.5: Wolfe constant
-        integer::iIteration
-        real*8::a,fnew,fold,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew,fdold
-        !Initialize
-            call f(fnew,x,dim)
-            call fd(fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<ConjugateGradientTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-        do iIteration=1,MaxConjugateGradientIteration
-            !Prepare
-            fold=fnew
-            fdold=fdnew
-            phidold=phidnew
-            !Line search
-            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<ConjugateGradientTol) return
-            if(dot_product(p,p)*a*a<ConjugateGradientTol) then
-                if(ConjugateGradientWarning) then
-                    write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    ConjugateGradientWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-            end if
-            a=a*phidold/phidnew
-        end do
-        if(iIteration>MaxConjugateGradientIteration.and.ConjugateGradientWarning) then
-            write(*,*)'Failed conjugate gradient: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            ConjugateGradientWarning=.false.
-        end if
-    end subroutine PRConjugateGradient
-    !When it is cheap to evaluate f' along with f
-    subroutine PRConjugateGradient_fdwithf(f,fd,f_fd,x,dim)
-        external::f,fd,f_fd
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::x
-        real*8,parameter::c1=1d-4,c2=0.45d0! 0 < c1 < c2 < 0.5: Wolfe constant
-        integer::iIteration
-        real*8::a,fnew,fold,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew,fdold
-        !Initialize
-            info=f_fd(fnew,fdnew,x,dim)
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<ConjugateGradientTol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-        do iIteration=1,MaxConjugateGradientIteration
-            !Prepare
-            fold=fnew
-            fdold=fdnew
-            phidold=phidnew
-            !Line search
-            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<ConjugateGradientTol) return
-            if(dot_product(p,p)*a*a<ConjugateGradientTol) then
-                if(ConjugateGradientWarning) then
-                    write(*,'(1x,A98)')'Conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                    write(*,*)'Euclidean norm of gradient =',Sqrt(phidnew)
-                    ConjugateGradientWarning=.false.
-                end if
-                return 
-            end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
-            end if
-            a=a*phidold/phidnew
-        end do
-        if(iIteration>MaxConjugateGradientIteration.and.ConjugateGradientWarning) then
-            write(*,*)'Failed conjugate gradient: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-            ConjugateGradientWarning=.false.
-        end if
-    end subroutine PRConjugateGradient_fdwithf
+                a=a*phidold/phidnew
+            end subroutine PR
+    end subroutine ConjugateGradient
 
     !=========== Line searcher ============
         !Some direction finders can only converge under strong Wolfe condition
@@ -1344,7 +1153,7 @@ contains
                     phidlow=phidnew
                     phidlow_m_a=phidlow*a
                 end if
-                if(Abs(up-low)<LineSearchStepLowerBound) then
+                if(Abs(up-low)<1d-37) then
                     call fd(fdx,x,dim)
                     return
                 end if
@@ -1534,14 +1343,15 @@ contains
                     flow=fx
                     phidlow=phidnew
                 end if
-                if(Abs(up-low)<LineSearchStepLowerBound) return
+                if(Abs(up-low)<1d-37) return
             end do
         end subroutine StrongWolfeZoom
         
         !Almost same to StrongWolfe, but modified for cheap to evaluate f' along with f case
         subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim)
             real*8,intent(in)::c1,c2
-            external::f,fd,f_fd
+            external::f,fd
+            integer,external::f_fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
             real*8,intent(inout)::a
@@ -1657,7 +1467,7 @@ contains
         !Support StrongWolfe_fdwithf
         subroutine StrongWolfeZoom_fdwithf(c1,c2,f_fd,x,a,p,fx,phid0,low,up,flow,fup,phidlow,phidup,fdx,dim)
             real*8,intent(in)::c1,c2
-            external::f_fd
+            integer,external::f_fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
             real*8,intent(out)::a
@@ -1702,7 +1512,7 @@ contains
                     flow=fx
                     phidlow=phidnew
                 end if
-                if(Abs(up-low)<LineSearchStepLowerBound) return
+                if(Abs(up-low)<1d-37) return
             end do
         end subroutine StrongWolfeZoom_fdwithf
 
