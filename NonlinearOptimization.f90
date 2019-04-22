@@ -134,12 +134,21 @@ contains
             end if
         if(present(fdd)) then!Analytical Hessian available
             if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                do iIteration=1,maxit!Main loop
-                    phidold=phidnew!Prepare
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After()!After search
-                    if(terminate) return
-                end do
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
             else
                 if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                     do iIteration=1,maxit!Main loop
@@ -159,12 +168,21 @@ contains
             end if
         else
             if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                do iIteration=1,maxit!Main loop
-                    phidold=phidnew!Prepare
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After_NumericalHessian()!After search
-                    if(terminate) return
-                end do
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NumericalHessian()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        phidold=phidnew!Prepare
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NumericalHessian()!After search
+                        if(terminate) return
+                    end do
+                end if
             else
                 if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                     do iIteration=1,maxit!Main loop
@@ -384,13 +402,23 @@ contains
         if(freq>0) then!Exact Hessian will be computed
             if(present(fdd)) then!Analytical Hessian is available
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    do iIteration=1,maxit!Main loop
-                        s=x!Prepare
-                        y=fdnew
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
@@ -412,13 +440,23 @@ contains
                 end if
             else
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    do iIteration=1,maxit!Main loop
-                        s=x!Prepare
-                        y=fdnew
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NumericalHessian()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
@@ -441,13 +479,23 @@ contains
             end if
         else
             if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                do iIteration=1,maxit!Main loop
-                    s=x!Prepare
-                    y=fdnew
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After_NoHessian()!After search
-                    if(terminate) return
-                end do
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        s=x!Prepare
+                        y=fdnew
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NoHessian()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        s=x!Prepare
+                        y=fdnew
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After_NoHessian()!After search
+                        if(terminate) return
+                    end do
+                end if
             else
                 if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                     do iIteration=1,maxit!Main loop
@@ -744,12 +792,21 @@ contains
                 rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
             end do
         if(present(f_fd)) then!Cheaper to evaluate f' along with f
-            do iIteration=1,maxit!Main loop
-                call Before()!Before search
-                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                call After()!After search
-                if(terminate) return
-            end do
+            if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                do iIteration=1,maxit!Main loop
+                    call Before()!Before search
+                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After()!After search
+                    if(terminate) return
+                end do
+            else
+                do iIteration=1,maxit!Main loop
+                    call Before()!Before search
+                    call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                    call After()!After search
+                    if(terminate) return
+                end do
+            end if
         else
             if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                 do iIteration=1,maxit!Main loop
@@ -906,14 +963,25 @@ contains
         select case(type)
             case('DY')!Require Wolfe condition 
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew!Prepare
-                        fdold=fdnew
-                        phidold=phidnew
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call DY()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
                     if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
                         do iIteration=1,maxit!Main loop
@@ -937,14 +1005,25 @@ contains
                 end if
             case('PR')!Require strong Wolfe condition 
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew!Prepare
-                        fdold=fdnew
-                        phidold=phidnew
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call PR()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call PR()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call PR()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
                     do iIteration=1,maxit!Main loop
                         fold=fnew!Prepare
@@ -1073,7 +1152,7 @@ contains
                         else
                             atemp=a
                             ftemp=fx
-                            call WolfeZoom(aold,atemp,fold,ftemp,phidx)
+                            call zoom(aold,atemp,fold,ftemp,phidx)
                         end if
                         return
                     end if
@@ -1091,7 +1170,7 @@ contains
                         if(phidx<c2_m_abs_phid0) then
                             atemp=a
                             ftemp=fx
-                            call WolfeZoom(atemp,aold,ftemp,fold,phidx)
+                            call zoom(atemp,aold,ftemp,fold,phidx)
                         end if
                         return
                     end if
@@ -1102,11 +1181,11 @@ contains
                 end do
             end if
             contains
-                !Support Wolfe. low and up must satisfy:
+                !low & up must satisfy:
                 !    low < up
                 !    low satisfies sufficient decrease condition, but up violates
                 !    phi'(low) < 0
-                subroutine WolfeZoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
+                subroutine zoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
                     real*8,intent(inout)::low,up,flow,fup,phidlow
                     real*8::phidnew,phidlow_m_a
                     phidlow_m_a=phidlow*a!Initialize
@@ -1134,8 +1213,117 @@ contains
                             phidlow_m_a=phidlow*a
                         end if
                     end do
-                end subroutine WolfeZoom
+                end subroutine zoom
         end subroutine Wolfe
+        !When it is cheaper to evaluate f' along with f
+        subroutine Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)!CURRENTLY NO BETTER THAN Wolfe
+            !Required argument
+                real*8,intent(in)::c1,c2
+                external::f,fd
+                integer,external::f_fd
+                integer,intent(in)::dim
+                real*8,dimension(dim),intent(inout)::x
+                real*8,intent(inout)::a
+                real*8,dimension(dim),intent(in)::p
+                real*8,intent(inout)::fx
+                real*8,intent(in)::phid0
+                real*8,dimension(dim),intent(out)::fdx
+            !Optional argument
+                real*8,intent(in),optional::Increment
+            real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidx
+            real*8,dimension(dim)::x0
+            !Initialize
+                if(present(Increment)) then
+                    incrmt=max(1d0+1d-15,Increment)!Fail safe
+                else
+                    incrmt=1.05d0
+                end if
+                x0=x
+                fx0=fx
+                c2_m_abs_phid0=c2*Abs(phid0)
+            !Check whether initial guess satisfies sufficient decrease condition
+            x=x0+a*p
+            call f(fx,x,dim)
+            if(fx<=fx0+c1*a*phid0) then!Satisfied, search for larger a
+                do
+                    aold=a
+                    fold=fx
+                    a=aold*incrmt
+                    x=x0+a*p
+                    call f(fx,x,dim)
+                    if(fx>fx0+c1*a*phid0) then
+                        x=x0+aold*p
+                        call fd(fdx,x,dim)
+                        phidx=dot_product(fdx,p)
+                        if(phidx>c2_m_abs_phid0) then
+                            a=aold
+                            fx=fold
+                        else
+                            atemp=a
+                            ftemp=fx
+                            call zoom(aold,atemp,fold,ftemp,phidx)
+                        end if
+                        return
+                    end if
+                end do
+            else!Violated, search for smaller a
+                do
+                    aold=a
+                    fold=fx
+                    a=aold/incrmt
+                    x=x0+a*p
+                    call f(fx,x,dim)
+                    if(fx<=fx0+c1*a*phid0) then
+                        call fd(fdx,x,dim)
+                        phidx=dot_product(fdx,p)
+                        if(phidx<c2_m_abs_phid0) then
+                            atemp=a
+                            ftemp=fx
+                            call zoom(atemp,aold,ftemp,fold,phidx)
+                        end if
+                        return
+                    end if
+                    if(a<1d-15) then
+                        call fd(fdx,x,dim)
+                        return
+                    end if
+                end do
+            end if
+            contains
+                !low & up must satisfy:
+                !    low < up
+                !    low satisfies sufficient decrease condition, but up violates
+                !    phi'(low) < 0
+                subroutine zoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
+                    real*8,intent(inout)::low,up,flow,fup,phidlow
+                    real*8::phidnew,phidlow_m_a
+                    phidlow_m_a=phidlow*a!Initialize
+                    do
+                        !Updata a by quadratic interpolation
+                            a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
+                            if(.not.(a>low.and.a<up)) a=(low+up)/2d0!Fail safe
+                        x=x0+a*p
+                        call f(fx,x,dim)
+                        if(fx>fx0+c1*a*phid0) then
+                            up=a
+                            if(Abs(up-low)<1d-15) then
+                                call fd(fdx,x,dim)
+                                return
+                            end if
+                            fup=fx
+                        else
+                            call fd(fdx,x,dim)
+                            phidnew=dot_product(fdx,p)
+                            if(phidnew>c2_m_abs_phid0) return
+                            low=a
+                            if(Abs(up-low)<1d-15) return
+                            flow=fx
+                            phidlow=phidnew
+                            phidlow_m_a=phidlow*a
+                        end if
+                    end do
+                end subroutine zoom
+        end subroutine Wolfe_fdwithf
         
         !Line search for a step length satisfying strong Wolfe condition
         subroutine StrongWolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim,Increment)
@@ -1182,7 +1370,7 @@ contains
                         if(fx>=fold.or.phidnew<=0d0) then
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom(aold,atemp,fold,ftemp,phidold,phidnew)
+                            call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(a<1d-15) return
@@ -1200,7 +1388,7 @@ contains
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom(aold,atemp,fold,ftemp,phidold,phidnew)
+                            call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(phidnew>0d0) then
@@ -1209,7 +1397,7 @@ contains
                             else
                                 atemp=a
                                 ftemp=fx
-                                call StrongWolfeZoom(atemp,aold,ftemp,fold,phidnew,phidold)
+                                call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                                 fx=fx0
                             end if
                         end if
@@ -1232,7 +1420,7 @@ contains
                             phidold=dot_product(fdx,p)
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom(atemp,aold,ftemp,fold,phidnew,phidold)
+                            call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         else!Search for such an a that phi(a) < phi(aold) & phid(a) > 0 is false
                             do
@@ -1247,7 +1435,7 @@ contains
                                 if(fx>=fold.or.phidnew<=0d0) then
                                     atemp=a
                                     ftemp=fx
-                                    call StrongWolfeZoom(aold,atemp,fold,ftemp,phidold,phidnew)
+                                    call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                                     return
                                 end if
                                 if(a<1d-15) return
@@ -1261,7 +1449,7 @@ contains
                 end do
             end if
             contains
-                !Support StrongWolfe. low and up must satisfy:
+                !low & up must satisfy:
                 !    low satisfies sufficient decrease condition
                 !    ( up - low ) * phi'(low) < 0
                 !    [ low, up ] (or [ up, low ]) contains a step length satisfying strong Wolfe condition
@@ -1269,7 +1457,7 @@ contains
                 !            up violates the sufficient decrease condition
                 !            phi(up) >= phi(low)
                 !            up < low & phi'(up) <= 0
-                subroutine StrongWolfeZoom(low,up,flow,fup,phidlow,phidup)
+                subroutine zoom(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
                     real*8::phidnew,d1,d2
                     do while(Abs(up-low)>1d-15)
@@ -1303,7 +1491,7 @@ contains
                             phidlow=phidnew
                         end if
                     end do
-                end subroutine StrongWolfeZoom
+                end subroutine zoom
         end subroutine StrongWolfe
         !When it is cheaper to evaluate f' along with f
         subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)
@@ -1350,7 +1538,7 @@ contains
                         if(fx>=fold.or.phidnew<=0d0) then
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom_fdwithf(aold,atemp,fold,ftemp,phidold,phidnew)
+                            call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(a<1d-15) return
@@ -1367,14 +1555,14 @@ contains
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom_fdwithf(aold,atemp,fold,ftemp,phidold,phidnew)
+                            call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(phidnew>0d0) then
                             if(Abs(phidnew)<=c2_m_abs_phid0) return
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom_fdwithf(atemp,aold,ftemp,fold,phidnew,phidold)
+                            call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         end if
                     end do
@@ -1396,7 +1584,7 @@ contains
                             phidold=dot_product(fdx,p)
                             atemp=a
                             ftemp=fx
-                            call StrongWolfeZoom_fdwithf(atemp,aold,ftemp,fold,phidnew,phidold)
+                            call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         else!Search for such an a that phi(a) < phi(aold) & phid(a) > 0 is false
                             do
@@ -1410,7 +1598,7 @@ contains
                                 if(fx>=fold.or.phidnew<=0d0) then
                                     atemp=a
                                     ftemp=fx
-                                    call StrongWolfeZoom_fdwithf(aold,atemp,fold,ftemp,phidold,phidnew)
+                                    call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                                     return
                                 end if
                                 if(a<1d-15) return
@@ -1424,7 +1612,7 @@ contains
                 end do
             end if
             contains
-                subroutine StrongWolfeZoom_fdwithf(low,up,flow,fup,phidlow,phidup)
+                subroutine zoom(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
                     real*8::phidnew,d1,d2
                     do while(Abs(up-low)>1d-15)
@@ -1457,7 +1645,7 @@ contains
                             phidlow=phidnew
                         end if
                     end do
-                end subroutine StrongWolfeZoom_fdwithf
+                end subroutine zoom
         end subroutine StrongWolfe_fdwithf
     !================ End =================
 !------------------ End -------------------
