@@ -8,4 +8,4 @@ This library depends on BLAS & LAPACK & MKL. You will have to compile together w
 test.f90 and makefile are to build a demo program, testing the functionality
 
 Reference:
-J. Nocedal, S. J. Wright, *Numerical Optimization 2nd edition* (Springer, 2006)
+> J. Nocedal, S. J. Wright, *Numerical Optimization 2nd edition* (Springer, 2006)
