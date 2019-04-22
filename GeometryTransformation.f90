@@ -2,6 +2,7 @@
 module GeometryTransformation
     use General
     use LinearAlgebra
+    use NonlinearOptimization
     implicit none
 
 !Derived type
@@ -38,315 +39,116 @@ contains
     !Note this definition does not determine geometry uniquely:
     !    axes may take different positive direction as long as forming right-hand system (4 possibilities)
 
-    !Standardize a geometry
-    subroutine StandardizeGeometry(geom,mass,NAtoms)
-        integer,intent(in)::NAtoms
-        real*8,dimension(3*NAtoms),intent(inout)::geom
-        real*8,dimension(NAtoms),intent(in)::mass
-        integer::i
-        real*8::SystemMass
-        real*8,dimension(3)::com!Short for Centre Of Mass
-        real*8,dimension(3,3)::moi!Short for Momentum Of Inertia
-        !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
-        do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
-        end do
-        com=com/SystemMass
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        moi=0d0
-        do i=1,NAtoms
-            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-        end do
-        !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-        moi=transpose(moi)
-        !Transform geometry and gradients to principle axes frame
-        forall(i=1:NAtoms)
-            geom(3*i-2:3*i)=matmul(moi,geom(3*i-2:3*i))
-        end forall
-    end subroutine StandardizeGeometry
-    !Also transform gradient
-    subroutine StandardizeGeometry_Gradient(geom,grad,mass,NAtoms)
-        integer,intent(in)::NAtoms
-        real*8,dimension(3*NAtoms),intent(inout)::geom,grad
-        real*8,dimension(NAtoms),intent(in)::mass
-        integer::i
-        real*8::SystemMass
+    !Standardize a geometry (and optionally gradient) (optionally to a reference)
+    !Required argument: 3NAtoms order vector geom (geom[3*i-2:3*i] corresponds to the coordinate of i-th atom),
+    !                   NAtoms order vector mass (mass[i] is the mass of i-th atom), NAtoms, NStates
+    !Optional argument:
+    !    reference: uniquely define the standard geometry by the 1 with smallest difference to reference out of 4
+    !    difference: harvest || output geom - reference ||_2^2
+    !    grad: 3NAtoms order vector gradient to transform to standard coordinate
+    !    nadgrad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
+    subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad,nadgrad)
+        !Required argument
+            integer,intent(in)::NAtoms,NStates
+            real*8,dimension(3*NAtoms),intent(inout)::geom
+            real*8,dimension(NAtoms),intent(in)::mass
+        !Optional argument
+            real*8,dimension(3*NAtoms),intent(in),optional::reference
+            real*8,intent(out),optional::difference
+            real*8,dimension(3*NAtoms),intent(inout),optional::grad
+            real*8,dimension(3*NAtoms,NStates,NStates),intent(inout),optional::nadgrad
+        integer::i,indicemin,istate,jstate
+        real*8::SystemMass,temp
         real*8,dimension(3)::com!Short for Centre Of Mass
         real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
+        real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
         !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
-        do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
-        end do
-        com=com/SystemMass
+            com=0d0
+            SystemMass=0d0
+            do i=1,NAtoms
+                com=com+mass(i)*geom(3*i-2:3*i)
+                SystemMass=SystemMass+mass(i)
+            end do
+            com=com/SystemMass
         !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        moi=0d0
-        do i=1,NAtoms
-            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-        end do
+            moi=0d0
+            do i=1,NAtoms
+                geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
+                moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
+            end do
         !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-        UT=transpose(moi)
-        !Transform geometry and gradients to principle axes frame
-        forall(i=1:NAtoms)
-            geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i))
-            grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
-        end forall
-    end subroutine StandardizeGeometry_Gradient
-    !In nonadiabatic process, we need the gradient of NStates order matrix
-    subroutine StandardizeGeometry_NonadabaticGradient(geom,grad,mass,NAtoms,NStates)
-        integer,intent(in)::NAtoms,NStates
-        real*8,dimension(3*NAtoms),intent(inout)::geom
-        real*8,dimension(3*NAtoms,NStates,NStates),intent(inout)::grad
-        real*8,dimension(NAtoms),intent(in)::mass
-        integer::i,istate,jstate
-        real*8::SystemMass
-        real*8,dimension(3)::com!Short for Centre Of Mass
-        real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
-        !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
-        do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
-        end do
-        com=com/SystemMass
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        moi=0d0
-        do i=1,NAtoms
-            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-        end do
-        !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-        UT=transpose(moi)
-        !Transform geometry and gradients to principle axes frame
-        forall(i=1:NAtoms)
-            geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i))
-            forall(istate=1:NStates,jstate=1:NStates,istate>=jstate)
-                grad(3*i-2:3*i,istate,jstate)=matmul(moi,grad(3*i-2:3*i,istate,jstate))
+            call My_dsyev('V',moi,com,3)
+            if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
+            UT=transpose(moi)
+        !Transform geometry (and optionally gradient) to principle axes frame
+        if(present(reference)) then
+            !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
+            forall(i=1:NAtoms)
+                r(3*i-2:3*i,1)=matmul(UT,geom(3*i-2:3*i))
+                !Flip x and y positive directions
+                r(3*i-2:3*i-1,2)=-r(3*i-2:3*i-1,1)
+                r(3*i,2)=r(3*i,1)
+                !Flip x and z positive directions
+                r(3*i-2,3)=-r(3*i-2,1)
+                r(3*i,3)=-r(3*i,1)
+                r(3*i-1,3)=r(3*i-1,1)
+                !Flip y and z positive directions
+                r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
+                r(3*i-2,4)=r(3*i-2,1)
             end forall
-        end forall
-    end subroutine StandardizeGeometry_NonadabaticGradient
-
-    !StandardizeGeometry a point to a reference: choose the 1 with smallest difference to reference out of 4
-    !difference = 2 norm square of difference
-    subroutine StandardizeGeometry2Reference(geom,reference,difference,mass,NAtoms)
-        integer,intent(in)::NAtoms
-        real*8,dimension(3*NAtoms),intent(inout)::geom
-        real*8,dimension(3*NAtoms),intent(in)::reference
-        real*8,intent(out)::difference
-        real*8,dimension(NAtoms),intent(in)::mass
-        integer::i,indicemin
-        real*8::SystemMass
-        real*8,dimension(3)::com!Short for Centre Of Mass
-        real*8,dimension(3,3)::moi!Short for Momentum Of Inertia
-        real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
-        !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
-        do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
-        end do
-        com=com/SystemMass
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        moi=0d0
-        do i=1,NAtoms
-            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-        end do
-        !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-        moi=transpose(moi)
-        !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
-        do i=1,NAtoms
-            r(3*i-2:3*i,1)=matmul(moi,geom(3*i-2:3*i))
-            !Flip x and y positive directions
-            r(3*i-2:3*i-1,2)=-r(3*i-2:3*i-1,1)
-            r(3*i,2)=r(3*i,1)
-            !Flip x and z positive directions
-            r(3*i-2,3)=-r(3*i-2,1)
-            r(3*i,3)=-r(3*i,1)
-            r(3*i-1,3)=r(3*i-1,1)
-            !Flip y and z positive directions
-            r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
-            r(3*i-2,4)=r(3*i-2,1)
-        end do
-        indicemin=1!Which one has smallest difference?
-        difference=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
-        do i=2,4
-            SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
-            if(SystemMass<difference) then
-                difference=SystemMass
-                indicemin=i
-            end if
-        end do
-        geom=r(:,indicemin)!Transform geometry to principle axes frame
-    end subroutine StandardizeGeometry2Reference
-    !Also transform gradient
-    subroutine StandardizeGeometry2Reference_Gradient(geom,grad,reference,difference,mass,NAtoms)
-        integer,intent(in)::NAtoms
-        real*8,dimension(3*NAtoms),intent(inout)::geom,grad
-        real*8,dimension(3*NAtoms),intent(in)::reference
-        real*8,intent(out)::difference
-        real*8,dimension(NAtoms),intent(in)::mass
-        integer::i,indicemin
-        real*8::SystemMass
-        real*8,dimension(3)::com!Short for Centre Of Mass
-        real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
-        real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
-        !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
-        do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
-        end do
-        com=com/SystemMass
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        moi=0d0
-        do i=1,NAtoms
-            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-        end do
-        !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-        UT=transpose(moi)
-        !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
-        do i=1,NAtoms
-            r(3*i-2:3*i,1)=matmul(UT,geom(3*i-2:3*i))
-            !Flip x and y positive directions
-            r(3*i-2:3*i-1,2)=-r(3*i-2:3*i-1,1)
-            r(3*i,2)=r(3*i,1)
-            !Flip x and z positive directions
-            r(3*i-2,3)=-r(3*i-2,1)
-            r(3*i,3)=-r(3*i,1)
-            r(3*i-1,3)=r(3*i-1,1)
-            !Flip y and z positive directions
-            r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
-            r(3*i-2,4)=r(3*i-2,1)
-        end do
-        indicemin=1!Which one has smallest difference?
-        difference=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
-        do i=2,4
-            SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
-            if(SystemMass<difference) then
-                difference=SystemMass
-                indicemin=i
-            end if
-        end do
-        geom=r(:,indicemin)!Transform geometry to principle axes frame
-        !Transform gradients to principle axes frame
-        select case(indicemin)
-            case(2)
-                moi(:,1:2)=-moi(:,1:2)
-            case(3)
-                moi(:,1)=-moi(:,1)
-                moi(:,3)=-moi(:,3)
-            case(4)
-                moi(:,2:3)=-moi(:,2:3)
-            case default
-        end select
-        forall(i=1:NAtoms)
-            grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
-        end forall
-    end subroutine StandardizeGeometry2Reference_Gradient
-    !In nonadiabatic process, we need the gradient of NStates order matrix
-    subroutine StandardizeGeometry2Reference_NonadiabaticGradient(geom,grad,reference,difference,mass,NAtoms,NStates)
-        integer,intent(in)::NAtoms,NStates
-        real*8,dimension(3*NAtoms),intent(inout)::geom
-        real*8,dimension(3*NAtoms,NStates,NStates),intent(inout)::grad
-        real*8,dimension(3*NAtoms),intent(in)::reference
-        real*8,intent(out)::difference
-        real*8,dimension(NAtoms),intent(in)::mass
-        integer::i,istate,jstate
-        real*8::SystemMass
-        real*8,dimension(3)::com!Short for Centre Of Mass
-        real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
-        real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
-        !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
-        do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
-        end do
-        com=com/SystemMass
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        moi=0d0
-        do i=1,NAtoms
-            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-        end do
-        !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-        UT=transpose(moi)
-        !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
-        do i=1,NAtoms
-            r(3*i-2:3*i,1)=matmul(UT,geom(3*i-2:3*i))
-            !Flip x and y positive directions
-            r(3*i-2:3*i-1,2)=-r(3*i-2:3*i-1,1)
-            r(3*i,2)=r(3*i,1)
-            !Flip x and z positive directions
-            r(3*i-2,3)=-r(3*i-2,1)
-            r(3*i,3)=-r(3*i,1)
-            r(3*i-1,3)=r(3*i-1,1)
-            !Flip y and z positive directions
-            r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
-            r(3*i-2,4)=r(3*i-2,1)
-        end do
-        istate=1!Which one has smallest difference?
-        difference=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
-        do i=2,4
-            SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
-            if(SystemMass<difference) then
-                difference=SystemMass
-                istate=i
-            end if
-        end do
-        geom=r(:,istate)!Transform geometry to principle axes frame
-        !Transform gradients to principle axes frame
-        select case(istate)
-            case(2)
-                moi(:,1:2)=-moi(:,1:2)
-            case(3)
-                moi(:,1)=-moi(:,1)
-                moi(:,3)=-moi(:,3)
-            case(4)
-                moi(:,2:3)=-moi(:,2:3)
-            case default
-        end select
-        forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
-            grad(3*i-2:3*i,istate,jstate)=matmul(moi,grad(3*i-2:3*i,istate,jstate))
-        end forall
-    end subroutine StandardizeGeometry2Reference_NonadiabaticGradient
+            indicemin=1!Which one has smallest difference?
+            temp=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
+            do i=2,4
+                SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
+                if(SystemMass<temp) then
+                    temp=SystemMass
+                    indicemin=i
+                end if
+            end do
+            if(present(difference)) difference=temp!Harvest || output geom - reference ||_2^2
+            geom=r(:,indicemin)!Determine the geometry
+            select case(indicemin)!Determine the principle axes
+                case(2)
+                    moi(:,1:2)=-moi(:,1:2)
+                case(3)
+                    moi(:,1)=-moi(:,1)
+                    moi(:,3)=-moi(:,3)
+                case(4)
+                    moi(:,2:3)=-moi(:,2:3)
+            end select
+        else
+            forall(i=1:NAtoms)
+                geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i))
+            end forall
+        end if
+        if(present(grad)) then
+            forall(i=1:NAtoms)
+                grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
+            end forall
+        end if
+        if(present(nadgrad)) then
+            forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                nadgrad(3*i-2:3*i,istate,jstate)=matmul(moi,nadgrad(3*i-2:3*i,istate,jstate))
+            end forall
+        end if
+    end subroutine StandardizeGeometry
 !------------------- End --------------------
 
 !---------- Cartesian <-> Internal ----------
     !An interal coordinate is the linear combination of several translationally and rotationally invariant displacements,
     !    but only displacements under same unit can be combined, i.e., you must treat length and angle separately,
     !    unless appropriate metric tensor is applied
-    !It is OK to define more than 3N-6 (or 3N-5 for linear molecule) internal coordinates,
-    !    but only 3N-6 (or 3N-5 for linear molecule) partial derivatives are independent
+    !It is OK to define more than 3NAtoms-6 (or 3NAtoms-5 for linear molecule) internal coordinates,
+    !    but only 3NAtoms-6 (or 3NAtoms-5 for linear molecule) partial derivatives are independent
     !!Although the transformation from Cartesian coordinate to internal coordinate is not necessarily linear,
     !    for infinitesimal displacement it is linear, corresponding to a matrix form: dq = B dr
     !    where dq is internal coordinate differentiation, dr is Cartesian coordinate differentiation,
     !    B is Jacobian(q,r) (historically called Wilson B matrix)
+    !r is a 3NAtoms order vector with r[3*i-2:3*i] corresponding to the coordinate of i-th atom
+    !Nomenclature:
+    !    cartdim & intdim: Cartesian & internal space dimension
+    !    cartgrad & intgrad: Cartesian & internal gradient
+    !    cartnadgrad & intnadgrad: Cartesian & internal nonadiabatic gradient (cartdim & intdim x NStates x NStates 3rd-order tensor)
 
     !This is a demo on how to define internal coordinate: read Columbus7 intcfl file
     subroutine demo_DefineInternalCoordinate(intdim)
@@ -452,130 +254,69 @@ contains
     end subroutine demo_DefineInternalCoordinate
 
     !========== Cartesian -> Internal ==========
-        !-------------- Transform geometry only --------------
-            !Generate internal coordinate q from Cartesian coordinate r and internal coordinate definition
-            !The definition is a global variable, so only take r as input
-            function InternalCoordinateq(r,intdim,cartdim)
-                integer,intent(in)::intdim,cartdim
-                real*8,dimension(cartdim),intent(in)::r
-                real*8,dimension(intdim)::InternalCoordinateq
-                integer::iIntC,iMotion
-                InternalCoordinateq=0d0
-                do iIntC=1,intdim
-                    do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
-                        select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
-                            case('stretching')
-                                InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
-                                    GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                            case('bending')
-                                InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
-                                    GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                            case('torsion')
-                                InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
-                                    GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                            case default!Throw a warning
-                                write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',GeometryTransformation_IntCDef(iIntC).motion(iMotion).type
-                                stop
-                        end select
-                    end do
-                end do
-            end function InternalCoordinateq
-            
-            !Transform from Cartesian coordinate r to a certain motion coordinate q
-            !For stretching, q = bond length
-            real*8 function stretching(r,motion,cartdim)
-                integer,intent(in)::cartdim
-                real*8,dimension(cartdim),intent(in)::r
-                type(InvolvedMotion),intent(in)::motion
-                real*8,dimension(3)::r12
-                r12=r(3*motion.atom(2)-2:3*motion.atom(2))-r(3*motion.atom(1)-2:3*motion.atom(1))
-                stretching=Norm2(r12)
-            end function stretching
-            !For bending, q = bond angle
-            real*8 function bending(r,motion,cartdim)
-                integer,intent(in)::cartdim
-                real*8,dimension(cartdim),intent(in)::r
-                type(InvolvedMotion),intent(in)::motion
-                real*8,dimension(3)::runit21,runit23
-                runit21=r(3*motion.atom(1)-2:3*motion.atom(1))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                    runit21=runit21/Norm2(runit21)
-                runit23=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                    runit23=runit23/Norm2(runit23)
-                bending=acos(dot_product(runit21,runit23))
-            end function bending
-            !For torsion, q = dihedral angle
-            real*8 function torsion(r,motion,cartdim)
-                integer,intent(in)::cartdim
-                real*8,dimension(cartdim),intent(in)::r
-                type(InvolvedMotion),intent(in)::motion
-                real*8,dimension(3)::r21,r23,r43
-                r21=r(3*motion.atom(1)-2:3*motion.atom(1))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                r23=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                r43=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(4)-2:3*motion.atom(4))
-                r21=cross_product(r21,r23)!r21 = n123, temporarily
-                    r21=r21/Norm2(r21)
-                r43=cross_product(r23,r43)!r43 = n234, temporarily
-                    r43=r43/Norm2(r43)
-                torsion=acos(dot_product(r21,r43))
-                if(triple_product(r21,r43,r23)<0d0) torsion=-torsion
-            end function torsion
-        !------------------------ End ------------------------
-            
-        !---------- Transform geometry and gradient ----------
-            !Transform geometry and gradient from Cartesian coordinate to internal coordinate
-            subroutine Cartesian2Internal(r,cartgrad,cartdim,q,intgrad,intdim)
-                integer,intent(in)::cartdim,intdim
-                real*8,dimension(cartdim),intent(in)::r,cartgrad
-                real*8,dimension(intdim),intent(out)::q,intgrad
-                real*8,dimension(intdim,cartdim)::B
-                call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-                call Cartesian2InternalGradient(cartgrad,cartdim,intgrad,intdim,B)
-            end subroutine Cartesian2Internal
-            !In nonadiabatic process, we need the gradient of NStates order matrix
-            subroutine Cartesian2Internal_Nonadiabatic(r,cartgrad,cartdim,q,intgrad,intdim,NStates)
+        !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
+        !Required argument: r, cartdim, q, intdim, NStates
+        !Optional argument: cartgrad, intgrad, cartnadgrad, intnadgrad
+        !r & cartgrad & cartnadgrad are the input Cartesian space value, q & intgrad & intnadgrad harvest corresponding internal space value
+        subroutine Cartesian2Internal(r,cartdim,q,intdim,NStates,cartgrad,intgrad,cartnadgrad,intnadgrad)
+            !Required argument
                 integer,intent(in)::cartdim,intdim,NStates
                 real*8,dimension(cartdim),intent(in)::r
-                real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
                 real*8,dimension(intdim),intent(out)::q
-                real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
-                real*8,dimension(intdim,cartdim)::B
-                call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-                call Cartesian2InternalNonadiabaticGradient(cartgrad,cartdim,intgrad,intdim,B,NStates)
-            end subroutine Cartesian2Internal_Nonadiabatic
-            
-            !========== Build Wilson B matrix and transform geometry ==========
-                !Generate Wilson B matrix and internal coordinate q from Cartesian coordinate r and internal coordinate definition
-                !The definition is a global variable, so only take r as input
-                subroutine WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-                    integer,intent(in)::intdim,cartdim
-                    real*8,dimension(intdim,cartdim),intent(out)::B
-                    real*8,dimension(intdim),intent(out)::q
-                    real*8,dimension(cartdim),intent(in)::r
-                    integer::iIntC,iMotion
-                    real*8::qMotion
-                    real*8,dimension(cartdim)::BRowVector
-                    B=0d0
-                    q=0d0
-                    do iIntC=1,intdim
-                        do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
-                            select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
-                                case('stretching')
-                                    call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                                case('bending')
-                                    call bAndBending(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                                case('torsion')
-                                    call bAndTorsion(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                                case default!Throw a warning
-                                    write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',GeometryTransformation_IntCDef(iIntC).motion(iMotion).type
-                                    stop
-                            end select
-                            B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*BRowVector
-                            q(iIntC)=q(iIntC)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
-                        end do
-                    end do
-                end subroutine WilsonBMatrixAndInternalCoordinateq
-                
-                !Support WilsonBMatrixAndInternalCoordinateq
+            !Optional argument
+                real*8,dimension(cartdim),intent(in),optional::cartgrad
+                real*8,dimension(intdim),intent(out),optional::intgrad
+                real*8,dimension(cartdim,NStates,NStates),intent(in),optional::cartnadgrad
+                real*8,dimension(intdim,NStates,NStates),intent(out),optional::intnadgrad
+            integer::i,j
+            real*8,dimension(intdim,cartdim)::B
+            call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
+            if(present(cartgrad).and.present(intgrad)) then
+                call dGeneralizedInverseTranspose(B,intdim,cartdim)
+                intgrad=matmul(B,cartgrad)
+                if(present(cartnadgrad).and.present(intnadgrad)) then
+                    forall(i=1:NStates,j=1:NStates)
+                        intnadgrad(:,i,j)=matmul(B,cartnadgrad(:,i,j))
+                    end forall
+                end if
+            else if(present(cartnadgrad).and.present(intnadgrad)) then
+                call dGeneralizedInverseTranspose(B,intdim,cartdim)
+                forall(i=1:NStates,j=1:NStates)
+                    intnadgrad(:,i,j)=matmul(B,cartnadgrad(:,i,j))
+                end forall
+            end if
+        end subroutine Cartesian2Internal
+        
+        !Generate Wilson B matrix and internal coordinate q from Cartesian coordinate r and internal coordinate definition
+        !The definition is a global variable, so only take r as input
+        subroutine WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
+            integer,intent(in)::intdim,cartdim
+            real*8,dimension(intdim,cartdim),intent(out)::B
+            real*8,dimension(intdim),intent(out)::q
+            real*8,dimension(cartdim),intent(in)::r
+            integer::iIntC,iMotion
+            real*8::qMotion
+            real*8,dimension(cartdim)::BRowVector
+            B=0d0
+            q=0d0
+            do iIntC=1,intdim
+                do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
+                    select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
+                        case('stretching')
+                            call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
+                        case('bending')
+                            call bAndBending(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
+                        case('torsion')
+                            call bAndTorsion(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
+                        case default!Throw a warning
+                            write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',GeometryTransformation_IntCDef(iIntC).motion(iMotion).type
+                            stop
+                    end select
+                    B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*BRowVector
+                    q(iIntC)=q(iIntC)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
+                end do
+            end do
+            contains
                 !Generate the transformation vector b from dr to dq: b . dr = dq
                 !Transform from Cartesian coordinate r to a certain motion coordinate q
                 !Internal coordinate is the linear combination of several motions,
@@ -655,38 +396,156 @@ contains
                     q=acos(dot_product(n123,n234))
                     if(triple_product(n123,n234,runit23)<0d0) q=-q
                 end subroutine bAndTorsion
-            !============================== End ===============================
-            
-            !Generate internal gradient from Wilson B matrix and Cartesian gradient
-            subroutine Cartesian2InternalGradient(cartgrad,cartdim,intgrad,intdim,B)
-                integer,intent(in)::cartdim,intdim
-                real*8,dimension(cartdim),intent(in)::cartgrad
-                real*8,dimension(intdim),intent(out)::intgrad
-                real*8,dimension(intdim,cartdim),intent(in)::B
-                real*8,dimension(intdim,cartdim)::GT!G = the generalized inversion of B
-                GT=B
-                call dGeneralizedInverseTranspose(GT,intdim,cartdim)
-                intgrad=matmul(GT,cartgrad)
-            end subroutine Cartesian2InternalGradient
-            !In nonadiabatic process, we need the gradient of NStates order matrix
-            subroutine Cartesian2InternalNonadiabaticGradient(cartgrad,cartdim,intgrad,intdim,B,NStates)
-                integer,intent(in)::cartdim,intdim,NStates
-                real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
-                real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
-                real*8,dimension(intdim,cartdim),intent(in)::B
-                integer::i,j
-                real*8,dimension(intdim,cartdim)::GT!G = the generalized inversion of B
-                GT=B
-                call dGeneralizedInverseTranspose(GT,intdim,cartdim)
-                forall(i=1:NStates,j=1:NStates)
-                    intgrad(:,i,j)=matmul(GT,cartgrad(:,i,j))
-                end forall
-            end subroutine Cartesian2InternalNonadiabaticGradient
-        !------------------------ End ------------------------
+        end subroutine WilsonBMatrixAndInternalCoordinateq
+
+        !If you want internal coordinate only, you may adopt convenient functions below
+
+        !Generate internal coordinate q from Cartesian coordinate r and internal coordinate definition
+        !The definition is a global variable, so only take r as input
+        function InternalCoordinateq(r,intdim,cartdim)
+            integer,intent(in)::intdim,cartdim
+            real*8,dimension(cartdim),intent(in)::r
+            real*8,dimension(intdim)::InternalCoordinateq
+            integer::iIntC,iMotion
+            InternalCoordinateq=0d0
+            do iIntC=1,intdim
+                do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
+                    select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
+                        case('stretching')
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
+                                GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case('bending')
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
+                                GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case('torsion')
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
+                                GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case default!Throw a warning
+                            write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',GeometryTransformation_IntCDef(iIntC).motion(iMotion).type
+                            stop
+                    end select
+                end do
+            end do
+        end function InternalCoordinateq
+        
+        !Transform from Cartesian coordinate r to a certain motion coordinate q, atomlist defines which atoms are involved
+        !For stretching, q = bond length atom1_atom2
+        real*8 function stretching(r,atomlist,cartdim)
+            integer,intent(in)::cartdim
+            real*8,dimension(cartdim),intent(in)::r
+            integer,dimension(2),intent(in)::atomlist
+            real*8,dimension(3)::r12
+            r12=r(3*atomlist(2)-2:3*atomlist(2))-r(3*atomlist(1)-2:3*atomlist(1))
+            stretching=Norm2(r12)
+        end function stretching
+        !For bending, q = bond angle atom1_atom2_atom3, range [0,pi]
+        real*8 function bending(r,atomlist,cartdim)
+            integer,intent(in)::cartdim
+            real*8,dimension(cartdim),intent(in)::r
+            integer,dimension(3),intent(in)::atomlist
+            real*8,dimension(3)::runit21,runit23
+            runit21=r(3*atomlist(1)-2:3*atomlist(1))-r(3*atomlist(2)-2:3*atomlist(2))
+                runit21=runit21/Norm2(runit21)
+            runit23=r(3*atomlist(3)-2:3*atomlist(3))-r(3*atomlist(2)-2:3*atomlist(2))
+                runit23=runit23/Norm2(runit23)
+            bending=acos(dot_product(runit21,runit23))
+        end function bending
+        !For torsion, q = dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
+        !    n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc,
+        !    Dihedral angle has same sign to n_123 x n_234 . r_23
+        real*8 function torsion(r,atomlist,cartdim)
+            integer,intent(in)::cartdim
+            real*8,dimension(cartdim),intent(in)::r
+            integer,dimension(4),intent(in)::atomlist
+            real*8,dimension(3)::r21,r23,r43
+            r21=r(3*atomlist(1)-2:3*atomlist(1))-r(3*atomlist(2)-2:3*atomlist(2))
+            r23=r(3*atomlist(3)-2:3*atomlist(3))-r(3*atomlist(2)-2:3*atomlist(2))
+            r43=r(3*atomlist(3)-2:3*atomlist(3))-r(3*atomlist(4)-2:3*atomlist(4))
+            r21=cross_product(r21,r23)!r21 = n123, temporarily
+                r21=r21/Norm2(r21)
+            r43=cross_product(r23,r43)!r43 = n234, temporarily
+                r43=r43/Norm2(r43)
+            torsion=acos(dot_product(r21,r43))
+            if(triple_product(r21,r43,r23)<0d0) torsion=-torsion
+        end function torsion
     !=================== End ===================
 
     !========== Cartesian <- Internal ==========
-    !I will write someday (flag)
+        !Generate Cartesian coordinate r from internal coordinate q and internal coordinate definition
+        !The definition is a global variable, so only take r as input
+        !Optional argument:
+        !    mass: if present, will standardize r (otherwise r varies by arbitrary translation & rotation)
+        !    r0: initial guess of r; if mass is also present, will standardize with r0 as reference
+        function CartesianCoordinater(q,cartdim,intdim,mass,r0)
+            !Required argument
+                integer,intent(in)::cartdim,intdim
+                real*8,dimension(intdim)::q
+            !Optional argument
+                real*8,dimension(cartdim/3),intent(in),optional::mass
+                real*8,dimension(cartdim),intent(in),optional::r0
+            real*8,dimension(cartdim)::CartesianCoordinater
+            if(present(r0)) then!Initial guess
+                CartesianCoordinater=r0
+            else
+                call random_number(CartesianCoordinater)
+            end if
+            call TrustRegion(Residue,CartesianCoordinater,intdim,cartdim)
+            if(present(mass)) then
+                if(present(r0)) then
+                    call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
+                else
+                    call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1)
+                end if
+            end if
+            contains
+                subroutine Residue(res,r,intdim,cartdim)
+                    integer,intent(in)::intdim,cartdim
+                    real*8,dimension(intdim),intent(out)::res
+                    real*8,dimension(cartdim),intent(in)::r
+                    res=InternalCoordinateq(r,intdim,cartdim)-q
+                end subroutine Residue
+        end function CartesianCoordinater
+
+        !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
+        !Required argument: q, intdim, r, cartdim, NStates
+        !Optional argument: mass & r0 (same as above), intgrad, cartgrad, intnadgrad, cartnadgrad
+        !q & intgrad & intnadgrad are the input internal space value, r & cartgrad & cartnadgrad harvest corresponding Cartesian space value
+        subroutine Internal2Cartesian(q,intdim,r,cartdim,NStates,mass,r0,intgrad,cartgrad,intnadgrad,cartnadgrad)
+            !Required argument
+                integer,intent(in)::intdim,cartdim,NStates
+                real*8,dimension(intdim),intent(in)::q
+                real*8,dimension(cartdim),intent(out)::r
+            !Optional argument
+                real*8,dimension(cartdim/3),intent(in),optional::mass
+                real*8,dimension(cartdim),intent(in),optional::r0
+                real*8,dimension(intdim),intent(in),optional::intgrad
+                real*8,dimension(cartdim),intent(out),optional::cartgrad
+                real*8,dimension(intdim,NStates,NStates),intent(in),optional::intnadgrad
+                real*8,dimension(cartdim,NStates,NStates),intent(out),optional::cartnadgrad
+            integer::i,j
+            real*8,dimension(intdim)::qtemp
+            real*8,dimension(intdim,cartdim)::B
+            if(present(mass)) then
+                if(present(r0)) then
+                    r=CartesianCoordinater(q,cartdim,intdim,mass,r0)
+                else
+                    r=CartesianCoordinater(q,cartdim,intdim,mass)
+                end if
+            else
+                if(present(r0)) then
+                    r=CartesianCoordinater(q,cartdim,intdim,r0)
+                else
+                    r=CartesianCoordinater(q,cartdim,intdim)
+                end if
+            end if
+            call WilsonBMatrixAndInternalCoordinateq(B,qtemp,r,intdim,cartdim)
+            if(present(intgrad).and.present(cartgrad)) cartgrad=matmul(transpose(B),intgrad)
+            if(present(intnadgrad).and.present(cartnadgrad)) then
+                forall(i=1:NStates,j=1:NStates)
+                    cartnadgrad(:,i,j)=matmul(transpose(B),intnadgrad(:,i,j))
+                end forall
+            end if
+        end subroutine Internal2Cartesian
     !=================== End ===================
 !------------------- End --------------------
 
