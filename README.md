@@ -2,27 +2,27 @@
 Nonlinear optimization, linear algebra, and more 
 
 Selected utilities:
-* Nonlinear optimization: (all parameters conveniently tunable)
-1. Unconstrained optimizer:
+1. Nonlinear optimization: (all parameters conveniently tunable)
+* Unconstrained optimizer:
 Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak-Ribiere+), trust region
-2. Constrained optimizer: augmented Lagrangian
-* Linear algebra:
-1. All kinds of vector & matrix & tensor operation
-2. LAPACK wrapper for linear solver, eigensystem, matrix norm
-* Geometry transformation:
-1. Standard geometry (also called standard orientaion)
-2. Cartesian <-> internal coordinate
-3. Normal mode and vibrational frequency
-* Nonadiabatic:
-1. Gradient of eigenstates
-2. Phase fixing
-3. Conical intersection adapted coordinate
+* Constrained optimizer: augmented Lagrangian
+2. Linear algebra:
+* All kinds of vector & matrix & tensor operation
+* LAPACK wrapper for linear solver, eigensystem, matrix norm
+3. Geometry transformation:
+* Standard geometry (also called standard orientaion)
+* Cartesian <-> internal coordinate
+* Normal mode and vibrational frequency
+4. Nonadiabatic:
+* Gradient of eigenstates
+* Phase fixing
+* Conical intersection adapted coordinate
 
 To see what this library is capable of in detail, you may open certain source file and simply fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
 
 Dependency:
 * This library depends on BLAS & LAPACK & MKL
-* Need to compile together with MKL_RCI.f90, which can be found in your MKL installation path
+* MKL reverse communication interface is adopted, so need to compile together with MKL_RCI.f90, which can be found in your MKL installation path
 
 test.f90 and makefile are to build a demo program, testing the functionality
 
