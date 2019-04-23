@@ -1493,7 +1493,7 @@ contains
                         call f(fx,x,dim)
                         if(fx>fx0+c1*a*phid0) then
                             up=a
-                            if(dAbs(up-low)<1d-15) then
+                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) then
                                 call fd(fdx,x,dim)
                                 return
                             end if
@@ -1503,7 +1503,7 @@ contains
                             phidnew=dot_product(fdx,p)
                             if(phidnew>c2_m_abs_phid0) return
                             low=a
-                            if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
+                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
                             flow=fx
                             phidlow=phidnew
                             phidlow_m_a=phidlow*a
@@ -1602,7 +1602,7 @@ contains
                         call f(fx,x,dim)
                         if(fx>fx0+c1*a*phid0) then
                             up=a
-                            if(dAbs(up-low)<1d-15) then
+                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) then
                                 call fd(fdx,x,dim)
                                 return
                             end if
@@ -1612,7 +1612,7 @@ contains
                             phidnew=dot_product(fdx,p)
                             if(phidnew>c2_m_abs_phid0) return
                             low=a
-                            if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
+                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
                             flow=fx
                             phidlow=phidnew
                             phidlow_m_a=phidlow*a
