@@ -308,35 +308,120 @@ end function deigvec_ByKnowneigval_dA
 
 !At conical intersection there is a gauge degree of freedom, conical intersection adapted coordinate is
 !gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
+!Note this gauge does not determine adiabatic states uniquely:
+!    the transformation angle can differ by arbitrary integer times of pi / 4,
+!    so there are 4 possibilities in total (differ by pi is only a total phase change)
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
-!Required: dim dimensional vector grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
-!          dim dimensional vector h: interstate coupling between the intersected states
+!Required: grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
+!          h: interstate coupling between the intersected states
+!          dim: integer specifying the dimension of grad1 & grad2 & h
 !Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
-subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2)
-    integer,intent(in)::dim
-    real*8,dimension(dim),intent(inout)::grad1,grad2,h
-    real*8,dimension(:),intent(inout),optional::phi1,phi2
-    real*8::sinsqtheta,cossqtheta,sin2theta
-    real*8,dimension(dim)::g,htemp
+!          gref & href: reference g & h to uniquely determine gh orthogonalization as the 1 with smallest difference to reference out of 4
+!On exit grad1, grad2, h (and optionally phi1, phi2) will be gauged
+subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
+    !Required argument:
+        integer,intent(in)::dim
+        real*8,dimension(dim),intent(inout)::grad1,grad2,h
+    !Optional argument:
+        real*8,dimension(:),intent(inout),optional::phi1,phi2
+		real*8,dimension(dim),intent(in),optional::gref,href
+	integer::i
+    real*8::theta,sinsqtheta,cossqtheta,sin2theta,thetamin,difference,differencemin
+    real*8,dimension(dim)::g,dh11,dh12,dh22,dh11min,dh12min,dh22min
+    real*8,allocatable,dimension(:)::phitemp
     g=(grad2-grad1)/2d0
     sinsqtheta=dot_product(g,h)
-    if(sinsqtheta==0d0) return
-    cossqtheta=dot_product(g,g)-dot_product(h,h)
-    if(cossqtheta==0d0) then
-        cossqtheta=pid8
+	if(present(gref).and.present(href)) then
+		if(sinsqtheta==0d0) then
+            theta=0d0
+            !Try principle value
+            dh12min=h
+            dh11min=grad1
+            dh22min=grad2
+            differencemin=dot_product(g-gref,g-gref)+dot_product(h-href,h-href)
+        else
+            theta=dot_product(g,g)-dot_product(h,h)
+            if(theta==0d0) then
+                theta=pid8
+            else
+                theta=atan(2d0*sinsqtheta/theta)/4d0
+            end if
+            !Try principle value
+            sinsqtheta=sin(theta)
+            cossqtheta=cos(theta)
+            sin2theta=2d0*sinsqtheta*cossqtheta
+            sinsqtheta=sinsqtheta*sinsqtheta
+            cossqtheta=cossqtheta*cossqtheta
+            dh12min=(cossqtheta-sinsqtheta)*h-sin2theta*g
+            dh11min=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
+            dh22min=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
+            differencemin=dot_product((dh22min-dh11min)/2d0-gref,(dh22min-dh11min)/2d0-gref)+dot_product(dh12min-href,dh12min-href)
+		end if
+		thetamin=theta
+        do i=1,3!Try 3 remaining solutions
+            theta=theta+pid4
+            sinsqtheta=sin(theta)
+            cossqtheta=cos(theta)
+            sin2theta=2d0*sinsqtheta*cossqtheta
+            sinsqtheta=sinsqtheta*sinsqtheta
+            cossqtheta=cossqtheta*cossqtheta
+            dh12=(cossqtheta-sinsqtheta)*h-sin2theta*g
+            dh11=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
+            dh22=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
+            difference=dot_product((dh22-dh11)/2d0-gref,(dh22-dh11)/2d0-gref)+dot_product(dh12-href,dh12-href)
+            if(difference<differencemin) then
+                thetamin=theta
+                dh12min=dh12
+                dh11min=dh11
+                dh22min=dh22
+                differencemin=difference
+            end if
+		end do
+		grad1=dh11min
+		grad2=dh22min
+		h=dh12min
+		if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
+			if(size(phi1)==size(phi2)) then
+				sinsqtheta=sin(thetamin)
+                cossqtheta=cos(thetamin)
+                allocate(phitemp(size(phi1)))
+                phitemp=phi1
+                phi1=cossqtheta*phitemp-sinsqtheta*phi2
+                phi2=sinsqtheta*phitemp+cossqtheta*phi2
+                deallocate(phitemp)
+            else
+                write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
+            end if
+        end if
     else
-        cossqtheta=atan(2d0*sinsqtheta/cossqtheta)/4d0
+        if(sinsqtheta==0d0) return
+        cossqtheta=dot_product(g,g)-dot_product(h,h)
+        if(cossqtheta==0d0) then
+            theta=pid8
+        else
+            theta=atan(2d0*sinsqtheta/cossqtheta)/4d0
+        end if
+        sinsqtheta=dSin(theta)
+        cossqtheta=dCos(theta)
+        if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
+            if(size(phi1)==size(phi2)) then
+                allocate(phitemp(size(phi1)))
+                phitemp=phi1
+                phi1=cossqtheta*phitemp-sinsqtheta*phi2
+                phi2=sinsqtheta*phitemp+cossqtheta*phi2
+                deallocate(phitemp)
+            else
+                write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
+            end if
+        end if
+        sin2theta=2d0*sinsqtheta*cossqtheta
+        sinsqtheta=sinsqtheta*sinsqtheta
+        cossqtheta=cossqtheta*cossqtheta
+        dh11=grad1
+        grad1=cossqtheta*dh11+sinsqtheta*grad2-sin2theta*h
+		grad2=sinsqtheta*dh11+cossqtheta*grad2+sin2theta*h
+		h=(cossqtheta-sinsqtheta)*h-sin2theta*g
     end if
-    sinsqtheta=dSin(cossqtheta)
-    cossqtheta=dCos(cossqtheta)
-    sin2theta=2d0*sinsqtheta*cossqtheta
-    sinsqtheta=sinsqtheta*sinsqtheta
-    cossqtheta=cossqtheta*cossqtheta
-    htemp=h
-    h=(cossqtheta-sinsqtheta)*h-sin2theta*g
-    g=grad1
-    grad1=cossqtheta*g+sinsqtheta*grad2-sin2theta*htemp
-    grad2=sinsqtheta*g+cossqtheta*grad2+sin2theta*htemp
 end subroutine ghOrthogonalization
 
 end module Nonadiabatic
