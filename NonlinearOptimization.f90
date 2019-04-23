@@ -52,7 +52,7 @@ contains
     !On input x is an initial guess, on exit x is a local minimum of f(x)
 
     !Newton-Raphson method, requiring Wolfe condition
-    !Optional fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
+    !Optional: fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
     subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
@@ -842,7 +842,7 @@ contains
     end subroutine BFGS
 
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
-    !Optional Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
+    !Optional: Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
     subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
@@ -1126,7 +1126,7 @@ contains
 
     !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
     !Available methods: DY (Dai-Yun), PR (Polak-Ribiere+)
-    !Optional Method: (default = DY) which conjugate gradient method to use
+    !Optional: Method: (default = DY) which conjugate gradient method to use
     subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
@@ -1400,7 +1400,7 @@ contains
         !Input:  c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
         !        a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
         !Output: a harvests the step length satisfying certain condition, x = x + a * p, fx = f(x), fdx = f'(x)
-        !Optional Increment: (default = 1.05) each iteration change a by how much time (must > 1)
+        !Optional: Increment: (default = 1.05) each iteration change a by how much time (must > 1)
 
         !Line search for a step length satisfying Wolfe condition
         !This routine is designed to minimize gradient computation

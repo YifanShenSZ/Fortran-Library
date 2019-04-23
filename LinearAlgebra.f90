@@ -574,7 +574,7 @@ contains
         end subroutine My_dsysvM
     
         !N order vector b
-        !Optional info: If A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
+        !Optional: info: If A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
         !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
         !b will not be overwritten if fail
         subroutine My_dposv(A,b,N,info)
@@ -591,7 +591,7 @@ contains
         end subroutine My_dposv
     
         !N x M matrix b
-        !Optional info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
+        !Optional: info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
         !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
         !b will not be overwritten if fail
         subroutine My_dposvM(A,b,N,M,info)
@@ -632,7 +632,7 @@ contains
             call dsytri('L',N,A,N,ipiv,work,info)
         end subroutine My_dsytri
 
-        !Optional info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and inversing failed
+        !Optional: info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and inversing failed
         !A will be overwritten even fail
         subroutine My_dpotri(A,N,info)
             integer,intent(in)::N
@@ -719,7 +719,7 @@ contains
     !gtype: 1, A . eigvec = B . eigvec . diag(eigval)
     !       2, A . B . eigvec = eigvec . diag(eigval)
     !N order real symmetric positive definite matrix B
-    !Optional info: if B is po, info returns 0; else, the info-th leading minor of B <= 0 and diagonalization failed
+    !Optional: info: if B is po, info returns 0; else, the info-th leading minor of B <= 0 and diagonalization failed
     !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under B metric
     !B harvests the Cholesky L . L^T decomposition. B will be overwritten even fail
     !A will be overwritten even for 'N' job

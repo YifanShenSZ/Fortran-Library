@@ -255,8 +255,8 @@ end subroutine StandardizeGeometry
 
     !========== Cartesian -> Internal ==========
         !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
-        !Required argument: r, cartdim, q, intdim, NStates
-        !Optional argument: cartgrad, intgrad, cartnadgrad, intnadgrad
+        !Required: r, cartdim, q, intdim, NStates
+        !Optional: cartgrad, intgrad, cartnadgrad, intnadgrad
         !r & cartgrad & cartnadgrad are the input Cartesian space value, q & intgrad & intnadgrad harvest corresponding internal space value
         subroutine Cartesian2Internal(r,cartdim,q,intdim,NStates,cartgrad,intgrad,cartnadgrad,intnadgrad)
             !Required argument
@@ -507,8 +507,8 @@ end subroutine StandardizeGeometry
         end function CartesianCoordinater
 
         !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
-        !Required argument: q, intdim, r, cartdim, NStates
-        !Optional argument: mass & r0 (same as above), intgrad, cartgrad, intnadgrad, cartnadgrad
+        !Required: q, intdim, r, cartdim, NStates
+        !Optional: mass & r0 (same as above), intgrad, cartgrad, intnadgrad, cartnadgrad
         !q & intgrad & intnadgrad are the input internal space value, r & cartgrad & cartnadgrad harvest corresponding Cartesian space value
         subroutine Internal2Cartesian(q,intdim,r,cartdim,NStates,mass,r0,intgrad,cartgrad,intnadgrad,cartnadgrad)
             !Required argument

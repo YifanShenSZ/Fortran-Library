@@ -310,12 +310,16 @@ end function deigvec_ByKnowneigval_dA
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
 !Required: dim dimensional vector grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
 !Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
-subroutine ghOrthogonalization(grad1,grad2,dim,phi1,phi2)
+subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2)
     integer,intent(in)::dim
     real*8,dimension(dim),intent(inout)::grad1,grad2
-    real*8,dimension(NBasis),intent(inout),optional::phi1,phi2
+    real*8,dimension(:),intent(inout),optional::phi1,phi2
     real*8::sinsqtheta,cossqtheta,sin2theta
-    real*8,dimension(InternalDimension)::g,h
+    real*8,dimension(dim)::g,h
+
+    g=(grad2-grad1)/2d0
+    h=
+
     g=(point_state(up).state(up).grad-point_state(low).state(low).grad)/2d0
     h=point_state(low).state(up).grad
     sinsqtheta=dot_product(g,h)
