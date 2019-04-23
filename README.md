@@ -13,6 +13,10 @@ Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak
 1. Standard geometry (also called standard orientaion)
 2. Cartesian <-> internal coordinate
 3. Normal mode and vibrational frequency
+* Nonadiabatic:
+1. Gradient of eigenstates
+2. Phase fixing
+3. Conical intersection adapted coordinate
 
 To see what this library is capable of in detail, you may open certain source file and simply fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
 
