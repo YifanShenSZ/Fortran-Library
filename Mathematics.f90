@@ -28,7 +28,7 @@ module Mathematics
 contains
 !------------------ Combinatorics -------------------
     !Exact factorial for 0 <= N <= 20, double precision for 21 <= N <= 40, 8 significant figures for N >= 41
-    !Optional argument: Warning: (default = true) if true, throw a warning when using 8 significant figures approximation
+    !Optional Warning: (default = true) if true, throw a warning when using 8 significant figures approximation
     real*8 function dFactorial(N,Warning)
         integer,intent(in)::N
         logical,intent(in),optional::Warning

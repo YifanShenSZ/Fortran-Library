@@ -308,8 +308,12 @@ end function deigvec_ByKnowneigval_dA
 !At conical intersection there is a gauge degree of freedom, conical intersection adapted coordinate is
 !gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
-subroutine ghOrthogonalization(grad1,grad2,)
-    integer,intent(in)::low,up
+!Required: dim dimensional vector grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
+!Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
+subroutine ghOrthogonalization(grad1,grad2,dim,phi1,phi2)
+    integer,intent(in)::dim
+    real*8,dimension(dim),intent(inout)::grad1,grad2
+    real*8,dimension(NBasis),intent(inout),optional::phi1,phi2
     real*8::sinsqtheta,cossqtheta,sin2theta
     real*8,dimension(InternalDimension)::g,h
     g=(point_state(up).state(up).grad-point_state(low).state(low).grad)/2d0
