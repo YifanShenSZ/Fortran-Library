@@ -854,7 +854,7 @@ contains
             integer,intent(in),optional::Memory,MaxIteration
             real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
-        integer::M,maxit,iIteration,i,recent
+        integer::mem,maxit,iIteration,i,recent
         real*8::tol,minstep,c1,c2,a,fnew,phidnew
         real*8,dimension(dim)::p,fdnew,xold,fdold
         real*8,allocatable,dimension(:)::rho,alpha
@@ -863,9 +863,9 @@ contains
             terminate=.false.
             !Set parameter according to optional argument
                 if(present(Memory)) then
-                    M=max(1,Memory)!Fail safe
+                    mem=max(1,Memory)!Fail safe
                 else
-                    M=10
+                    mem=10
                 end if
                 if(present(Strong)) then
                     sw=Strong
@@ -902,10 +902,10 @@ contains
                 else
                     c2=0.9d0
                 end if
-            allocate(rho(0:M))
-            allocate(alpha(0:M))
-            allocate(s(dim,0:M))
-            allocate(y(dim,0:M))
+            allocate(rho(0:mem))
+            allocate(alpha(0:mem))
+            allocate(s(dim,0:mem))
+            allocate(y(dim,0:mem))
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 i=f_fd(fnew,fdnew,x,dim)
             else
@@ -951,7 +951,7 @@ contains
             s(:,0)=x-xold
             y(:,0)=fdnew-fdold
             rho(0)=1d0/dot_product(y(:,0),s(:,0))
-            do iIteration=1,M-1!Preiterate to get enough history
+            do iIteration=1,mem-1!Preiterate to get enough history
                 xold=x!Prepare
                 fdold=fdnew
                 !Determine new direction
@@ -1084,12 +1084,12 @@ contains
                     alpha(i)=rho(i)*dot_product(s(:,i),p)
                     p=p-alpha(i)*y(:,i)
                 end do
-                do i=M-1,recent+1,-1
+                do i=mem-1,recent+1,-1
                     alpha(i)=rho(i)*dot_product(s(:,i),p)
                     p=p-alpha(i)*y(:,i)
                 end do
                 p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-                do i=recent+1,M-1
+                do i=recent+1,mem-1
                     phidnew=rho(i)*dot_product(y(:,i),p)
                     p=p+(alpha(i)-phidnew)*s(:,i)
                 end do
@@ -1117,7 +1117,7 @@ contains
                     terminate=.true.
                     return
                 end if
-                recent=mod(recent+1,M)
+                recent=mod(recent+1,mem)
                 s(:,recent)=x-xold
                 y(:,recent)=fdnew-fdold
                 rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
@@ -1756,7 +1756,7 @@ contains
                 subroutine zoom(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
                     real*8::phidnew,d1,d2
-                    do while(Abs(up-low)>1d-15)
+                    do
                         !Updata a by cubic interpolation
                             d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
                             d2=up-low
@@ -1786,6 +1786,7 @@ contains
                             flow=fx
                             phidlow=phidnew
                         end if
+                        if(Abs(up-low)<1d-15) return
                     end do
                 end subroutine zoom
         end subroutine StrongWolfe
@@ -1911,7 +1912,7 @@ contains
                 subroutine zoom(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
                     real*8::phidnew,d1,d2
-                    do while(Abs(up-low)>1d-15)
+                    do
                         !Updata a by cubic interpolation
                             d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
                             d2=up-low
@@ -1940,6 +1941,7 @@ contains
                             flow=fx
                             phidlow=phidnew
                         end if
+                        if(Abs(up-low)<1d-15) return
                     end do
                 end subroutine zoom
         end subroutine StrongWolfe_fdwithf
@@ -2193,12 +2195,13 @@ contains
     !Lagrangian multiplier method actually turns a minimization problem into a saddle point problem,
     !which cannot necessarily be solved through try decreasing f(x), making all unconstrained minimizers fail
     !Lagrangian multiplier method is only good when L has unique saddle point: we may simply minimize || L'(x) ||
-    !In general case, we have to turn to the augmented Lagrangian method
-    !Nomenclature:
-    !    f = the target function to be minimized
-    !    c = the constraint in standard form: c(x) = 0 for equality, c(x) >= 0 for inequality
-    !    lamda = Lagrangian multiplier
-    !    miu = constraint violation penalty strength
+    !In general case, we have to turn to the augmented Lagrangian method:
+    !    Augmented Lagrangian = f - lamda . c + miu / 2 * c . c
+    !    where f is the target function to be minimized, c is equality constraint c(x) = 0,
+    !    lamda is Lagrangian multiplier, miu is constraint violation penalty strength
+    !Suggestion:
+    !    Augmented Lagrangian has ill conditioned Hessian when miu is too large, deteriorating performance of line searchers
+    !    so do not take too much interations and push accuracy to double precision limit
     !External procedure format:
     !    subroutine f(f(x),x,N)
     !    subroutine fd(f'(x),x,N)
@@ -2206,38 +2209,268 @@ contains
     !    integer function fdd(f''(x),x,N)
     !    subroutine c(c(x),x,M,N)
     !    subroutine cd(c'(x),x,M,N)
-    !    N dimensional vector x & f'(x), N order matrix f''(x), M dimensional vector c, N x M matrix c'(x)
+    !    integer function cdd(c''(x),x,M,N)
+    !    N dimensional vector x & f'(x), N order matrix f''(x),
+    !    M dimensional vector c, N x M matrix c'(x), N x M x M 3rd-order tensor c''(x)
     !Required argument:
     !    subroutine f & fd & c & cd, N dimensional vector x, integer N & M
     !Optional argument:
     !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line seaercher is available
-    !    All optional arguments for line searchers are also optional to take in here
+    !    lamda0: (default = 0) initial guess of lamda
+    !    miu0: (default = 1) initial miu (must >= 1)
+    !    All optional arguments for line searchers are also optional to take in here,
+    !    some of them also control augmented Lagrangian behaviour: Warning, MaxIteration, Precision, Increment
+    !        but somewhat different: augmented Lagrangian max iteration = MaxIteration / 100
+    !                                augmented Lagrangian precision = Sqrt(Precision)
     !On input x is an initial guess, on exit x is a local minimum of f(x) subject to constraint c(x)
 
-    subroutine AugmentedLagrangian(f,fd,c,cd,x,N,M,UnconstrainedSolver,&
-        f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,ExactStep,Memory,Method)
+    !Augmented Lagrangian method for equality constraint
+    subroutine AugmentedLagrangian(f,fd,c,cd,x,N,M,UnconstrainedSolver,lamda0,miu0,&
+        f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,cdd,ExactStep,Memory,Method)
         !Required argument
             external::f,fd,c,cd
             integer,intent(in)::N,M
             real*8,dimension(N),intent(inout)::x
         !Optional argument
             character*32,intent(in),optional::UnconstrainedSolver
-            integer,external,optional::f_fd,fdd
+            real*8,dimension(M),intent(in),optional::lamda0
+            integer,external,optional::f_fd,fdd,cdd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration,ExactStep,Memory
-            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
-            character*2,intent(in),optional::Method
-        integer::i
+            real*8,intent(in),optional::miu0,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
+            character*32,intent(in),optional::Method
+        !Job control
+            character*32::solver,type
+            logical::sw,warn
+            integer::maxit,freq,mem
+            real*8::tol,minstep,c1,c2,incrmt
+        integer::iIteration,i
         real*8::miu
         real*8,dimension(M)::lamda,cx
         real*8,dimension(N,M)::cdx
-        !lamda_k+1 = lamda_k - miu_k * c(x_k)
+        real*8,dimension(N,N,M)::cddx
+        real*8,dimension(N,N)::Lddxtemp
+        !Set parameter according to optional argument
+            !Augmented Lagrangian optional argument
+                if(present(UnconstrainedSolver)) then
+                    solver=UnconstrainedSolver
+                else
+                    solver='BFGS'
+                end if
+                if(present(lamda0)) then
+                    lamda=lamda0
+                else
+                    lamda=0d0
+                end if
+                if(present(miu0)) then
+                    miu=max(1d0,miu0)
+                else
+                    miu=1d0
+                end if
+            !Common line search optional argument
+                if(present(Strong)) then
+                    sw=Strong
+                else
+                    sw=.true.
+                end if
+                if(present(Warning)) then
+                    warn=Warning
+                else
+                    warn=.true.
+                end if
+                if(present(MaxIteration)) then
+                    maxit=MaxIteration
+                else
+                    maxit=1000
+                end if
+                if(present(Precision)) then
+                    tol=Precision
+                else
+                    tol=1d-15
+                end if
+                if(present(MinStepLength)) then
+                    minstep=MinStepLength
+                else
+                    minstep=1d-15
+                end if
+                if(present(WolfeConst1)) then
+                    c1=max(1d-15,WolfeConst1)!Fail safe
+                else
+                    c1=1d-4
+                end if
+                if(present(WolfeConst2)) then
+                c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                else
+                    if(present(UnconstrainedSolver)) then
+                        if(UnconstrainedSolver=='ConjugateGradient') then
+                            c2=0.45d0
+                        else
+                            c2=0.9d0
+                        end if
+                    else
+                        c2=0.9d0
+                    end if
+                end if
+                if(present(Increment)) then
+                    incrmt=Increment
+                else
+                    incrmt=1.05d0
+                end if
+            !Solver specific optional argument
+                if(present(ExactStep)) then
+                    freq=ExactStep
+                else
+                    freq=20
+                end if
+                if(present(Memory)) then
+                    mem=max(1,Memory)!Fail safe
+                else
+                    mem=10
+                end if
+                if(present(Method)) then
+                    type=Method
+                else
+                    type='DY'
+                end if
+        select case(solver)
+            case('NewtonRaphson')
+                if(present(fdd).and.present(cdd)) then
+                    if(present(f_fd)) then
+                        do iIteration=1,maxit/50
+                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    else
+                        do iIteration=1,maxit/50
+                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    end if
+                else
+                    if(present(f_fd)) then
+                        do iIteration=1,maxit/50
+                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    else
+                        do iIteration=1,maxit/50
+                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    end if
+                end if
+            case('BFGS')
+                if(present(fdd).and.present(cdd)) then
+                    if(present(f_fd)) then
+                        do iIteration=1,maxit/50
+                            call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,ExactStep=freq,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    else
+                        do iIteration=1,maxit/50
+                            call BFGS(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,ExactStep=freq,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    end if
+                else
+                    if(present(f_fd)) then
+                        do iIteration=1,maxit/50
+                            call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,ExactStep=freq,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    else
+                        do iIteration=1,maxit/50
+                            call BFGS(L,Ld,x,N,f_fd=L_Ld,ExactStep=freq,&
+                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                            call c(cx,x,M,N)
+                            if(dot_product(cx,cx)<tol) exit
+                            lamda=lamda-miu*cx
+                            miu=miu*incrmt
+                        end do
+                    end if
+                end if
+            case('LBFGS')
+                if(present(f_fd)) then
+                    do iIteration=1,maxit/50
+                        call LBFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,Memory=mem,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tol) exit
+                        lamda=lamda-miu*cx
+                        miu=miu*incrmt
+                    end do
+                else
+                    do iIteration=1,maxit/50
+                        call LBFGS(L,Ld,x,N,f_fd=L_Ld,Memory=mem,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tol) exit
+                        lamda=lamda-miu*cx
+                        miu=miu*incrmt
+                    end do
+                end if
+            case('ConjugateGradient')
+                if(present(f_fd)) then
+                    do iIteration=1,maxit/50
+                        call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld_fdwithf,Method=type,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tol) exit
+                        lamda=lamda-miu*cx
+                        miu=miu*incrmt
+                    end do
+                else
+                    do iIteration=1,maxit/50
+                        call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld,Method=type,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tol) exit
+                        lamda=lamda-miu*cx
+                        miu=miu*incrmt
+                    end do
+                end if
+            case default!Throw a warning
+                write(*,'(1x,A47,1x,A2)')'Program abort: unsupported unconstrained solver',solver
+                stop
+        end select
+        if(iIteration>maxit.and.warn) then
+            write(*,'(1x,A52)')'Failed augmented Lagrangian: max iteration exceeded!'
+            write(*,*)'Euclidean norm of constraint violation =',Norm2(cx)
+        end if
         contains
             subroutine L(Lx,x,N)
                 integer,intent(in)::N
                 real*8,dimension(N),intent(in)::x
                 real*8,intent(out)::Lx
-                call f(L,x,N)
+                call f(Lx,x,N)
                 call c(cx,x,M,N)
                 Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
             end subroutine L
@@ -2248,20 +2481,48 @@ contains
                 call fd(Ldx,x,N)
                 call c(cx,x,M,N)
                 call cd(cdx,x,M,N)
-                Ldx=Ldx-matmul(cdx,lamda)+miu*matmul(cdx,cx)
+                Ldx=Ldx+matmul(cdx,miu*cx-lamda)
             end subroutine Ld
-            subroutine L_Ld(Lx,Ldx,x,N)
+            integer function L_Ld(Lx,Ldx,x,N)!Compute c & cd together is cheaper
                 integer,intent(in)::N
                 real*8,dimension(N),intent(in)::x
                 real*8,intent(out)::Lx
                 real*8,dimension(N),intent(out)::Ldx
-                call f(L,x,N)
+                call f(Lx,x,N)
                 call c(cx,x,M,N)
                 Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
                 call fd(Ldx,x,N)
                 call cd(cdx,x,M,N)
-                Ldx=Ldx-matmul(cdx,lamda)+miu*matmul(cdx,cx)
-            end subroutine 
+                Ldx=Ldx+matmul(cdx,miu*cx-lamda)
+                L_Ld=0!return 0
+            end function L_Ld
+            integer function L_Ld_fdwithf(Lx,Ldx,x,N)!When f_fd is available
+                integer,intent(in)::N
+                real*8,dimension(N),intent(in)::x
+                real*8,intent(out)::Lx
+                real*8,dimension(N),intent(out)::Ldx
+                i=f_fd(Lx,Ldx,x,N)
+                call c(cx,x,M,N)
+                Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
+                call cd(cdx,x,M,N)
+                Ldx=Ldx+matmul(cdx,miu*cx-lamda)
+                L_Ld_fdwithf=0!return 0
+            end function L_Ld_fdwithf
+            integer function Ldd(Lddx,x,N)!When fdd & cdd is available
+                integer,intent(in)::N
+                real*8,dimension(N),intent(in)::x
+                real*8,dimension(N,N),intent(out)::Lddx
+                i=fdd(Lddx,x,N)
+                i=cdd(cddx,x,M,N)
+                call c(cx,x,M,N)
+                call cd(cdx,x,M,N)
+                cx=miu*cx-lamda
+                forall(i=1:N)
+                    Lddxtemp(:,i)=matmul(cddx(i,:,:),cx)
+                end forall
+                Lddx=Lddx+Lddxtemp+matmul(cdx,transpose(cdx))
+                Ldd=0!return 0
+            end function Ldd
     end subroutine AugmentedLagrangian
 !------------------ End -------------------
 

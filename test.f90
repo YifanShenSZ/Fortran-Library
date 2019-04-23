@@ -7,6 +7,7 @@ program main
     use NonlinearOptimization
     use Nonadiabatic
     implicit none
+    character*32::chartemp
     integer::i,j,k,l,dim,M,N
     integer,dimension(10)::indicesort
     real*8::difference,DoubleTemp,dbtp
@@ -39,260 +40,260 @@ write(*,*)'Mathematical routines test passed'
 write(*,*)
 
 write(*,*)'Testing all linear algebra routines...'
-    write(*,*)
-    write(*,*)'Testing vector operation...'
-        write(*,*)
-        write(*,*)'cross_product, triple_product'
-            call random_number(avec)
-            call random_number(bvec)
-            call random_number(cvec)
-            write(*,*)triple_product(avec,bvec,cvec)-dot_product(cross_product(avec,bvec),cvec)
-    write(*,*)
-    write(*,*)'Testing matrix operation...'
-        write(*,*)
-        write(*,*)'matmul_dgemm, matmul_dsymm'
-            do j=1,10
-                do i=j,10
-                    call BetterRandomNumber(A(i,j))
-                end do
-            end do
-            call syL2U(A,10)
-            do j=1,10
-                do i=j,10
-                    call BetterRandomNumber(B(i,j))
-                end do
-            end do
-            call syL2U(B,10)
-            write(*,*)My_dlange('M',matmul(A,B)-matmul_dgemm(A,B,10,10,10),10,10)
-            write(*,*)My_dlange('M',matmul(A,B)-matmul_dsymm(A,B,10,10),10,10)
-        write(*,*)
-        write(*,*)'symatmulasy, asymatmulsy'
-            do j=1,10
-                do i=j,10
-                    call BetterRandomNumber(A(i,j))
-                end do
-            end do
-            call syL2U(A,10)
-            do i=1,10
-                do j=1,10
-                    B(i,j)=dFactorial2(i)-dFactorial2(j)
-                end do
-            end do
-            write(*,*)My_dlange('M',matmul(A,B)-symatmulasy(A,B,10),10,10)
-            write(*,*)My_dlange('M',matmul(B,A)-asymatmulsy(B,A,10),10,10)
-    write(*,*)
-    write(*,*)'Testing high order tensor operation...'
-        write(*,*)
-        write(*,*)'sy3matmulsy'
-            do j=1,10
-                do i=j,10
-                    call random_number(A3(:,i,j))
-                end do
-            end do
-            call sy3L2U(A3,10,10)
-            do j=1,10
-                do i=j,10
-                    call BetterRandomNumber(B(i,j))
-                end do
-            end do
-            call syL2U(B,10)
-            B3=sy3matmulsy(A3,B,10,10)
-            forall(i=1:10)
-                C3(i,:,:)=matmul(A3(i,:,:),B)
-            end forall
-            DoubleTemp=0d0
-            do j=1,10
-                do i=1,10
-                    DoubleTemp=DoubleTemp+dot_product(B3(:,i,j)-C3(:,i,j),B3(:,i,j)-C3(:,i,j))
-                end do
-            end do
-            write(*,*)DoubleTemp
-        write(*,*)
-        write(*,*)'sy3matdotmul'
-            do j=1,10
-                do i=j,10
-                    call random_number(A3(:,i,j))
-                end do
-            end do
-            call sy3L2U(A3,10,10)
-            do j=1,10
-                do i=j,10
-                    call random_number(B3(:,i,j))
-                end do
-            end do
-            call sy3L2U(B3,10,10)
-            A=0d0
-            do i=1,10
-                do j=1,10
-                    do k=1,10
-                        A(i,j)=A(i,j)+dot_product(A3(:,i,k),B3(:,k,j))
-                    end do
-                end do
-            end do
-            write(*,*)My_dlange('M',sy3matdotmul(A3,B3,10,10)-A,10,10)
-        write(*,*)
-        write(*,*)'sy4matdotmulsy3'
-            do j=1,10
-                do i=j,10
-                    call random_number(A4(:,:,i,j))
-                end do
-            end do
-            call sy4L2U(A4,10,10,10)
-            do j=1,10
-                do i=j,10
-                    call random_number(B3(:,i,j))
-                end do
-            end do
-            call sy3L2U(B3,10,10)
-            A3=0d0
-            do i=1,10
-                do j=1,10
-                    do k=1,10
-                        forall(l=1:10)
-                            A3(l,i,j)=A3(l,i,j)+dot_product(A4(l,:,i,k),B3(:,k,j))
-                        end forall
-                    end do
-                end do
-            end do
-            B3=sy4matdotmulsy3(A4,B3,10,10,10)
-            DoubleTemp=0d0
-            do j=1,10
-                do i=1,10
-                    DoubleTemp=DoubleTemp+dot_product(A3(:,i,j)-B3(:,i,j),A3(:,i,j)-B3(:,i,j))
-                end do
-            end do
-            write(*,*)DoubleTemp
-        write(*,*)
-        write(*,*)'sy3UnitaryTransformation'
-            do j=1,10
-                do i=j,10
-                    call random_number(A3(:,i,j))
-                end do
-            end do
-            call sy3L2U(A3,10,10)
-            do j=1,10
-                do i=j,10
-                    call BetterRandomNumber(B(i,j))
-                end do
-            end do
-            call My_dsyev('V',B,eigval,10)
-            B3=sy3UnitaryTransformation(A3,B,10,10)
-            forall(i=1:10)
-                C3(i,:,:)=matmul(transpose(B),matmul(A3(i,:,:),B))
-            end forall
-            DoubleTemp=0d0
-            do j=1,10
-                do i=j,10
-                    DoubleTemp=DoubleTemp+dot_product(B3(:,i,j)-C3(:,i,j),B3(:,i,j)-C3(:,i,j))
-                end do
-            end do
-            write(*,*)DoubleTemp
-    write(*,*)
-    write(*,*)'Testing linear solver & eigensystem...'
-        do j=1,10
-            do i=1,10
-                call BetterRandomNumber(A(i,j))
-            end do
-        end do
-        A=matmul(transpose(A),A)
-        do i=1,10
-            call BetterRandomNumber(DoubleTemp)
-            A(i,i)=A(i,i)+DoubleTemp+1d-6
-        end do
-        call random_number(low)
-        B=A
-        x=low
-        call My_dgesv(B,x,10)
-        write(*,*)
-        write(*,*)'dgesv'
-            B=A
-            up=low
-            call My_dgesv(B,up,10)
-            write(*,*)norm2(up-x)
-        write(*,*)
-        write(*,*)'dgetri'
-            B=A
-            call My_dgetri(B,10)
-            write(*,*)norm2(matmul(B,low)-x)
-        write(*,*)
-        write(*,*)'dgeev'
-            B=A
-            call My_dgeev('V',B,eigval,up,eigvec,10)
-            up=matmul(eigvec,matmul(transpose(eigvec),low)/eigval)
-            write(*,*)norm2(up-x)
-        write(*,*)
-        write(*,*)'dsysv'
-            B=A
-            up=low
-            call My_dsysv(B,up,10)
-            write(*,*)norm2(up-x)
-        write(*,*)
-        write(*,*)'dsytri'
-            B=A
-            call My_dsytri(B,10)
-            call syL2U(B,10)
-            write(*,*)norm2(matmul(B,low)-x)
-        write(*,*)
-        write(*,*)'dsyev'
-            eigvec=A
-            call My_dsyev('V',eigvec,eigval,10)
-            up=matmul(eigvec,matmul(transpose(eigvec),low)/eigval)
-            write(*,*)norm2(up-x)
-        write(*,*)
-        write(*,*)'dposv'
-            B=A
-            up=low
-            call My_dposv(B,up,10)
-            write(*,*)norm2(up-x)
-        write(*,*)
-        write(*,*)'dpotri'
-            B=A
-            call My_dpotri(B,10)
-            call syL2U(B,10)
-            write(*,*)norm2(matmul(B,low)-x)
-        write(*,*)
-        write(*,*)'zgeev, zheev'
-            do j=1,10
-                do i=1,10
-                    call BetterRandomNumber(DoubleTemp)
-                    call BetterRandomNumber(dbtp)
-                    zA(i,j)=cmplx(DoubleTemp,dbtp)
-                end do
-            end do
-            zA=matmul(conjg(transpose(zA)),zA)
-            zB=zA
-            call My_zgeev('V',zB,zeigval,zeigvec,10)
-            low=abs(zeigval)
-            forall(i=1:10)
-                indicesort(i)=i
-            end forall
-            call dQuickSort(low,1,10,indicesort,10)
-            forall(i=1:10)
-                zB(:,i)=zeigvec(:,i)
-            end forall
-            call My_zheev('V',zA,eigval,10)
-            write(*,*)norm2(low-eigval)
-            write(*,*)z2normge(matmul(zB,zA),10,10)-1d0
-        write(*,*)
-    write(*,*)
-    write(*,*)'Testing matrix norm...'
-        write(*,*)
-        write(*,*)'dlange, dlansy'
-        do i=1,10
-            do j=1,10
-                A(i,j)=dFactorial2(i)*dFactorial2(j)
-            end do
-        end do
-        write(*,*)My_dlange('M',A,10,10)-My_dlansy('M',A,10)
-        write(*,*)My_dlange('F',A,10,10)-My_dlansy('F',A,10)
-        write(*,*)My_dlange('1',A,10,10)-My_dlansy('1',A,10)
-        write(*,*)My_dlange('I',A,10,10)-My_dlansy('I',A,10)
-        write(*,*)
-        write(*,*)'d2normge'
-        eigvec=matmul(transpose(A),A)
-        call My_dsyev('N',eigvec,eigval,10)
-        write(*,*)d2normge(A,10,10)-dSqrt(maxval(eigval))
-    write(*,*)
+    !write(*,*)
+    !write(*,*)'Testing vector operation...'
+    !    write(*,*)
+    !    write(*,*)'cross_product, triple_product'
+    !        call random_number(avec)
+    !        call random_number(bvec)
+    !        call random_number(cvec)
+    !        write(*,*)triple_product(avec,bvec,cvec)-dot_product(cross_product(avec,bvec),cvec)
+    !write(*,*)
+    !write(*,*)'Testing matrix operation...'
+    !    write(*,*)
+    !    write(*,*)'matmul_dgemm, matmul_dsymm'
+    !        do j=1,10
+    !            do i=j,10
+    !                call BetterRandomNumber(A(i,j))
+    !            end do
+    !        end do
+    !        call syL2U(A,10)
+    !        do j=1,10
+    !            do i=j,10
+    !                call BetterRandomNumber(B(i,j))
+    !            end do
+    !        end do
+    !        call syL2U(B,10)
+    !        write(*,*)My_dlange('M',matmul(A,B)-matmul_dgemm(A,B,10,10,10),10,10)
+    !        write(*,*)My_dlange('M',matmul(A,B)-matmul_dsymm(A,B,10,10),10,10)
+    !    write(*,*)
+    !    write(*,*)'symatmulasy, asymatmulsy'
+    !        do j=1,10
+    !            do i=j,10
+    !                call BetterRandomNumber(A(i,j))
+    !            end do
+    !        end do
+    !        call syL2U(A,10)
+    !        do i=1,10
+    !            do j=1,10
+    !                B(i,j)=dFactorial2(i)-dFactorial2(j)
+    !            end do
+    !        end do
+    !        write(*,*)My_dlange('M',matmul(A,B)-symatmulasy(A,B,10),10,10)
+    !        write(*,*)My_dlange('M',matmul(B,A)-asymatmulsy(B,A,10),10,10)
+    !write(*,*)
+    !write(*,*)'Testing high order tensor operation...'
+    !    write(*,*)
+    !    write(*,*)'sy3matmulsy'
+    !        do j=1,10
+    !            do i=j,10
+    !                call random_number(A3(:,i,j))
+    !            end do
+    !        end do
+    !        call sy3L2U(A3,10,10)
+    !        do j=1,10
+    !            do i=j,10
+    !                call BetterRandomNumber(B(i,j))
+    !            end do
+    !        end do
+    !        call syL2U(B,10)
+    !        B3=sy3matmulsy(A3,B,10,10)
+    !        forall(i=1:10)
+    !            C3(i,:,:)=matmul(A3(i,:,:),B)
+    !        end forall
+    !        DoubleTemp=0d0
+    !        do j=1,10
+    !            do i=1,10
+    !                DoubleTemp=DoubleTemp+dot_product(B3(:,i,j)-C3(:,i,j),B3(:,i,j)-C3(:,i,j))
+    !            end do
+    !        end do
+    !        write(*,*)DoubleTemp
+    !    write(*,*)
+    !    write(*,*)'sy3matdotmul'
+    !        do j=1,10
+    !            do i=j,10
+    !                call random_number(A3(:,i,j))
+    !            end do
+    !        end do
+    !        call sy3L2U(A3,10,10)
+    !        do j=1,10
+    !            do i=j,10
+    !                call random_number(B3(:,i,j))
+    !            end do
+    !        end do
+    !        call sy3L2U(B3,10,10)
+    !        A=0d0
+    !        do i=1,10
+    !            do j=1,10
+    !                do k=1,10
+    !                    A(i,j)=A(i,j)+dot_product(A3(:,i,k),B3(:,k,j))
+    !                end do
+    !            end do
+    !        end do
+    !        write(*,*)My_dlange('M',sy3matdotmul(A3,B3,10,10)-A,10,10)
+    !    write(*,*)
+    !    write(*,*)'sy4matdotmulsy3'
+    !        do j=1,10
+    !            do i=j,10
+    !                call random_number(A4(:,:,i,j))
+    !            end do
+    !        end do
+    !        call sy4L2U(A4,10,10,10)
+    !        do j=1,10
+    !            do i=j,10
+    !                call random_number(B3(:,i,j))
+    !            end do
+    !        end do
+    !        call sy3L2U(B3,10,10)
+    !        A3=0d0
+    !        do i=1,10
+    !            do j=1,10
+    !                do k=1,10
+    !                    forall(l=1:10)
+    !                        A3(l,i,j)=A3(l,i,j)+dot_product(A4(l,:,i,k),B3(:,k,j))
+    !                    end forall
+    !                end do
+    !            end do
+    !        end do
+    !        B3=sy4matdotmulsy3(A4,B3,10,10,10)
+    !        DoubleTemp=0d0
+    !        do j=1,10
+    !            do i=1,10
+    !                DoubleTemp=DoubleTemp+dot_product(A3(:,i,j)-B3(:,i,j),A3(:,i,j)-B3(:,i,j))
+    !            end do
+    !        end do
+    !        write(*,*)DoubleTemp
+    !    write(*,*)
+    !    write(*,*)'sy3UnitaryTransformation'
+    !        do j=1,10
+    !            do i=j,10
+    !                call random_number(A3(:,i,j))
+    !            end do
+    !        end do
+    !        call sy3L2U(A3,10,10)
+    !        do j=1,10
+    !            do i=j,10
+    !                call BetterRandomNumber(B(i,j))
+    !            end do
+    !        end do
+    !        call My_dsyev('V',B,eigval,10)
+    !        B3=sy3UnitaryTransformation(A3,B,10,10)
+    !        forall(i=1:10)
+    !            C3(i,:,:)=matmul(transpose(B),matmul(A3(i,:,:),B))
+    !        end forall
+    !        DoubleTemp=0d0
+    !        do j=1,10
+    !            do i=j,10
+    !                DoubleTemp=DoubleTemp+dot_product(B3(:,i,j)-C3(:,i,j),B3(:,i,j)-C3(:,i,j))
+    !            end do
+    !        end do
+    !        write(*,*)DoubleTemp
+    !write(*,*)
+    !write(*,*)'Testing linear solver & eigensystem...'
+    !    do j=1,10
+    !        do i=1,10
+    !            call BetterRandomNumber(A(i,j))
+    !        end do
+    !    end do
+    !    A=matmul(transpose(A),A)
+    !    do i=1,10
+    !        call BetterRandomNumber(DoubleTemp)
+    !        A(i,i)=A(i,i)+DoubleTemp+1d-6
+    !    end do
+    !    call random_number(low)
+    !    B=A
+    !    x=low
+    !    call My_dgesv(B,x,10)
+    !    write(*,*)
+    !    write(*,*)'dgesv'
+    !        B=A
+    !        up=low
+    !        call My_dgesv(B,up,10)
+    !        write(*,*)norm2(up-x)
+    !    write(*,*)
+    !    write(*,*)'dgetri'
+    !        B=A
+    !        call My_dgetri(B,10)
+    !        write(*,*)norm2(matmul(B,low)-x)
+    !    write(*,*)
+    !    write(*,*)'dgeev'
+    !        B=A
+    !        call My_dgeev('V',B,eigval,up,eigvec,10)
+    !        up=matmul(eigvec,matmul(transpose(eigvec),low)/eigval)
+    !        write(*,*)norm2(up-x)
+    !    write(*,*)
+    !    write(*,*)'dsysv'
+    !        B=A
+    !        up=low
+    !        call My_dsysv(B,up,10)
+    !        write(*,*)norm2(up-x)
+    !    write(*,*)
+    !    write(*,*)'dsytri'
+    !        B=A
+    !        call My_dsytri(B,10)
+    !        call syL2U(B,10)
+    !        write(*,*)norm2(matmul(B,low)-x)
+    !    write(*,*)
+    !    write(*,*)'dsyev'
+    !        eigvec=A
+    !        call My_dsyev('V',eigvec,eigval,10)
+    !        up=matmul(eigvec,matmul(transpose(eigvec),low)/eigval)
+    !        write(*,*)norm2(up-x)
+    !    write(*,*)
+    !    write(*,*)'dposv'
+    !        B=A
+    !        up=low
+    !        call My_dposv(B,up,10)
+    !        write(*,*)norm2(up-x)
+    !    write(*,*)
+    !    write(*,*)'dpotri'
+    !        B=A
+    !        call My_dpotri(B,10)
+    !        call syL2U(B,10)
+    !        write(*,*)norm2(matmul(B,low)-x)
+    !    write(*,*)
+    !    write(*,*)'zgeev, zheev'
+    !        do j=1,10
+    !            do i=1,10
+    !                call BetterRandomNumber(DoubleTemp)
+    !                call BetterRandomNumber(dbtp)
+    !                zA(i,j)=cmplx(DoubleTemp,dbtp)
+    !            end do
+    !        end do
+    !        zA=matmul(conjg(transpose(zA)),zA)
+    !        zB=zA
+    !        call My_zgeev('V',zB,zeigval,zeigvec,10)
+    !        low=abs(zeigval)
+    !        forall(i=1:10)
+    !            indicesort(i)=i
+    !        end forall
+    !        call dQuickSort(low,1,10,indicesort,10)
+    !        forall(i=1:10)
+    !            zB(:,i)=zeigvec(:,i)
+    !        end forall
+    !        call My_zheev('V',zA,eigval,10)
+    !        write(*,*)norm2(low-eigval)
+    !        write(*,*)z2normge(matmul(zB,zA),10,10)-1d0
+    !    write(*,*)
+    !write(*,*)
+    !write(*,*)'Testing matrix norm...'
+    !    write(*,*)
+    !    write(*,*)'dlange, dlansy'
+    !    do i=1,10
+    !        do j=1,10
+    !            A(i,j)=dFactorial2(i)*dFactorial2(j)
+    !        end do
+    !    end do
+    !    write(*,*)My_dlange('M',A,10,10)-My_dlansy('M',A,10)
+    !    write(*,*)My_dlange('F',A,10,10)-My_dlansy('F',A,10)
+    !    write(*,*)My_dlange('1',A,10,10)-My_dlansy('1',A,10)
+    !    write(*,*)My_dlange('I',A,10,10)-My_dlansy('I',A,10)
+    !    write(*,*)
+    !    write(*,*)'d2normge'
+    !    eigvec=matmul(transpose(A),A)
+    !    call My_dsyev('N',eigvec,eigval,10)
+    !    write(*,*)d2normge(A,10,10)-dSqrt(maxval(eigval))
+    !write(*,*)
 write(*,*)'Linear algebra routines test passed'
 write(*,*)
 
@@ -303,104 +304,115 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     N=10
     low=-1d0
     up=1d0
-    write(*,*)'Newton'
-        call random_number(x)
-        call NewtonRaphson(f,fd,x,dim,fdd=fdd)
-        write(*,*)norm2(x)
+    write(*,*)'Testing unconstrained solvers...'
+        !write(*,*)'Newton'
+        !    call random_number(x)
+        !    call NewtonRaphson(f,fd,x,dim,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'Newton_S'
+        !    call random_number(x)
+        !    call NewtonRaphson(f,fd,x,dim,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'Newton_S_fdwithf'
+        !    call random_number(x)
+        !    call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_cheap'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,ExactStep=0)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_NH'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,ExactStep=5)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_S'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_S_fdwithf'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'LBFGS'
+        !    call random_number(x)
+        !    call LBFGS(f,fd,x,dim)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'LBFGS_S'
+        !    call random_number(x)
+        !    call LBFGS(f,fd,x,dim,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'LBFGS_S_fdwithf'
+        !    call random_number(x)
+        !    call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'DY'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'DY_S'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'DY_S_fdwithf'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,f_fd=f_fd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'PR'
+        !    chartemp='PR'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,Method=chartemp)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'PR_fdwithf'
+        !    chartemp='PR'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,Method=chartemp,f_fd=f_fd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlsp'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlsp_NJ'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlspbc'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr,low=low,up=up)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlspbc_NJ'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N,low=low,up=up)
+        !    write(*,*)norm2(x)
     write(*,*)
-    write(*,*)'Newton_S'
+    write(*,*)'Testing constrained solvers...'
+        !chartemp='NewtonRaphson'
+    chartemp='BFGS'
         call random_number(x)
-        call NewtonRaphson(f,fd,x,dim,Strong=.true.)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'Newton_S_fdwithf'
-        call random_number(x)
-        call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS'
-        call random_number(x)
-        call BFGS(f,fd,x,dim,fdd=fdd)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_cheap'
-        call random_number(x)
-        call BFGS(f,fd,x,dim,ExactStep=0)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_NH'
-        call random_number(x)
-        call BFGS(f,fd,x,dim,ExactStep=5)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_S'
-        call random_number(x)
-        call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'BFGS_S_fdwithf'
-        call random_number(x)
-        call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'LBFGS'
-        call random_number(x)
-        call LBFGS(f,fd,x,dim)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'LBFGS_S'
-        call random_number(x)
-        call LBFGS(f,fd,x,dim,Strong=.true.)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'LBFGS_S_fdwithf'
-        call random_number(x)
-        call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'DY'
-        call random_number(x)
-        call ConjugateGradient(f,fd,x,dim)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'DY_S'
-        call random_number(x)
-        call ConjugateGradient(f,fd,x,dim,Strong=.true.)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'DY_S_fdwithf'
-        call random_number(x)
-        call ConjugateGradient(f,fd,x,dim,f_fd=f_fd)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'PR'
-        call random_number(x)
-        call ConjugateGradient(f,fd,x,dim,Method='PR')
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'PR_fdwithf'
-        call random_number(x)
-        call ConjugateGradient(f,fd,x,dim,Method='PR',f_fd=f_fd)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'dtrnlsp'
-        call random_number(x)
-        call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'dtrnlsp_NJ'
-        call random_number(x)
-        call TrustRegion(fd_tr,x,M,N)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'dtrnlspbc'
-        call random_number(x)
-        call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr,low=low,up=up)
-        write(*,*)norm2(x)
-    write(*,*)
-    write(*,*)'dtrnlspbc_NJ'
-        call random_number(x)
-        call TrustRegion(fd_tr,x,M,N,low=low,up=up)
+        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,UnconstrainedSolver=chartemp,&
+            Warning=.true.)
         write(*,*)norm2(x)
     write(*,*)
 write(*,*)'Nonlinear-optimization solvers test passed'
@@ -414,13 +426,13 @@ write(*,*)'Testing all geometry transformation routines...'
         H2Ogeom(7:9)=[0d0,1d0,0d0]
         mass=[18d0,1d0,1d0]
         H2Ogeom1=H2Ogeom
-        call StandardizeGeometry(H2Ogeom1,mass,3)
+        call StandardizeGeometry(H2Ogeom1,mass,3,1)
         quaternion=BetterRandomUnitQuaternion()
         H2Ogeom2=H2Ogeom
         do i=1,3
             H2Ogeom2(3*i-2:3*i)=Rotate(quaternion,H2Ogeom2(3*i-2:3*i))
         end do
-        call StandardizeGeometry2Reference(H2Ogeom2,H2Ogeom1,difference,mass,3)
+        call StandardizeGeometry(H2Ogeom2,mass,3,1,reference=H2Ogeom1,difference=difference)
         write(*,*)difference
     write(*,*)
 write(*,*)'Geometry transformation routines test passed'
@@ -570,5 +582,19 @@ contains
         end forall
         fdd_tr=0!return 0
     end function fdd_tr
+
+    subroutine constraint(c,x,M,N)
+        integer,intent(in)::M,N
+        real*8,dimension(N),intent(in)::x
+        real*8,dimension(M),intent(out)::c
+        c(1)=dot_product(x,x)-1d0
+    end subroutine constraint
+
+    subroutine constraintd(cd,x,M,N)
+        integer,intent(in)::M,N
+        real*8,dimension(N),intent(in)::x
+        real*8,dimension(N,M),intent(out)::cd
+        cd(:,1)=2d0*x
+    end subroutine constraintd
 
 end program main
