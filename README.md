@@ -11,7 +11,7 @@ Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak
 2. LAPACK wrapper for linear solver, eigensystem, matrix norm
 * Geometry transformation:
 1. Standard orientation
-2. Cartesian <-> interal coordinate
+2. Cartesian <-> internal coordinate
 3. Normal coordinate and vibrational frequency
 
 To see what this library is capable of in detail, you may open certain source file and simply fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
