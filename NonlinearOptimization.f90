@@ -48,11 +48,12 @@ contains
     !    MinStepLength: (default = 1d-15) terminate if search step < MinStepLength before || f'(x) ||_2 converges
     !    WolfeConst1 & WolfeConst2: 0 < WolfeConst1 < WolfeConst2 <  1  for Newton & quasi-Newton
     !                               0 < WolfeConst1 < WolfeConst2 < 0.5 for conjugate gradient
+    !    Increment: see line searcher
     !On input x is an initial guess, on exit x is a local minimum of f(x)
 
     !Newton-Raphson method, requiring Wolfe condition
     !Optional argument: fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
-    subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
+    subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -61,7 +62,7 @@ contains
             integer,external,optional::fdd,f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration
-            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
         integer::maxit,iIteration,info
         real*8::tol,minstep,c1,c2,a,fnew,phidnew,phidold
@@ -132,72 +133,144 @@ contains
                     a=-fnew/phidnew
                 end if
             end if
-        if(present(fdd)) then!Analytical Hessian available
-            if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
+        if(present(Increment)) then
+            if(present(fdd)) then!Analytical Hessian available
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             else
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             end if
         else
-            if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NumericalHessian()!After search
-                        if(terminate) return
-                    end do
+            if(present(fdd)) then!Analytical Hessian available
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NumericalHessian()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             else
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NumericalHessian()!After search
-                        if(terminate) return
-                    end do
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        phidold=phidnew!Prepare
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NumericalHessian()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             end if
         end if
@@ -277,7 +350,7 @@ contains
     !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
     !    ExactStep: (default = 20) every how many steps compute exact hessian. [10,50] is recommended
     !               if ExactStep <= 0, exact Hessian will not be computed at all
-    subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
+    subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -286,7 +359,7 @@ contains
             integer,external,optional::fdd,f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::ExactStep,MaxIteration
-            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
         integer::freq,maxit,iIteration,i
         real*8::tol,minstep,c1,c2,a,fnew,phidnew,rho
@@ -368,8 +441,12 @@ contains
                 end if
                 s=x
                 y=fdnew
-                if(present(f_fd)) then
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                if(present(Increment)) then
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
+                    else
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
+                    end if
                 else
                     if(sw) then
                         call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
@@ -399,43 +476,83 @@ contains
                 phidnew=dot_product(fdnew,p)
                 a=1d0
             end if
-        if(freq>0) then!Exact Hessian will be computed
-            if(present(fdd)) then!Analytical Hessian is available
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
+        if(present(Increment)) then
+            if(freq>0) then!Exact Hessian will be computed
+                if(present(fdd)) then!Analytical Hessian is available
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        end if
                     else
-                        do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        end if
                     end if
                 else
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        end if
                     else
-                        do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        end if
                     end if
                 end if
             else
@@ -444,16 +561,16 @@ contains
                         do iIteration=1,maxit!Main loop
                             s=x!Prepare
                             y=fdnew
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
                             s=x!Prepare
                             y=fdnew
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     end if
@@ -462,57 +579,137 @@ contains
                         do iIteration=1,maxit!Main loop
                             s=x!Prepare
                             y=fdnew
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
                             s=x!Prepare
                             y=fdnew
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     end if
                 end if
             end if
         else
-            if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        s=x!Prepare
-                        y=fdnew
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NoHessian()!After search
-                        if(terminate) return
-                    end do
+            if(freq>0) then!Exact Hessian will be computed
+                if(present(fdd)) then!Analytical Hessian is available
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    else
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        s=x!Prepare
-                        y=fdnew
-                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NoHessian()!After search
-                        if(terminate) return
-                    end do
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    else
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                s=x!Prepare
+                                y=fdnew
+                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call After_NumericalHessian()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    end if
                 end if
             else
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        s=x!Prepare
-                        y=fdnew
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NoHessian()!After search
-                        if(terminate) return
-                    end do
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NoHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NoHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        s=x!Prepare
-                        y=fdnew
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After_NoHessian()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NoHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            s=x!Prepare
+                            y=fdnew
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NoHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             end if
         end if
@@ -646,7 +843,7 @@ contains
 
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
     !Optional argument: Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
-    subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
+    subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -655,7 +852,7 @@ contains
             integer,external,optional::f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::Memory,MaxIteration
-            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
         integer::M,maxit,iIteration,i,recent
         real*8::tol,minstep,c1,c2,a,fnew,phidnew
@@ -727,8 +924,12 @@ contains
             xold=x
             fdold=fdnew
             !Initial approximate inverse Hessian = a
-            if(present(f_fd)) then
-                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+            if(present(Increment)) then
+                if(sw) then
+                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
+                else
+                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
+                end if
             else
                 if(sw) then
                     call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
@@ -767,8 +968,12 @@ contains
                 p=-p
                 phidnew=dot_product(fdnew,p)
                 a=1d0
-                if(present(f_fd)) then!Line search
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)
+                if(present(Increment)) then!Line search
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
+                    else
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
+                    end if
                 else
                     if(sw) then
                         call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
@@ -791,37 +996,73 @@ contains
                 y(:,recent)=fdnew-fdold
                 rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
             end do
-        if(present(f_fd)) then!Cheaper to evaluate f' along with f
-            if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                do iIteration=1,maxit!Main loop
-                    call Before()!Before search
-                    call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After()!After search
-                    if(terminate) return
-                end do
+        if(present(Increment)) then
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
             else
-                do iIteration=1,maxit!Main loop
-                    call Before()!Before search
-                    call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After()!After search
-                    if(terminate) return
-                end do
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
             end if
         else
-            if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                do iIteration=1,maxit!Main loop
-                    call Before()!Before search
-                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After()!After search
-                    if(terminate) return
-                end do
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
             else
-                do iIteration=1,maxit!Main loop
-                    call Before()!Before search
-                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                    call After()!After search
-                    if(terminate) return
-                end do
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
             end if
         end if
         if(iIteration>maxit.and.warn) then
@@ -886,19 +1127,19 @@ contains
     !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
     !Available methods: DY (Dai-Yun), PR (Polak-Ribiere+)
     !Optional argument: Method: (default = DY) which conjugate gradient method to use
-    subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2)
+    subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
         !Optional argument
-            character*2,intent(in),optional::Method
+            character*32,intent(in),optional::Method
             integer,external,optional::f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration
-            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
-        character*2::type
+        character*32::type
         integer::maxit,iIteration,info
         real*8::tol,minstep,c1,c2,a,fnew,fold,phidnew,phidold
         real*8,dimension(dim)::p,fdnew,fdold
@@ -961,15 +1202,101 @@ contains
                 a=-fnew/phidnew
             end if
         select case(type)
-            case('DY')!Require Wolfe condition 
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+            case('DY')!Require Wolfe condition
+                if(present(Increment)) then
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    else
+                        if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    end if
+                else
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    else
+                        if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        else
+                            do iIteration=1,maxit!Main loop
+                                fold=fnew!Prepare
+                                fdold=fdnew
+                                phidold=phidnew
+                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                                call DY()!After search
+                                if(terminate) return
+                            end do
+                        end if
+                    end if
+                end if
+            case('PR')!Require strong Wolfe condition
+                if(present(Increment)) then
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         do iIteration=1,maxit!Main loop
                             fold=fnew!Prepare
                             fdold=fdnew
                             phidold=phidnew
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call PR()!After search
                             if(terminate) return
                         end do
                     else
@@ -977,62 +1304,31 @@ contains
                             fold=fnew!Prepare
                             fdold=fdnew
                             phidold=phidnew
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call PR()!After search
                             if(terminate) return
                         end do
                     end if
                 else
-                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew!Prepare
+                            fdold=fdnew
+                            phidold=phidnew
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call PR()!After search
+                            if(terminate) return
+                        end do
+                    else
                         do iIteration=1,maxit!Main loop
                             fold=fnew!Prepare
                             fdold=fdnew
                             phidold=phidnew
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
-                            if(terminate) return
-                        end do
-                    end if
-                end if
-            case('PR')!Require strong Wolfe condition 
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call PR()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call PR()!After search
                             if(terminate) return
                         end do
                     end if
-                else
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew!Prepare
-                        fdold=fdnew
-                        phidold=phidnew
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call PR()!After search
-                        if(terminate) return
-                    end do
                 end if
             case default!Throw a warning
                 write(*,'(1x,A52,1x,A2)')'Program abort: unsupported conjugate gradient method',type
@@ -1901,22 +2197,72 @@ contains
     !Nomenclature:
     !    f = the target function to be minimized
     !    c = the constraint in standard form: c(x) = 0 for equality, c(x) >= 0 for inequality
-    !External subroutine format:
-    !    subroutine f(f(x),x,dim)
-    !    subroutine fd(f'(x),x,dim)
-    !    subroutine f_fd(f(x),f'(x),x,dim)
-    !    subroutine fdd(f''(x),x,dim)
-    !    subroutine c(c(x),x,dim)
-    !IO format:
-    !    dim dimensional vectors x & f'(x), dim order matrix f''(x)
-    !    On input x is an initial guess, on exit x is a local minimum of f(x)
+    !    lamda = Lagrangian multiplier
+    !    miu = constraint violation penalty strength
+    !External procedure format:
+    !    subroutine f(f(x),x,N)
+    !    subroutine fd(f'(x),x,N)
+    !    integer function f_fd(f(x),f'(x),x,N)
+    !    integer function fdd(f''(x),x,N)
+    !    subroutine c(c(x),x,M,N)
+    !    subroutine cd(c'(x),x,M,N)
+    !    N dimensional vector x & f'(x), N order matrix f''(x), M dimensional vector c, N x M matrix c'(x)
+    !Required argument:
+    !    subroutine f & fd & c & cd, N dimensional vector x, integer N & M
+    !Optional argument:
+    !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line seaercher is available
+    !    All optional arguments for line searchers are also optional to take in here
+    !On input x is an initial guess, on exit x is a local minimum of f(x) subject to constraint c(x)
 
-    subroutine AugmentedLagrangian(f)
-        external::f
+    subroutine AugmentedLagrangian(f,fd,c,cd,x,N,M,UnconstrainedSolver,&
+        f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,ExactStep,Memory,Method)
+        !Required argument
+            external::f,fd,c,cd
+            integer,intent(in)::N,M
+            real*8,dimension(N),intent(inout)::x
+        !Optional argument
+            character*32,intent(in),optional::UnconstrainedSolver
+            integer,external,optional::f_fd,fdd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::MaxIteration,ExactStep,Memory
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
+            character*2,intent(in),optional::Method
+        integer::i
+        real*8::miu
+        real*8,dimension(M)::lamda,cx
+        real*8,dimension(N,M)::cdx
+        !lamda_k+1 = lamda_k - miu_k * c(x_k)
+        contains
+            subroutine L(Lx,x,N)
+                integer,intent(in)::N
+                real*8,dimension(N),intent(in)::x
+                real*8,intent(out)::Lx
+                call f(L,x,N)
+                call c(cx,x,M,N)
+                Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
+            end subroutine L
+            subroutine Ld(Ldx,x,N)
+                integer,intent(in)::N
+                real*8,dimension(N),intent(in)::x
+                real*8,dimension(N),intent(out)::Ldx
+                call fd(Ldx,x,N)
+                call c(cx,x,M,N)
+                call cd(cdx,x,M,N)
+                Ldx=Ldx-matmul(cdx,lamda)+miu*matmul(cdx,cx)
+            end subroutine Ld
+            subroutine L_Ld(Lx,Ldx,x,N)
+                integer,intent(in)::N
+                real*8,dimension(N),intent(in)::x
+                real*8,intent(out)::Lx
+                real*8,dimension(N),intent(out)::Ldx
+                call f(L,x,N)
+                call c(cx,x,M,N)
+                Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
+                call fd(Ldx,x,N)
+                call cd(cdx,x,M,N)
+                Ldx=Ldx-matmul(cdx,lamda)+miu*matmul(cdx,cx)
+            end subroutine 
     end subroutine AugmentedLagrangian
-
-    subroutine AugmentedLagrangianBC()!Not implemented
-    end subroutine AugmentedLagrangianBC
 !------------------ End -------------------
 
 !--------------- Heuristic ----------------
