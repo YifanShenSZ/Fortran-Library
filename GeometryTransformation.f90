@@ -354,7 +354,7 @@ end subroutine StandardizeGeometry
                         r23=Norm2(runit23)
                         runit23=runit23/r23
                     costheta=dot_product(runit21,runit23)
-                    sintheta=Sqrt(1d0-costheta*costheta)
+                    sintheta=dSqrt(1d0-costheta*costheta)
                     b(3*motion.atom(1)-2:3*motion.atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
                     b(3*motion.atom(3)-2:3*motion.atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
                     b(3*motion.atom(2)-2:3*motion.atom(2))=-b(3*motion.atom(1)-2:3*motion.atom(1))-b(3*motion.atom(3)-2:3*motion.atom(3))
@@ -381,11 +381,11 @@ end subroutine StandardizeGeometry
                         r43=Norm2(n234)
                         n234=n234/r43
                     costheta1=dot_product(n123,runit23)
-                    sintheta1=Sqrt(1d0-costheta1*costheta1)
+                    sintheta1=dSqrt(1d0-costheta1*costheta1)
                     n123=cross_product(n123,runit23)
                         n123=n123/sintheta1
                     costheta2=dot_product(runit23,n234)
-                    sintheta2=Sqrt(1d0-costheta2*costheta2)
+                    sintheta2=dSqrt(1d0-costheta2*costheta2)
                     n234=cross_product(runit23,n234)
                         n234=n234/sintheta2
                     !Output

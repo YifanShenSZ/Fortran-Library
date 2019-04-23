@@ -1,5 +1,6 @@
 !Common routines applied in nonadiabatic chemistry
 module Nonadiabatic
+    use Mathematics
     implicit none
 
 !Global variable
@@ -309,19 +310,15 @@ end function deigvec_ByKnowneigval_dA
 !gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
 !Required: dim dimensional vector grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
+!          dim dimensional vector h: interstate coupling between the intersected states
 !Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
 subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2)
     integer,intent(in)::dim
-    real*8,dimension(dim),intent(inout)::grad1,grad2
+    real*8,dimension(dim),intent(inout)::grad1,grad2,h
     real*8,dimension(:),intent(inout),optional::phi1,phi2
     real*8::sinsqtheta,cossqtheta,sin2theta
-    real*8,dimension(dim)::g,h
-
+    real*8,dimension(dim)::g,htemp
     g=(grad2-grad1)/2d0
-    h=
-
-    g=(point_state(up).state(up).grad-point_state(low).state(low).grad)/2d0
-    h=point_state(low).state(up).grad
     sinsqtheta=dot_product(g,h)
     if(sinsqtheta==0d0) return
     cossqtheta=dot_product(g,g)-dot_product(h,h)
@@ -330,15 +327,16 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2)
     else
         cossqtheta=atan(2d0*sinsqtheta/cossqtheta)/4d0
     end if
-    sinsqtheta=sin(cossqtheta)
-    cossqtheta=cos(cossqtheta)
+    sinsqtheta=dSin(cossqtheta)
+    cossqtheta=dCos(cossqtheta)
     sin2theta=2d0*sinsqtheta*cossqtheta
     sinsqtheta=sinsqtheta*sinsqtheta
     cossqtheta=cossqtheta*cossqtheta
-    point_state(low).state(up).grad=(cossqtheta-sinsqtheta)*h-sin2theta*g
-    g=point_state(low).state(low).grad
-    point_state(low).state(low).grad=cossqtheta*g+sinsqtheta*point_state(up).state(up).grad-sin2theta*h
-    point_state( up).state( up).grad=sinsqtheta*g+cossqtheta*point_state(up).state(up).grad+sin2theta*h
+    htemp=h
+    h=(cossqtheta-sinsqtheta)*h-sin2theta*g
+    g=grad1
+    grad1=cossqtheta*g+sinsqtheta*grad2-sin2theta*htemp
+    grad2=sinsqtheta*g+cossqtheta*grad2+sin2theta*htemp
 end subroutine ghOrthogonalization
 
 end module Nonadiabatic
