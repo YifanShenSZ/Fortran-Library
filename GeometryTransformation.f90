@@ -1,4 +1,7 @@
-!Common geometry transformation applied in molecule computation
+!Common geometry transformation applied in molecule computation:
+!    Standard geometry
+!    Cartesian <-> internal coodinate
+!    Normal mode and vibrational frequency
 module GeometryTransformation
     use General
     use LinearAlgebra
@@ -32,107 +35,104 @@ module GeometryTransformation
     type(InternalCoordinateDefinition),allocatable,dimension(:)::GeometryTransformation_IntCDef!short for INTernal Coordinate DEFinition
 
 contains
-!----------- Standardize geometry -----------
-    !Here we define a standard geometry as:
-    !    the centre of mass is at origin
-    !    the rotational principle axes are along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
-    !Note this definition does not determine geometry uniquely:
-    !    axes may take different positive direction as long as forming right-hand system (4 possibilities)
-
-    !Standardize a geometry (and optionally gradient) (optionally to a reference)
-    !Required argument: 3NAtoms order vector geom (geom[3*i-2:3*i] corresponds to the coordinate of i-th atom),
-    !                   NAtoms order vector mass (mass[i] is the mass of i-th atom), NAtoms, NStates
-    !Optional argument:
-    !    reference: uniquely define the standard geometry by the 1 with smallest difference to reference out of 4
-    !    difference: harvest || output geom - reference ||_2^2
-    !    grad: 3NAtoms order vector gradient to transform to standard coordinate
-    !    nadgrad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
-    subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad,nadgrad)
-        !Required argument
-            integer,intent(in)::NAtoms,NStates
-            real*8,dimension(3*NAtoms),intent(inout)::geom
-            real*8,dimension(NAtoms),intent(in)::mass
-        !Optional argument
-            real*8,dimension(3*NAtoms),intent(in),optional::reference
-            real*8,intent(out),optional::difference
-            real*8,dimension(3*NAtoms),intent(inout),optional::grad
-            real*8,dimension(3*NAtoms,NStates,NStates),intent(inout),optional::nadgrad
-        integer::i,indicemin,istate,jstate
-        real*8::SystemMass,temp
-        real*8,dimension(3)::com!Short for Centre Of Mass
-        real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
-        real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
-        !Compute current centre of mass
-            com=0d0
-            SystemMass=0d0
-            do i=1,NAtoms
-                com=com+mass(i)*geom(3*i-2:3*i)
-                SystemMass=SystemMass+mass(i)
-            end do
-            com=com/SystemMass
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-            moi=0d0
-            do i=1,NAtoms
-                geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
-                moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
-            end do
-        !Diagonalize momentum of inertia
-            call My_dsyev('V',moi,com,3)
-            if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
-            UT=transpose(moi)
-        !Transform geometry (and optionally gradient) to principle axes frame
-        if(present(reference)) then
-            !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
-            forall(i=1:NAtoms)
-                r(3*i-2:3*i,1)=matmul(UT,geom(3*i-2:3*i))
-                !Flip x and y positive directions
-                r(3*i-2:3*i-1,2)=-r(3*i-2:3*i-1,1)
-                r(3*i,2)=r(3*i,1)
-                !Flip x and z positive directions
-                r(3*i-2,3)=-r(3*i-2,1)
-                r(3*i,3)=-r(3*i,1)
-                r(3*i-1,3)=r(3*i-1,1)
-                !Flip y and z positive directions
-                r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
-                r(3*i-2,4)=r(3*i-2,1)
-            end forall
-            indicemin=1!Which one has smallest difference?
-            temp=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
-            do i=2,4
-                SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
-                if(SystemMass<temp) then
-                    temp=SystemMass
-                    indicemin=i
-                end if
-            end do
-            if(present(difference)) difference=temp!Harvest || output geom - reference ||_2^2
-            geom=r(:,indicemin)!Determine the geometry
-            select case(indicemin)!Determine the principle axes
-                case(2)
-                    moi(:,1:2)=-moi(:,1:2)
-                case(3)
-                    moi(:,1)=-moi(:,1)
-                    moi(:,3)=-moi(:,3)
-                case(4)
-                    moi(:,2:3)=-moi(:,2:3)
-            end select
-        else
-            forall(i=1:NAtoms)
-                geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i))
-            end forall
-        end if
-        if(present(grad)) then
-            forall(i=1:NAtoms)
-                grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
-            end forall
-        end if
-        if(present(nadgrad)) then
-            forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
-                nadgrad(3*i-2:3*i,istate,jstate)=matmul(moi,nadgrad(3*i-2:3*i,istate,jstate))
-            end forall
-        end if
-    end subroutine StandardizeGeometry
-!------------------- End --------------------
+!Standardize a geometry (and optionally gradient) (optionally to a reference)
+!Here we define a standard geometry as:
+!    the centre of mass at origin
+!    the rotational principle axes along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
+!Note this definition does not determine geometry uniquely:
+!    axes may take different positive direction as long as forming right-hand system (4 possibilities)
+!Required argument: 3NAtoms order vector geom (geom[3i-2:3i] corresponds to [x,y,z] of i-th atom),
+!                   NAtoms order vector mass (mass[i] is the mass of i-th atom), NAtoms, NStates
+!Optional argument:
+!    reference: uniquely define the standard geometry by the 1 with smallest difference to reference out of 4
+!    difference: harvest || output geom - reference ||_2^2
+!    grad: 3NAtoms order vector gradient to transform to standard coordinate
+!    nadgrad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
+subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad,nadgrad)
+    !Required argument
+        integer,intent(in)::NAtoms,NStates
+        real*8,dimension(3*NAtoms),intent(inout)::geom
+        real*8,dimension(NAtoms),intent(in)::mass
+    !Optional argument
+        real*8,dimension(3*NAtoms),intent(in),optional::reference
+        real*8,intent(out),optional::difference
+        real*8,dimension(3*NAtoms),intent(inout),optional::grad
+        real*8,dimension(3*NAtoms,NStates,NStates),intent(inout),optional::nadgrad
+    integer::i,indicemin,istate,jstate
+    real*8::SystemMass,temp
+    real*8,dimension(3)::com!Short for Centre Of Mass
+    real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
+    real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
+    !Compute current centre of mass
+        com=0d0
+        SystemMass=0d0
+        do i=1,NAtoms
+            com=com+mass(i)*geom(3*i-2:3*i)
+            SystemMass=SystemMass+mass(i)
+        end do
+        com=com/SystemMass
+    !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
+        moi=0d0
+        do i=1,NAtoms
+            geom(3*i-2:3*i)=geom(3*i-2:3*i)-com
+            moi=moi+mass(i)*(dot_product(geom(3*i-2:3*i),geom(3*i-2:3*i))*UnitMatrix(3)-vector_direct_product(geom(3*i-2:3*i),geom(3*i-2:3*i),3,3))
+        end do
+    !Diagonalize momentum of inertia
+        call My_dsyev('V',moi,com,3)
+        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
+        UT=transpose(moi)
+    !Transform geometry (and optionally gradient) to principle axes frame
+    if(present(reference)) then
+        !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
+        forall(i=1:NAtoms)
+            r(3*i-2:3*i,1)=matmul(UT,geom(3*i-2:3*i))
+            !Flip x and y positive directions
+            r(3*i-2:3*i-1,2)=-r(3*i-2:3*i-1,1)
+            r(3*i,2)=r(3*i,1)
+            !Flip x and z positive directions
+            r(3*i-2,3)=-r(3*i-2,1)
+            r(3*i,3)=-r(3*i,1)
+            r(3*i-1,3)=r(3*i-1,1)
+            !Flip y and z positive directions
+            r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
+            r(3*i-2,4)=r(3*i-2,1)
+        end forall
+        indicemin=1!Which one has smallest difference?
+        temp=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
+        do i=2,4
+            SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
+            if(SystemMass<temp) then
+                temp=SystemMass
+                indicemin=i
+            end if
+        end do
+        if(present(difference)) difference=temp!Harvest || output geom - reference ||_2^2
+        geom=r(:,indicemin)!Determine the geometry
+        select case(indicemin)!Determine the principle axes
+            case(2)
+                moi(:,1:2)=-moi(:,1:2)
+            case(3)
+                moi(:,1)=-moi(:,1)
+                moi(:,3)=-moi(:,3)
+            case(4)
+                moi(:,2:3)=-moi(:,2:3)
+        end select
+    else
+        forall(i=1:NAtoms)
+            geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i))
+        end forall
+    end if
+    if(present(grad)) then
+        forall(i=1:NAtoms)
+            grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
+        end forall
+    end if
+    if(present(nadgrad)) then
+        forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
+            nadgrad(3*i-2:3*i,istate,jstate)=matmul(moi,nadgrad(3*i-2:3*i,istate,jstate))
+        end forall
+    end if
+end subroutine StandardizeGeometry
 
 !---------- Cartesian <-> Internal ----------
     !An interal coordinate is the linear combination of several translationally and rotationally invariant displacements,
@@ -549,46 +549,104 @@ contains
     !=================== End ===================
 !------------------- End --------------------
 
-!Use Wilson GF method to analyze vibration from Hessian in internal coordinate
-!Input:  intdim order real symmetric matrix H = Hessian in internal coordinate
-!             intdim x cartdim matrix B       = Wilson B matrix
-!              NAtoms order array mass        = mass of each atom
-!Output: freq = vibrational angular frequencies (negative if imaginary)
-!         H   = normal coordinates in input frame
-subroutine VibrationAnalysis(freq,H,intdim,B,cartdim,mass,NAtoms)
-    integer,intent(in)::intdim,cartdim,NAtoms
-    real*8,dimension(intdim),intent(out)::freq
-    real*8,dimension(intdim,intdim),intent(inout)::H
-    real*8,dimension(intdim,cartdim),intent(inout)::B
-    real*8,dimension(NAtoms),intent(in)::mass
-    integer::i
-    integer,dimension(intdim)::indices
-    real*8,dimension(intdim)::freqtemp
-    real*8,dimension(intdim,intdim)::GF
-    real*8,dimension(intdim,cartdim)::Btemp
-    !GF method: obtain freq^2 and normal coordinates
-        forall(i=1:NAtoms)
-            Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
-        end forall
-        call syL2U(H,intdim)
-        GF=matmul(matmul(Btemp,transpose(B)),H)
-        call My_dgeev('V',GF,freq,freqtemp,H,intdim)
-    do i=1,intdim!freq^2 -> freq
-        if(freq(i)<0d0) then
-            freq(i)=-dSqrt(-freq(i))
-        else
-            freq(i)=dSqrt(freq(i))
-        end if
-    end do
-    !Sort freq ascendingly, then sort normal coordinates accordingly
-        forall(i=1:intdim)
-            indices(i)=i
-        end forall
-        call dQuickSort(freq,1,intdim,indices,intdim)
-        GF=H
-        forall(i=1:intdim)
-            H(:,i)=GF(:,indices(i))
-        end forall
-end subroutine VibrationAnalysis
+!--------------- Normal mode ----------------
+	!Normal mode is the eigenvectors of Hessian:
+	!    In cartesian coordinate, it is the usual eigenvector
+	!    In  internal coordinate, it is the generalized eigenvector of G under Hessian metric
+	!G is built from mass and Wilson B matrix, for details see Wilson GF method in: (note that Wilson calls Hessian by F)
+	!E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
+
+	!Input:  3NAtoms order real symmetric matrix H = Hessian in Cartesian coordinate (will be overwritten)
+	!Output: vibdim order vector freq = vibrational angular frequencies (negative if imaginary)
+	!        vibdim order matrix mode = normal modes in input frame contained in each column
+	!Lowest 3 * NAtoms - vibdim modes are considered translation and rotation thus ruled out
+	subroutine VibrationAnalysis(freq,mode,vibdim,H,mass,NAtoms)
+		integer,intent(in)::vibdim,NAtoms
+		real*8,dimension(vibdim),intent(out)::freq
+		real*8,dimension(vibdim,vibdim),intent(out)::mode
+        real*8,dimension(3*NAtoms,3*NAtoms),intent(inout)::H
+		real*8,dimension(NAtoms),intent(in)::mass
+		integer::i
+		integer,dimension(3*NAtoms)::indices
+		real*8,dimension(NAtoms)::sqrtmass
+		real*8,dimension(3*NAtoms)::freqall,freqabs
+		!Obtain freq^2 and normal modes
+		    sqrtmass=dSqrt(mass)
+		    forall(i=1:NAtoms)
+		    	H(:,3*i-2:3*i)=H(:,3*i-2:3*i)/sqrtmass(i)
+		    	H(3*i-2:3*i,:)=H(3*i-2:3*i,:)/sqrtmass(i)
+		    end forall
+			call My_dsyev('V',H,freqall,3*NAtoms)
+		!Rule out 3 * NAtoms - vibdim translations and rotations
+		    freqabs=dAbs(freqall)
+		    forall(i=1:3*NAtoms)
+		        indices(i)=i
+		    end forall
+			call dQuickSort(freqabs,1,3*NAtoms,indices,3*NAtoms)
+			freqabs=freqall
+		    forall(i=1:vibdim)
+				freqall(i)=freqabs(indices(i+3*NAtoms-vibdim))
+				mode(:,i)=H(:,indices(i+3*NAtoms-vibdim))
+            end forall
+		do i=1,vibdim!freq^2 -> freq
+			if(freqall(i)<0d0) then
+                freq(i)=-dSqrt(-freqall(i))
+            else
+                freq(i)=dSqrt(freqall(i))
+            end if
+		end do
+		!Sort freq ascendingly, then sort normal modes accordingly
+		    forall(i=1:vibdim)
+		        indices(i)=i
+			end forall
+			call dQuickSort(freq,1,vibdim,indices(1:vibdim),vibdim)
+			H(:,1:vibdim)=mode
+			forall(i=1:vibdim)
+                mode(:,i)=H(:,indices(i))
+            end forall
+	end subroutine VibrationAnalysis
+
+    !Use Wilson GF method to obtain normal mode and vibrational frequency from Hessian in internal coordinate
+    !Input:  intdim order real symmetric matrix H = Hessian in internal coordinate
+    !             intdim x 3*NAtoms matrix B      = Wilson B matrix
+    !              NAtoms order array mass        = mass of each atom
+    !Output: freq = vibrational angular frequencies (negative if imaginary)
+    !         H   = normal modes in input frame
+    subroutine WilsonGFMethod(freq,H,intdim,B,mass,NAtoms)
+        integer,intent(in)::intdim,NAtoms
+        real*8,dimension(intdim),intent(out)::freq
+        real*8,dimension(intdim,intdim),intent(inout)::H
+        real*8,dimension(intdim,3*NAtoms),intent(inout)::B
+        real*8,dimension(NAtoms),intent(in)::mass
+        integer::i
+        integer,dimension(intdim)::indices
+        real*8,dimension(intdim)::freqtemp
+        real*8,dimension(intdim,intdim)::GF
+        real*8,dimension(intdim,3*NAtoms)::Btemp
+        !GF method: obtain freq^2 and normal modes
+            forall(i=1:NAtoms)
+                Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
+            end forall
+            call syL2U(H,intdim)
+            GF=matmul(matmul(Btemp,transpose(B)),H)
+            call My_dgeev('V',GF,freq,freqtemp,H,intdim)!Hessian is not necessarily positive definite, so do not call sygv
+        do i=1,intdim!freq^2 -> freq
+            if(freq(i)<0d0) then
+                freq(i)=-dSqrt(-freq(i))
+            else
+                freq(i)=dSqrt(freq(i))
+            end if
+        end do
+        !Sort freq ascendingly, then sort normal modes accordingly
+            forall(i=1:intdim)
+                indices(i)=i
+            end forall
+            call dQuickSort(freq,1,intdim,indices,intdim)
+            GF=H
+            forall(i=1:intdim)
+                H(:,i)=GF(:,indices(i))
+            end forall
+	end subroutine WilsonGFMethod
+!------------------- End --------------------
 
 end module GeometryTransformation

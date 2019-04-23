@@ -25,21 +25,6 @@ subroutine CheckDegeneracy(degenerate,threshold,energy,N)
     end do
 end subroutine CheckDegeneracy
 
-!A, eigval, eigvec satisfy: A . eigvec(:,i) = eigval(i) * eigvec(:,i) for all 1 <= i <= N
-!dA = ▽A in A representation is dim x N x N 3rd-order tensor
-!Return dim x N x N 3rd-order tensor M satisfying: ▽eigvec = eigvec M (matrix multiplication on N x N)
-!Note that M is anti hermitian, so only fill in strictly lower triangle
-function deigvec_ByKnowneigval_dA(eigval,dA,dim,N)
-    integer,intent(in)::dim,N
-    real*8,dimension(N),intent(in)::eigval
-    real*8,dimension(dim,N,N),intent(in)::dA
-    real*8,dimension(dim,N,N)::deigvec_ByKnowneigval_dA
-    integer::i,j
-    forall(i=2:N,j=1:N-1,i>j)
-        deigvec_ByKnowneigval_dA(:,i,j)=dA(:,i,j)/(eigval(j)-eigval(i))
-    end forall
-end function deigvec_ByKnowneigval_dA
-
 !--------------------- Phase fixing ---------------------
     !Eigenvector has indeterminate phase, consequently any inner product involving two
     !different states also does not have determinate phase. Sometimes we need to fix it
@@ -304,5 +289,48 @@ end function deigvec_ByKnowneigval_dA
         end do
     end subroutine dFixHPhase_AssignBasisPhaseBydH
 !------------------------- End --------------------------
+
+!A, eigval, eigvec satisfy: A . eigvec(:,i) = eigval(i) * eigvec(:,i) for all 1 <= i <= N
+!dA = ▽A in A representation is dim x N x N 3rd-order tensor
+!Return dim x N x N 3rd-order tensor M satisfying: ▽eigvec = eigvec M (matrix multiplication on N x N)
+!Note that M is anti hermitian, so only fill in strictly lower triangle
+function deigvec_ByKnowneigval_dA(eigval,dA,dim,N)
+    integer,intent(in)::dim,N
+    real*8,dimension(N),intent(in)::eigval
+    real*8,dimension(dim,N,N),intent(in)::dA
+    real*8,dimension(dim,N,N)::deigvec_ByKnowneigval_dA
+    integer::i,j
+    forall(i=2:N,j=1:N-1,i>j)
+        deigvec_ByKnowneigval_dA(:,i,j)=dA(:,i,j)/(eigval(j)-eigval(i))
+    end forall
+end function deigvec_ByKnowneigval_dA
+
+!At conical intersection there is a gauge degree of freedom, conical intersection adapted coordinate is
+!gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
+!Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
+subroutine ghOrthogonalization(grad1,grad2,)
+    integer,intent(in)::low,up
+    real*8::sinsqtheta,cossqtheta,sin2theta
+    real*8,dimension(InternalDimension)::g,h
+    g=(point_state(up).state(up).grad-point_state(low).state(low).grad)/2d0
+    h=point_state(low).state(up).grad
+    sinsqtheta=dot_product(g,h)
+    if(sinsqtheta==0d0) return
+    cossqtheta=dot_product(g,g)-dot_product(h,h)
+    if(cossqtheta==0d0) then
+        cossqtheta=pid8
+    else
+        cossqtheta=atan(2d0*sinsqtheta/cossqtheta)/4d0
+    end if
+    sinsqtheta=sin(cossqtheta)
+    cossqtheta=cos(cossqtheta)
+    sin2theta=2d0*sinsqtheta*cossqtheta
+    sinsqtheta=sinsqtheta*sinsqtheta
+    cossqtheta=cossqtheta*cossqtheta
+    point_state(low).state(up).grad=(cossqtheta-sinsqtheta)*h-sin2theta*g
+    g=point_state(low).state(low).grad
+    point_state(low).state(low).grad=cossqtheta*g+sinsqtheta*point_state(up).state(up).grad-sin2theta*h
+    point_state( up).state( up).grad=sinsqtheta*g+cossqtheta*point_state(up).state(up).grad+sin2theta*h
+end subroutine ghOrthogonalization
 
 end module Nonadiabatic
