@@ -305,113 +305,131 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
     low=-1d0
     up=1d0
     write(*,*)'Testing unconstrained solvers...'
-        write(*,*)'Newton'
-            call random_number(x)
-            call NewtonRaphson(f,fd,x,dim,fdd=fdd)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'Newton_S'
-            call random_number(x)
-            call NewtonRaphson(f,fd,x,dim,Strong=.true.)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'Newton_S_fdwithf'
-            call random_number(x)
-            call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'BFGS'
-            call random_number(x)
-            call BFGS(f,fd,x,dim,fdd=fdd)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'BFGS_cheap'
-            call random_number(x)
-            call BFGS(f,fd,x,dim,ExactStep=0)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'BFGS_NH'
-            call random_number(x)
-            call BFGS(f,fd,x,dim,ExactStep=5)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'BFGS_S'
-            call random_number(x)
-            call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'BFGS_S_fdwithf'
-            call random_number(x)
-            call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'LBFGS'
-            call random_number(x)
-            call LBFGS(f,fd,x,dim)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'LBFGS_S'
-            call random_number(x)
-            call LBFGS(f,fd,x,dim,Strong=.true.)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'LBFGS_S_fdwithf'
-            call random_number(x)
-            call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'DY'
-            call random_number(x)
-            call ConjugateGradient(f,fd,x,dim)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'DY_S'
-            call random_number(x)
-            call ConjugateGradient(f,fd,x,dim,Strong=.true.)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'DY_S_fdwithf'
-            call random_number(x)
-            call ConjugateGradient(f,fd,x,dim,f_fd=f_fd)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'PR'
-            chartemp='PR'
-            call random_number(x)
-            call ConjugateGradient(f,fd,x,dim,Method=chartemp)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'PR_fdwithf'
-            chartemp='PR'
-            call random_number(x)
-            call ConjugateGradient(f,fd,x,dim,Method=chartemp,f_fd=f_fd)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'dtrnlsp'
-            call random_number(x)
-            call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'dtrnlsp_NJ'
-            call random_number(x)
-            call TrustRegion(fd_tr,x,M,N)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'dtrnlspbc'
-            call random_number(x)
-            call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr,low=low,up=up)
-            write(*,*)norm2(x)
-        write(*,*)
-        write(*,*)'dtrnlspbc_NJ'
-            call random_number(x)
-            call TrustRegion(fd_tr,x,M,N,low=low,up=up)
-            write(*,*)norm2(x)
+        !write(*,*)'Newton'
+        !    call random_number(x)
+        !    call NewtonRaphson(f,fd,x,dim,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'Newton_S'
+        !    call random_number(x)
+        !    call NewtonRaphson(f,fd,x,dim,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'Newton_S_fdwithf'
+        !    call random_number(x)
+        !    call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_cheap'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,ExactStep=0)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_NH'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,ExactStep=5)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_S'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'BFGS_S_fdwithf'
+        !    call random_number(x)
+        !    call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'LBFGS'
+        !    call random_number(x)
+        !    call LBFGS(f,fd,x,dim)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'LBFGS_S'
+        !    call random_number(x)
+        !    call LBFGS(f,fd,x,dim,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'LBFGS_S_fdwithf'
+        !    call random_number(x)
+        !    call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'DY'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'DY_S'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,Strong=.true.)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'DY_S_fdwithf'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,f_fd=f_fd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'PR'
+        !    chartemp='PR'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,Method=chartemp)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'PR_fdwithf'
+        !    chartemp='PR'
+        !    call random_number(x)
+        !    call ConjugateGradient(f,fd,x,dim,Method=chartemp,f_fd=f_fd)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlsp'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlsp_NJ'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlspbc'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N,Jacobian=fdd_tr,low=low,up=up)
+        !    write(*,*)norm2(x)
+        !write(*,*)
+        !write(*,*)'dtrnlspbc_NJ'
+        !    call random_number(x)
+        !    call TrustRegion(fd_tr,x,M,N,low=low,up=up)
+        !    write(*,*)norm2(x)
     write(*,*)
     write(*,*)'Testing constrained solvers...'
         write(*,*)
-        write(*,*)'augmented Lagrangian'
+        write(*,*)'augmented Lagrangian based on BFGS'
         call random_number(x)
         call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.)
+		write(*,*)norm2(x)-1d0
+		write(*,*)
+		write(*,*)'augmented Lagrangian based on Newton'
+		chartemp='NewtonRaphson'
+        call random_number(x)
+        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,UnconstrainedSolver=chartemp)
+		write(*,*)norm2(x)-1d0
+		write(*,*)
+		write(*,*)'augmented Lagrangian based on LBFGS'
+		chartemp='LBFGS'
+        call random_number(x)
+        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,UnconstrainedSolver=chartemp)
+		write(*,*)norm2(x)-1d0
+		write(*,*)
+		write(*,*)'augmented Lagrangian based on conjugate gradient'
+		chartemp='ConjugateGradient'
+        call random_number(x)
+        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,UnconstrainedSolver=chartemp)
         write(*,*)norm2(x)-1d0
     write(*,*)
 write(*,*)'Nonlinear-optimization solvers test passed'

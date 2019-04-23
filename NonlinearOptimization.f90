@@ -1400,7 +1400,7 @@ contains
         !Input:  c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
         !        a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
         !Output: a harvests the step length satisfying certain condition, x = x + a * p, fx = f(x), fdx = f'(x)
-        !Optional argument: Increment: (default = 1.05) each iteration change step length by how much time (must > 1)
+        !Optional argument: Increment: (default = 1.05) each iteration change a by how much time (must > 1)
 
         !Line search for a step length satisfying Wolfe condition
         !This routine is designed to minimize gradient computation
@@ -1427,7 +1427,7 @@ contains
                 end if
                 x0=x
                 fx0=fx
-                c2_m_abs_phid0=c2*Abs(phid0)
+                c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
             x=x0+a*p
             call f(fx,x,dim)
@@ -1493,7 +1493,7 @@ contains
                         call f(fx,x,dim)
                         if(fx>fx0+c1*a*phid0) then
                             up=a
-                            if(Abs(up-low)<1d-15) then
+                            if(dAbs(up-low)<1d-15) then
                                 call fd(fdx,x,dim)
                                 return
                             end if
@@ -1503,7 +1503,7 @@ contains
                             phidnew=dot_product(fdx,p)
                             if(phidnew>c2_m_abs_phid0) return
                             low=a
-                            if(Abs(up-low)<1d-15) return
+                            if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
                             flow=fx
                             phidlow=phidnew
                             phidlow_m_a=phidlow*a
@@ -1536,7 +1536,7 @@ contains
                 end if
                 x0=x
                 fx0=fx
-                c2_m_abs_phid0=c2*Abs(phid0)
+                c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
             x=x0+a*p
             call f(fx,x,dim)
@@ -1602,7 +1602,7 @@ contains
                         call f(fx,x,dim)
                         if(fx>fx0+c1*a*phid0) then
                             up=a
-                            if(Abs(up-low)<1d-15) then
+                            if(dAbs(up-low)<1d-15) then
                                 call fd(fdx,x,dim)
                                 return
                             end if
@@ -1612,7 +1612,7 @@ contains
                             phidnew=dot_product(fdx,p)
                             if(phidnew>c2_m_abs_phid0) return
                             low=a
-                            if(Abs(up-low)<1d-15) return
+                            if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
                             flow=fx
                             phidlow=phidnew
                             phidlow_m_a=phidlow*a
@@ -1645,7 +1645,7 @@ contains
                 end if
                 x0=x
                 fx0=fx
-                c2_m_abs_phid0=c2*Abs(phid0)
+                c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
             x=x0+a*p
             call f(fx,x,dim)
@@ -1653,7 +1653,7 @@ contains
                 call fd(fdx,x,dim)
                 phidnew=dot_product(fdx,p)
                 if(phidnew>0d0) then!Curve is heading up
-                    if(Abs(phidnew)<=c2_m_abs_phid0) return
+                    if(dAbs(phidnew)<=c2_m_abs_phid0) return
                     do!Else have to search for smaller a that phi(a) < phi(aold) & phid(a) > 0 is false
                         aold=a
                         fold=fx
@@ -1688,7 +1688,7 @@ contains
                             return
                         end if
                         if(phidnew>0d0) then
-                            if(Abs(phidnew)<=c2_m_abs_phid0) then
+                            if(dAbs(phidnew)<=c2_m_abs_phid0) then
                                 return
                             else
                                 atemp=a
@@ -1709,7 +1709,7 @@ contains
                     if(fx<=fx0+c1*a*phid0) then!Found, then look at slope
                         call fd(fdx,x,dim)
                         phidnew=dot_product(fdx,p)
-                        if(Abs(phidnew)<=c2_m_abs_phid0) return
+                        if(dAbs(phidnew)<=c2_m_abs_phid0) return
                         if(phidnew<0d0) then!Within [a, aold]
                             x=x0+aold*p
                             call fd(fdx,x,dim)
@@ -1776,7 +1776,7 @@ contains
                             fup=fx
                             phidup=phidnew
                         else
-                            if(Abs(phidnew)<=c2_m_abs_phid0) return
+                            if(dAbs(phidnew)<=c2_m_abs_phid0) return
                             if(phidnew*(up-low)>=0d0) then
                                 up=low
                                 fup=flow
@@ -1786,7 +1786,7 @@ contains
                             flow=fx
                             phidlow=phidnew
                         end if
-                        if(Abs(up-low)<1d-15) return
+                        if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
                     end do
                 end subroutine zoom
         end subroutine StrongWolfe
@@ -1816,14 +1816,14 @@ contains
                 end if
                 x0=x
                 fx0=fx
-                c2_m_abs_phid0=c2*Abs(phid0)
+                c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
             x=x0+a*p
             info=f_fd(fx,fdx,x,dim)
             if(fx<=fx0+c1*a*phid0) then!Satisfied, try to search for larger a
                 phidnew=dot_product(fdx,p)
                 if(phidnew>0d0) then!Curve is heading up
-                    if(Abs(phidnew)<=c2_m_abs_phid0) return
+                    if(dAbs(phidnew)<=c2_m_abs_phid0) return
                     do!Else have to search for smaller a that phi(a) < phi(aold) & phid(a) > 0 is false
                         aold=a
                         fold=fx
@@ -1856,7 +1856,7 @@ contains
                             return
                         end if
                         if(phidnew>0d0) then
-                            if(Abs(phidnew)<=c2_m_abs_phid0) return
+                            if(dAbs(phidnew)<=c2_m_abs_phid0) return
                             atemp=a
                             ftemp=fx
                             call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
@@ -1865,7 +1865,7 @@ contains
                     end do
                 end if
             else!Violated, 1st search for smaller a satisfying sufficient decrease condition
-                do
+				do
                     aold=a
                     fold=fx
                     a=aold/incrmt
@@ -1874,7 +1874,7 @@ contains
                     if(fx<=fx0+c1*a*phid0) then!Found, then look at slope
                         call fd(fdx,x,dim)
                         phidnew=dot_product(fdx,p)
-                        if(Abs(phidnew)<=c2_m_abs_phid0) return
+                        if(dAbs(phidnew)<=c2_m_abs_phid0) return
                         if(phidnew<0d0) then!Within [a, aold]
                             x=x0+aold*p
                             call fd(fdx,x,dim)
@@ -1912,7 +1912,7 @@ contains
                 subroutine zoom(low,up,flow,fup,phidlow,phidup)
                     real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
                     real*8::phidnew,d1,d2
-                    do
+					do
                         !Updata a by cubic interpolation
                             d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
                             d2=up-low
@@ -1931,7 +1931,7 @@ contains
                             fup=fx
                             phidup=phidnew
                         else
-                            if(Abs(phidnew)<=c2_m_abs_phid0) return
+                            if(dAbs(phidnew)<=c2_m_abs_phid0) return
                             if(phidnew*(up-low)>=0d0) then
                                 up=low
                                 fup=flow
@@ -1941,7 +1941,7 @@ contains
                             flow=fx
                             phidlow=phidnew
                         end if
-                        if(Abs(up-low)<1d-15) return
+                        if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
                     end do
                 end subroutine zoom
         end subroutine StrongWolfe_fdwithf
@@ -2218,10 +2218,11 @@ contains
     !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line seaercher is available
     !    lamda0: (default = 0) initial guess of lamda
     !    miu0: (default = 1) initial miu (must >= 1)
-    !    All optional arguments for line searchers are also optional to take in here,
-    !    some of them also control augmented Lagrangian behaviour: Warning, MaxIteration, Precision, Increment
-    !        but somewhat different: augmented Lagrangian max iteration = MaxIteration / 100
-    !                                augmented Lagrangian precision = Sqrt(Precision)
+    !    All line search optional arguments are also optional here and will be passed to line searchers,
+	!    some of them also control augmented Lagrangian behaviour: Warning, MaxIteration, Precision, Increment
+    !        MaxIteration: max number of augmented Lagrangian iterations to perform
+    !        Precision: convergence considered when || c(x) ||_2 < Precision
+	!        Increment: each iteration change miu by how much time
     !On input x is an initial guess, on exit x is a local minimum of f(x) subject to constraint c(x)
 
     !Augmented Lagrangian method for equality constraint
@@ -2245,7 +2246,7 @@ contains
             integer::maxit,freq,mem
             real*8::tol,minstep,c1,c2,incrmt
         integer::iIteration,i
-        real*8::miu
+        real*8::tolsq,miu
         real*8,dimension(M)::lamda,cx
         real*8,dimension(N,M)::cdx
         real*8,dimension(N,N,M)::cddx
@@ -2331,45 +2332,46 @@ contains
                     type=Method
                 else
                     type='DY'
-                end if
+				end if
+		tolsq=tol*tol!To save sqrt cost, precision is squared
         select case(solver)
             case('NewtonRaphson')
                 if(present(fdd).and.present(cdd)) then
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
                     end if
                 else
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/50
+						do iIteration=1,maxit/1
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
@@ -2378,40 +2380,40 @@ contains
             case('BFGS')
                 if(present(fdd).and.present(cdd)) then
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call BFGS(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
                     end if
                 else
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/50
+                        do iIteration=1,maxit/1
                             call BFGS(L,Ld,x,N,f_fd=L_Ld,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tol) exit
+                            if(dot_product(cx,cx)<tolsq) exit
                             lamda=lamda-miu*cx
                             miu=miu*incrmt
                         end do
@@ -2419,40 +2421,40 @@ contains
                 end if
             case('LBFGS')
                 if(present(f_fd)) then
-                    do iIteration=1,maxit/50
+                    do iIteration=1,maxit/1
                         call LBFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,Memory=mem,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
-                        if(dot_product(cx,cx)<tol) exit
+                        if(dot_product(cx,cx)<tolsq) exit
                         lamda=lamda-miu*cx
                         miu=miu*incrmt
                     end do
                 else
-                    do iIteration=1,maxit/50
+                    do iIteration=1,maxit/1
                         call LBFGS(L,Ld,x,N,f_fd=L_Ld,Memory=mem,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
-                        if(dot_product(cx,cx)<tol) exit
+                        if(dot_product(cx,cx)<tolsq) exit
                         lamda=lamda-miu*cx
                         miu=miu*incrmt
                     end do
                 end if
             case('ConjugateGradient')
                 if(present(f_fd)) then
-                    do iIteration=1,maxit/50
+                    do iIteration=1,maxit/1
                         call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld_fdwithf,Method=type,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
-                        if(dot_product(cx,cx)<tol) exit
+                        if(dot_product(cx,cx)<tolsq) exit
                         lamda=lamda-miu*cx
                         miu=miu*incrmt
                     end do
                 else
-                    do iIteration=1,maxit/50
+                    do iIteration=1,maxit/1
                         call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld,Method=type,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
-                        if(dot_product(cx,cx)<tol) exit
+                        if(dot_product(cx,cx)<tolsq) exit
                         lamda=lamda-miu*cx
                         miu=miu*incrmt
                     end do
