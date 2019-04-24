@@ -18,13 +18,6 @@ module Mathematics
             kJmolInAU=0.00038087967507991464d0,cm_1InAu=4.556335830019422d-6,&
             KInAU=3.166813539739535d-6,barInAU=3.39882737736419d-9
 
-!Parameter
-    !Ordinary differential equation:
-        !Predict-correct
-        logical::PredictCorrectWarning=.true.
-        integer::MaxCorrectionIteration=20
-        real*8::PredictCorrectAbsTol=1d-15,PredictCorrectRelTol=1d-15
-
 contains
 !------------------ Combinatorics -------------------
     !Exact factorial for 0 <= N <= 20, double precision for 21 <= N <= 40, 8 significant figures for N >= 41
@@ -986,10 +979,13 @@ contains
 !----------------------- End ------------------------
 
 !---------- Ordinary differential equation ----------
-    !f has the form of: subroutine f(du/dt,u,dim)
-    !dim dimensional vector old, new. old is the current time value, new harvests the value after dt
-    !Runge Kutta 4 order 
-    subroutine dRK4(old,new,f,dt,dim)
+    !Integrate the ordinary differential equation: u(dt) = u(0) + Integrate[du/dt,{t,0,dt}]
+    !du/dt should not depend explicitly on time, i.e. du/dt must be determined merely by u
+    !External procedure: subroutine f(du/dt,u,dim), dim dimentional vector du/dt & u
+    !Input:  old = u(0), f, dt, dim
+    !Output: new harvests u(dt)
+
+    subroutine dRK4(old,new,f,dt,dim)!Runge Kutta 4 order 
         integer,intent(in)::dim
         real*8,dimension(dim),intent(in)::old
         real*8,dimension(dim),intent(out)::new
@@ -1005,10 +1001,7 @@ contains
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine dRK4
 
-    !f has the form of: subroutine f(du/dt,u,dim)
-    !dim dimensional vector old, new. old is the current time value, new harvests the value after dt
-    !Runge Kutta 4 order 
-    subroutine zRK4(old,new,f,dt,dim)
+    subroutine zRK4(old,new,f,dt,dim)!Runge Kutta 4 order 
         integer,intent(in)::dim
         complex*16,dimension(dim),intent(in)::old
         complex*16,dimension(dim),intent(out)::new
@@ -1024,39 +1017,54 @@ contains
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine zRK4
 
-    !f has the form of: subroutine f(du/dt,u,dim)
-    !dim dimensional vector old, new. old is the current time value, new harvests the value after dt
-    !Perdiction-correction 2 order
-    !Predictor: Euler, corrector: backward Euler
-    subroutine dPredictCorrect2(old,new,f,dt,dim)
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(in)::old
-        real*8,dimension(dim),intent(inout)::new
-        external::f
-        real*8,intent(in)::dt
-        integer::i
+    subroutine dPredictCorrect2(old,new,f,dt,dim,Warning,MaxIteration,Precision)!Perdiction-correction 2 order, predictor = Euler, corrector = backward Euler
+        !Required argument
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(in)::old
+            real*8,dimension(dim),intent(inout)::new
+            external::f
+            real*8,intent(in)::dt
+        !Optional argument
+            logical,intent(in),optional::Warning
+            integer,intent(in),optional::MaxIteration
+            real*8 ,intent(in),optional::Precision
+        logical::warn
+        integer::maxit,i
+        real*8::tol,dtd2,absdev,reldev
         real*8,dimension(dim)::k,olditer,kiter
-        real*8::dtd2,absdev,reldev
+        !Set parameter according to optional argument
+            if(present(Warning)) then
+                warn=Warning
+            else
+                warn=.true.
+            end if
+            if(present(MaxIteration)) then
+                maxit=MaxIteration
+            else
+                maxit=20
+            end if
+            if(present(Precision)) then
+                tol=precision
+            else
+                tol=1d-15
+            end if
         dtd2=dt/2d0
         call f(k,old,dim)
         olditer=old+dt*k
         call f(kiter,olditer,dim)
         olditer=old+dtd2*(k+kiter)
-        do i=1,MaxCorrectionIteration
+        do i=1,maxit
             call f(kiter,olditer,dim)
             new=old+dtd2*(k+kiter)
-            absdev=maxval(abs(new-olditer))
-            reldev=maxval(abs((new-olditer)/new))
-            if(absdev<PredictCorrectAbsTol.or.reldev<PredictCorrectRelTol) then
-                exit
-            end if
+            absdev=maxval(dAbs(new-olditer))
+            reldev=maxval(dAbs((new-olditer)/new))
+            if(absdev<tol.or.reldev<tol) exit
             olditer=new
         end do
-        if(i>MaxCorrectionIteration.and.PredictCorrectWarning) then
-            write(*,*)'Failed perdiction-correction: max iteration exceeded!'
+        if(i>maxit.and.warn) then
+            write(*,'(1x,A53)')'Failed perdiction-correction: max iteration exceeded!'
             write(*,*)'absdev =',absdev
             write(*,*)'reldev =',reldev
-            PredictCorrectWarning=.false.
         end if
     end subroutine dPredictCorrect2
 !----------------------- End ------------------------

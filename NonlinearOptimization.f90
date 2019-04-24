@@ -15,9 +15,9 @@
 !    so you have to construct your own hopper based on your specific problem
 !    Heuristic algorithm is general but naive: pay exponentially for NP-completeness
 module NonlinearOptimization
-    use LinearAlgebra!For inverting exact Hessian
-    use mkl_rci_type !For numerical exact Hessian & Trust region solver
-    use mkl_rci      !For numerical exact Hessian & Trust region solver
+    use LinearAlgebra
+    use mkl_rci_type!For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
+    use mkl_rci     !For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
     implicit none
 
 contains
@@ -30,7 +30,7 @@ contains
     !    a = the line search step length
     !    p = the line search direction
     !    phi(a) = f( x + a * p ), so phi'(a) = f'( x + a * p ) . p
-    !External procedure format:
+    !External procedure:
     !    subroutine f(f(x),x,dim)
     !    subroutine fd(f'(x),x,dim)
     !    integer function f_fd(f(x),f'(x),x,dim)
@@ -1958,7 +1958,7 @@ contains
     !    When M = N, f'(x) can also be considered as the gradient of f(x), Jacobian = Hessian,
     !        but trnlsp doesn't necessarily optimize f(x) (unless f(x) = const * F(x) by coincidence),
     !        it merely return a stationary point of f(x)
-    !External procedure format:
+    !External procedure:
     !    subroutine fd(f'(x),x,M,N)
     !    integer function Jacobian(J(x),x,M,N)
     !    M dimensional vector f'(x), N dimensional vector x, M x N matrix J(x)
@@ -2202,7 +2202,7 @@ contains
     !Suggestion:
     !    Augmented Lagrangian has ill conditioned Hessian when miu is too large, deteriorating performance of line searchers
     !    so do not take too much interations and push accuracy to double precision limit
-    !External procedure format:
+    !External procedure:
     !    subroutine f(f(x),x,N)
     !    subroutine fd(f'(x),x,N)
     !    integer function f_fd(f(x),f'(x),x,N)
