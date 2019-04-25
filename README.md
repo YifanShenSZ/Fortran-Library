@@ -1,5 +1,5 @@
 # Fortran-Library
-Nonlinear optimization, linear algebra, and more 
+Nonlinear optimization, linear algebra, numerical calculas, and more 
 
 Selected utilities:
 1. Nonlinear optimization: (all parameters conveniently tunable)
@@ -9,11 +9,15 @@ Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak
 2. Linear algebra:
 * All kinds of vector & matrix & tensor operation
 * LAPACK wrapper for linear solver, eigensystem, matrix norm
-3. Geometry transformation:
+3. Mathematics:
+* Combinatorics and selected special functions
+* Ordinary differential equation
+* 1 dimensional integration
+4. Geometry transformation:
 * Standard geometry (also called standard orientaion)
 * Cartesian <-> internal coordinate
 * Normal mode and vibrational frequency
-4. Nonadiabatic:
+5. Nonadiabatic:
 * Gradient of eigenstates
 * Phase fixing
 * Conical intersection adapted coordinate
