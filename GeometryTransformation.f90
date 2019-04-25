@@ -36,7 +36,7 @@ module GeometryTransformation
 
 contains
 !Standardize a geometry (and optionally gradient) (optionally to a reference)
-!Here we define a standard geometry as:
+!Here we define a standard geometry as: (also called standard orientaion)
 !    the centre of mass at origin
 !    the rotational principle axes along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
 !Note this definition does not determine geometry uniquely:
