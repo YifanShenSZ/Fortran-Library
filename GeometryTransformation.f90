@@ -175,7 +175,7 @@ end subroutine StandardizeGeometry
                         NLines=0
                         intdim=0
                         read(99,*)!First line is always 'TEXAS'
-                        do while(.true.)
+                        do
                             read(99,'(A24)')CharTemp24
                             if (index(CharTemp24,'STRE')==0.and.index(CharTemp24,'BEND')==0.and.index(CharTemp24,'TORS')==0) exit
                             NLines=NLines+1
