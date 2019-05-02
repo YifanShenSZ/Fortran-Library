@@ -2338,7 +2338,7 @@ contains
             case('NewtonRaphson')
                 if(present(fdd).and.present(cdd)) then
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2347,7 +2347,7 @@ contains
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2358,7 +2358,7 @@ contains
                     end if
                 else
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2367,7 +2367,7 @@ contains
                             miu=miu*incrmt
                         end do
                     else
-						do iIteration=1,maxit/1
+						do iIteration=1,maxit
                             call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2380,7 +2380,7 @@ contains
             case('BFGS')
                 if(present(fdd).and.present(cdd)) then
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2389,7 +2389,7 @@ contains
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call BFGS(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2400,7 +2400,7 @@ contains
                     end if
                 else
                     if(present(f_fd)) then
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2409,7 +2409,7 @@ contains
                             miu=miu*incrmt
                         end do
                     else
-                        do iIteration=1,maxit/1
+                        do iIteration=1,maxit
                             call BFGS(L,Ld,x,N,f_fd=L_Ld,ExactStep=freq,&
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
@@ -2421,7 +2421,7 @@ contains
                 end if
             case('LBFGS')
                 if(present(f_fd)) then
-                    do iIteration=1,maxit/1
+                    do iIteration=1,maxit
                         call LBFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,Memory=mem,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
@@ -2430,7 +2430,7 @@ contains
                         miu=miu*incrmt
                     end do
                 else
-                    do iIteration=1,maxit/1
+                    do iIteration=1,maxit
                         call LBFGS(L,Ld,x,N,f_fd=L_Ld,Memory=mem,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
@@ -2441,7 +2441,7 @@ contains
                 end if
             case('ConjugateGradient')
                 if(present(f_fd)) then
-                    do iIteration=1,maxit/1
+                    do iIteration=1,maxit
                         call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld_fdwithf,Method=type,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
@@ -2450,7 +2450,7 @@ contains
                         miu=miu*incrmt
                     end do
                 else
-                    do iIteration=1,maxit/1
+                    do iIteration=1,maxit
                         call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld,Method=type,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
