@@ -1,7 +1,7 @@
 # Fortran-Library
-Nonlinear optimization, linear algebra, numerical calculas, and more 
+Nonlinear optimization, linear algebra, and more mathematics & chemistry
 
-Selected utilities:
+Featured utilities:
 1. Nonlinear optimization: (all parameters conveniently tunable)
 * Unconstrained optimizer:
 Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak-Ribiere+), trust region
@@ -13,14 +13,14 @@ Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak
 * Combinatorics and selected special functions
 * Ordinary differential equation
 * 1 dimensional integration
-4. Geometry transformation:
-* Standard geometry (also called standard orientaion)
-* Cartesian <-> internal coordinate
-* Normal mode and vibrational frequency
-5. Nonadiabatic:
+4. Chemistry:
 * Gradient of eigenstates
 * Phase fixing
 * Conical intersection adapted coordinate
+5. Geometry transformation:
+* Standard geometry (also called standard orientaion)
+* Cartesian <-> internal coordinate
+* Normal mode and vibrational frequency
 
 To see what this library is capable of in detail, you may open certain source file and simply fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
 

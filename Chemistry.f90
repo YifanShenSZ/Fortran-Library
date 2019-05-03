@@ -1,5 +1,5 @@
-!Common routines applied in nonadiabatic chemistry
-module Nonadiabatic
+!Common routines applied in chemistry
+module Chemistry
     use Mathematics
     implicit none
 
@@ -9,6 +9,168 @@ module Nonadiabatic
         real*8,allocatable,dimension(:,:)::Nonadiabatic_PhasePossibility,Nonadiabatic_PhaseDifferencePossibility
 
 contains
+integer function Symbol2Number(element)!Return element number based on input element symbol
+    character*2,intent(in)::element
+    select case(element)
+        case('H')
+            Symbol2Number=1
+        case('He')
+            Symbol2Number=2
+        case('Li')
+            Symbol2Number=3
+        case('Be')
+            Symbol2Number=4
+        case('B')
+            Symbol2Number=5
+        case('C')
+            Symbol2Number=6
+        case('N')
+            Symbol2Number=7
+        case('O')
+            Symbol2Number=8
+        case('F')
+            Symbol2Number=9
+        case('Ne')
+            Symbol2Number=10
+        case('Na')
+            Symbol2Number=11
+        case('Mg')
+            Symbol2Number=12
+        case('Al')
+            Symbol2Number=13
+        case('Si')
+            Symbol2Number=14
+        case('P')
+            Symbol2Number=15
+        case('S')
+            Symbol2Number=16
+        case('Cl')
+            Symbol2Number=17
+        case('Ar')
+            Symbol2Number=18
+        case('K')
+            Symbol2Number=19
+        case('Ca')
+            Symbol2Number=20
+        case('Sc')
+            Symbol2Number=21
+        case('Ti')
+            Symbol2Number=22
+        case('V')
+            Symbol2Number=23
+        case('Cr')
+            Symbol2Number=24
+        case('Mn')
+            Symbol2Number=25
+        case('Fe')
+            Symbol2Number=26
+        case('Co')
+            Symbol2Number=27
+        case('Ni')
+            Symbol2Number=28
+        case('Cu')
+            Symbol2Number=29
+        case('Zn')
+            Symbol2Number=30
+        case('Ga')
+            Symbol2Number=31
+        case('Ge')
+            Symbol2Number=32
+        case('As')
+            Symbol2Number=33
+        case('Se')
+            Symbol2Number=34
+        case('Br')
+            Symbol2Number=35
+        case('Kr')
+            Symbol2Number=36
+        case default
+            write(*,'(1x,A42,1x,A2)')'Program abort: unsupported element symbol:',element
+            stop
+    end select
+end function Symbol2Number
+
+character*2 function Number2Symbol(element)
+    integer,intent(in)::element
+    select case(element)
+        case(1)
+            Number2Symbol='H'
+        case(2)
+            Number2Symbol='He'
+        case(3)
+            Number2Symbol='Li'
+        case(4)
+            Number2Symbol='Be'
+        case(5)
+            Number2Symbol='B'
+        case(6)
+            Number2Symbol='C'
+        case(7)
+            Number2Symbol='N'
+        case(8)
+            Number2Symbol='O'
+        case(9)
+            Number2Symbol='F'
+        case(10)
+            Number2Symbol='Ne'
+        case(11)
+            Number2Symbol='Na'
+        case(12)
+            Number2Symbol='Mg'
+        case(13)
+            Number2Symbol='Al'
+        case(14)
+            Number2Symbol='Si'
+        case(15)
+            Number2Symbol='P'
+        case(16)
+            Number2Symbol='S'
+        case(17)
+            Number2Symbol='Cl'
+        case(18)
+            Number2Symbol='Ar'
+        case(19)
+            Number2Symbol='K'
+        case(20)
+            Number2Symbol='Ca'
+        case(21)
+            Number2Symbol='Sc'
+        case(22)
+            Number2Symbol='Ti'
+        case(23)
+            Number2Symbol='V'
+        case(24)
+            Number2Symbol='Cr'
+        case(25)
+            Number2Symbol='Mn'
+        case(26)
+            Number2Symbol='Fe'
+        case(27)
+            Number2Symbol='Co'
+        case(28)
+            Number2Symbol='Ni'
+        case(29)
+            Number2Symbol='Cu'
+        case(30)
+            Number2Symbol='Zn'
+        case(31)
+            Number2Symbol='Ga'
+        case(32)
+            Number2Symbol='Ge'
+        case(33)
+            Number2Symbol='As'
+        case(34)
+            Number2Symbol='Se'
+        case(35)
+            Number2Symbol='Br'
+        case(36)
+            Number2Symbol='Kr'
+        case default
+            write(*,'(1x,A42,1x,I3)')'Program abort: unsupported element number:',element
+            stop
+    end select
+end function Number2Symbol
+
 !Input:  N dimensional ascendingly sorted array energy
 !Output: degenerate harvests whether exists almost degenerate energy levels (energy difference < threshold)
 subroutine CheckDegeneracy(degenerate,threshold,energy,N)
@@ -424,52 +586,4 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     end if
 end subroutine ghOrthogonalization
 
-integer function Symbol2Number(element)!Return element number based on input element symbol
-    character*2,intent(in)::element
-    select case(element)
-        case('H')
-            Symbol2Number=1
-        case('He')
-            Symbol2Number=2
-        case('Li')
-            Symbol2Number=3
-        case('Be')
-            Symbol2Number=4
-        case('B')
-            Symbol2Number=5
-        case('C')
-            Symbol2Number=6
-        case('N')
-            Symbol2Number=7
-        case('O')
-            Symbol2Number=8
-        case('F')
-            Symbol2Number=9
-        case('Ne')
-            Symbol2Number=10
-        case('Na')
-            Symbol2Number=11
-        case('Mg')
-            Symbol2Number=12
-        case('Al')
-            Symbol2Number=13
-        case('Si')
-            Symbol2Number=14
-        case('P')
-            Symbol2Number=15
-        case('S')
-            Symbol2Number=16
-        case('Cl')
-            Symbol2Number=17
-        case('Ar')
-            Symbol2Number=18
-        case('K')
-            Symbol2Number=19
-        case('Ca')
-            Symbol2Number=20
-        case default
-            Symbol2Number=0
-    end select
-end function Symbol2Number
-
-end module Nonadiabatic
+end module Chemistry
