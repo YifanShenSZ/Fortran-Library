@@ -455,7 +455,7 @@ write(*,*)'Testing all geometry transformation routines...'
 write(*,*)'Geometry transformation routines test passed'
 write(*,*)
 
-write(*,*)'Testing all nonadiabatic routines...'
+write(*,*)'Testing all chemistry routines...'
     call InitializePhaseFixing(10)
     write(*,*)
     write(*,*)'dFixdHPhase'
@@ -526,7 +526,7 @@ write(*,*)'Testing all nonadiabatic routines...'
             write(*,*)'B =-A',My_dlansy('M',A-B,10),My_dlange('M',C+eigvec,10,10)
         end if
     write(*,*)
-write(*,*)'Nonadiabatic routines test passed'
+write(*,*)'Chemistry routines test passed'
 write(*,*)
 
 contains
