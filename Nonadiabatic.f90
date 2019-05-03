@@ -424,4 +424,52 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     end if
 end subroutine ghOrthogonalization
 
+integer function Symbol2Number(element)!Return element number based on input element symbol
+    character*2,intent(in)::element
+    select case(element)
+        case('H')
+            Symbol2Number=1
+        case('He')
+            Symbol2Number=2
+        case('Li')
+            Symbol2Number=3
+        case('Be')
+            Symbol2Number=4
+        case('B')
+            Symbol2Number=5
+        case('C')
+            Symbol2Number=6
+        case('N')
+            Symbol2Number=7
+        case('O')
+            Symbol2Number=8
+        case('F')
+            Symbol2Number=9
+        case('Ne')
+            Symbol2Number=10
+        case('Na')
+            Symbol2Number=11
+        case('Mg')
+            Symbol2Number=12
+        case('Al')
+            Symbol2Number=13
+        case('Si')
+            Symbol2Number=14
+        case('P')
+            Symbol2Number=15
+        case('S')
+            Symbol2Number=16
+        case('Cl')
+            Symbol2Number=17
+        case('Ar')
+            Symbol2Number=18
+        case('K')
+            Symbol2Number=19
+        case('Ca')
+            Symbol2Number=20
+        case default
+            Symbol2Number=0
+    end select
+end function Symbol2Number
+
 end module Nonadiabatic
