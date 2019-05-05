@@ -14,9 +14,12 @@ module Mathematics
     !Physical constant (If has unit, then in atomic unit)
         real*8,parameter::NAvogadro=6.02214076d23
     !Unit conversion (Multiplying xIny converts from x to y)
-        real*8,parameter::AInAU=1.8897261339212517d0,AMUInAU=1822.888486192d0,&
-            kJmolInAU=0.00038087967507991464d0,cm_1InAu=4.556335830019422d-6,&
-            KInAU=3.166813539739535d-6,barInAU=3.39882737736419d-9
+        real*8,parameter::AMUInAU=1822.888486192d0,&!Mass
+            AInAU=1.8897261339212517d0,&!Length
+            kJmolInAU=0.00038087967507991464d0,cm_1InAu=4.556335830019422d-6,&!Energy
+            fsInAU=41.341373336561354d0,&!Time
+            KInAU=3.166813539739535d-6,&!Temperature
+            barInAU=3.39882737736419d-9!Pressure
 
 contains
 !------------------ Combinatorics -------------------
