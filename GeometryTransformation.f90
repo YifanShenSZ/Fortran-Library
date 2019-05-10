@@ -502,7 +502,7 @@ end subroutine StandardizeGeometry
             else
                 call random_number(CartesianCoordinater)
             end if
-            call TrustRegion(Residue,CartesianCoordinater,intdim,cartdim)
+            call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim)
             if(present(mass)) then
                 if(present(r0)) then
                     call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
@@ -511,11 +511,12 @@ end subroutine StandardizeGeometry
                 end if
             end if
             contains
-                subroutine Residue(res,r,intdim,cartdim)
-                    integer,intent(in)::intdim,cartdim
-                    real*8,dimension(intdim),intent(out)::res
+                subroutine Residue(res,r,dim,cartdim)
+                    integer,intent(in)::dim,cartdim
+                    real*8,dimension(dim),intent(out)::res
                     real*8,dimension(cartdim),intent(in)::r
-                    res=InternalCoordinateq(r,intdim,cartdim)-q
+                    res(1:intdim)=InternalCoordinateq(r,intdim,cartdim)-q
+                    res(intdim+1:dim)=0d0
                 end subroutine Residue
         end function CartesianCoordinater
 

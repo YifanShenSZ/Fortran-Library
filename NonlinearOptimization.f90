@@ -2184,7 +2184,7 @@ contains
                 integer,intent(in)::M,N
                 real*8,dimension(N),intent(in)::x
                 real*8,dimension(M),intent(out)::fdx
-                call fd(fdx,x,N)
+                call fd(fdx,x,M,N)
             end subroutine fd_j
     end subroutine TrustRegion
 !------------------ End -------------------
