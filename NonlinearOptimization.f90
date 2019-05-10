@@ -2027,11 +2027,11 @@ contains
                 tol=[1d-15,1d-15,1d-15,1d-15,1d-15,1d-15]
                 if(present(Precision)) then
                     tol(2)=Precision
-                    tol(5)=Precision
                 end if
                 if(present(MinStepLength)) then
                     tol(1)=MinStepLength
                     tol(4)=MinStepLength
+                    tol(5)=MinStepLength
                 end if
             fdx=0d0
             J=0d0
