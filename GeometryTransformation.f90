@@ -502,7 +502,7 @@ end subroutine StandardizeGeometry
             else
                 call random_number(CartesianCoordinater)
             end if
-            call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim)
+            call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Warning=.false.)
             if(present(mass)) then
                 if(present(r0)) then
                     call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
