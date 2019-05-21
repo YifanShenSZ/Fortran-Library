@@ -10,6 +10,7 @@ module Mathematics
         real*8,parameter::Sqrt2=1.4142135623730951d0,Sqrt3=1.7320508075688772d0,&
             pim2=6.283185307179586d0,pim4=12.566370614359172d0,&
             pid2=1.5707963267948966d0,pid4=0.7853981633974483d0,pid8=0.39269908169872414d0,&
+            pisqd3=3.2898681336964524d0,&
             sqrtpi=1.7724538509055159d0,sqrtpim2=2.506628274631d0
     !Physical constant (If has unit, then in atomic unit)
         real*8,parameter::NAvogadro=6.02214076d23
