@@ -102,6 +102,15 @@ contains
         call dsymm('L','L',M,N,1d0,A,M,B,M,0d0,matmul_dsymm,M)
     end function
 
+    !M x N matrix A, N order vector x, return A . x
+    function mvmul_dgemv(A,x,M,N)
+        integer,intent(in)::M,N
+        real*8,dimension(M,N),intent(in)::A
+        real*8,dimension(N),intent(in)::x
+        real*8,dimension(N)::mvmul_dgemv
+        call dgemv('N',M,N,1d0,A,M,x,1,0d0,mvmul_dgemv,1)
+    end function mvmul_dgemv
+
     !MA x NA matrix A, MB x NB matrix B, ( A direct_product B )_ijkl = A_ij * B_kl
     function matrix_direct_product(A,B,MA,NA,MB,NB)
         integer,intent(in)::MA,NA,MB,NB
