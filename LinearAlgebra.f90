@@ -701,8 +701,8 @@ contains
     !Only right eigen: A . eigvec(:,j) = eigval(j) * eigvec(:,j)
     !A will be overwritten
     subroutine My_zgeev(jobtype,A,eigval,eigvec,N)
-        integer,intent(in)::N
         character,intent(in)::jobtype
+        integer,intent(in)::N
         complex*16,dimension(N,N),intent(in)::A
         complex*16,dimension(N),intent(inout)::eigval
         complex*16,dimension(N,N),intent(inout)::eigvec
