@@ -10,6 +10,10 @@ module General
         real*8,allocatable,dimension(:)::Array
     end type d2PArray
 
+    type d2PMatrix
+        real*8,allocatable,dimension(:,:)::Matrix
+    end type d2PMatrix
+
 contains
 !Show date hour minute second
 subroutine ShowTime()
