@@ -748,7 +748,7 @@ contains
             real*8,intent(in)::sigmax,sigmap,rho
             integer::k,minimum,maximum
             BinaryGaussianIntegral=0d0
-            if(.not.mod(i+j,2)) then
+            if(mod(i+j,2)==0) then
                 minimum=min(i,j)
                 maximum=max(i,j)
                 do k=0,minimum/2
@@ -764,7 +764,7 @@ contains
             real*8,intent(in)::rho
             integer::k,minimum,maximum
             BinaryGaussianIntegraldsig=0d0
-            if(.not.mod(i+j,2)) then
+            if(mod(i+j,2)==0) then
                 minimum=min(i,j)
                 maximum=max(i,j)
                 do k=0,minimum/2
