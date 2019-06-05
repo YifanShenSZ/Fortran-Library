@@ -2039,14 +2039,18 @@ contains
             RCI_request=0
         if(present(low).and.present(up)) then
             if(dtrnlspbc_init(handle,N,M,x,low,up,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
+                write(*,*)'Trust region abort: invalid initialization'
                 call mkl_free_buffers
                 return
             end if
             if(dtrnlspbc_check(handle,N,M,J,fdx,low,up,tol,info)/=TR_SUCCESS) then
+                write(*,*)'Trust region abort: check failed'
                 call mkl_free_buffers
                 return
             else
                 if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0.or.info(5)/=0.or.info(6)/=0) then
+                    write(*,*)'Trust region abort: check was not passed, the information is:'
+                    write(*,*)info
                     call mkl_free_buffers
                     return
                 end if
@@ -2102,14 +2106,18 @@ contains
             end do
         else
             if(dtrnlsp_init(handle,N,M,x,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
+                write(*,*)'Trust region abort: invalid initialization'
                 call mkl_free_buffers
                 return
             end if
             if(dtrnlsp_check(handle,N,M,J,fdx,tol,info)/=TR_SUCCESS) then
+                write(*,*)'Trust region abort: check failed'
                 call mkl_free_buffers
                 return
             else
                 if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
+                    write(*,*)'Trust region abort: check was not passed, the information is:'
+                    write(*,*)info
                     call mkl_free_buffers
                     return
                 end if
