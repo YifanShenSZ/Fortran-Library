@@ -12,6 +12,8 @@ program main
     integer,dimension(10)::indicesort
     real*8::difference,DoubleTemp,dbtp
     real*8,dimension(3)::avec,bvec,cvec,mass
+    real*8,dimension(3,3)::intHessian,mode
+    real*8,dimension(3,9)::WilsonB
     real*8,dimension(4)::quaternion
     real*8,dimension(9)::H2Ogeom,H2Ogeom1,H2Ogeom2
     real*8,dimension(10)::eigval,x,low,up
@@ -54,13 +56,13 @@ write(*,*)'Testing all linear algebra routines...'
         write(*,*)'matmul_dgemm, matmul_dsymm'
             do j=1,10
                 do i=j,10
-                    call BetterRandomNumber(A(i,j))
+                    A(i,j)=BetterRandomNumber()
                 end do
             end do
             call syL2U(A,10)
             do j=1,10
                 do i=j,10
-                    call BetterRandomNumber(B(i,j))
+                    B(i,j)=BetterRandomNumber()
                 end do
             end do
             call syL2U(B,10)
@@ -70,7 +72,7 @@ write(*,*)'Testing all linear algebra routines...'
         write(*,*)'symatmulasy, asymatmulsy'
             do j=1,10
                 do i=j,10
-                    call BetterRandomNumber(A(i,j))
+                    A(i,j)=BetterRandomNumber()
                 end do
             end do
             call syL2U(A,10)
@@ -93,7 +95,7 @@ write(*,*)'Testing all linear algebra routines...'
             call sy3L2U(A3,10,10)
             do j=1,10
                 do i=j,10
-                    call BetterRandomNumber(B(i,j))
+                    B(i,j)=BetterRandomNumber()
                 end do
             end do
             call syL2U(B,10)
@@ -173,7 +175,7 @@ write(*,*)'Testing all linear algebra routines...'
             call sy3L2U(A3,10,10)
             do j=1,10
                 do i=j,10
-                    call BetterRandomNumber(B(i,j))
+                    B(i,j)=BetterRandomNumber()
                 end do
             end do
             call My_dsyev('V',B,eigval,10)
@@ -192,12 +194,12 @@ write(*,*)'Testing all linear algebra routines...'
     write(*,*)'Testing linear solver & eigensystem...'
         do j=1,10
             do i=1,10
-                call BetterRandomNumber(A(i,j))
+                A(i,j)=BetterRandomNumber()
             end do
         end do
         A=matmul(transpose(A),A)
         do i=1,10
-            call BetterRandomNumber(DoubleTemp)
+            DoubleTemp=BetterRandomNumber()
             A(i,i)=A(i,i)+DoubleTemp+1d-6
         end do
         call random_number(low)
@@ -255,8 +257,8 @@ write(*,*)'Testing all linear algebra routines...'
         write(*,*)'zgeev, zheev'
             do j=1,10
                 do i=1,10
-                    call BetterRandomNumber(DoubleTemp)
-                    call BetterRandomNumber(dbtp)
+                    DoubleTemp=BetterRandomNumber()
+                    dbtp=BetterRandomNumber()
                     zA(i,j)=cmplx(DoubleTemp,dbtp)
                 end do
             end do
@@ -451,6 +453,20 @@ write(*,*)'Testing all geometry transformation routines...'
         end do
         call StandardizeGeometry(H2Ogeom2,mass,3,1,reference=H2Ogeom1,difference=difference)
         write(*,*)difference
+    write(*,*)
+    write(*,*)'GF method'
+        do i=1,3
+            do j=i,3
+                intHessian(j,i)=BetterRandomNumber()
+            end do
+            intHessian(i,i)=intHessian(i,i)*1d1
+        end do
+        do i=1,9
+            do j=1,3
+                WilsonB(j,i)=BetterRandomNumber()
+            end do
+        end do
+        call WilsonGFMethod(avec,mode,intHessian,3,WilsonB,mass,3)
     write(*,*)
 write(*,*)'Geometry transformation routines test passed'
 write(*,*)

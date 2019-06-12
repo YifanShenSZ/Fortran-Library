@@ -564,7 +564,7 @@ end subroutine StandardizeGeometry
 !------------------- End --------------------
 
 !--------------- Normal mode ----------------
-	!Normal mode is the eigenvectors of Hessian:
+	!Normal mode is the mass weighted eigenvector of Hessian:
 	!    In cartesian coordinate, it is the usual eigenvector
 	!    In  internal coordinate, it is the generalized eigenvector of G under Hessian metric
 	!G is built from mass and Wilson B matrix, for details see Wilson GF method in: (note that Wilson calls Hessian by F)
@@ -572,8 +572,9 @@ end subroutine StandardizeGeometry
 
 	!Input:  3NAtoms order real symmetric matrix H = Hessian in Cartesian coordinate (will be overwritten)
 	!Output: vibdim order vector freq = vibrational angular frequencies (negative if imaginary)
-	!        vibdim order matrix mode = normal modes in input frame contained in each column
-	!Lowest 3 * NAtoms - vibdim modes are considered translation and rotation thus ruled out
+    !        vibdim order matrix mode = normal modes in input frame contained in each row
+    !        H will be overwritten
+    !Lowest 3 * NAtoms - vibdim modes are considered translation and rotation thus ruled out
 	subroutine VibrationAnalysis(freq,mode,vibdim,H,mass,NAtoms)
 		integer,intent(in)::vibdim,NAtoms
 		real*8,dimension(vibdim),intent(out)::freq
@@ -581,7 +582,7 @@ end subroutine StandardizeGeometry
         real*8,dimension(3*NAtoms,3*NAtoms),intent(inout)::H
 		real*8,dimension(NAtoms),intent(in)::mass
 		integer::i
-		integer,dimension(3*NAtoms)::indices
+		integer,dimension(3*NAtoms)::indice
 		real*8,dimension(NAtoms)::sqrtmass
 		real*8,dimension(3*NAtoms)::freqall,freqabs
 		!Obtain freq^2 and normal modes
@@ -590,17 +591,21 @@ end subroutine StandardizeGeometry
 		    	H(:,3*i-2:3*i)=H(:,3*i-2:3*i)/sqrtmass(i)
 		    	H(3*i-2:3*i,:)=H(3*i-2:3*i,:)/sqrtmass(i)
 		    end forall
-			call My_dsyev('V',H,freqall,3*NAtoms)
+            call My_dsyev('V',H,freqall,3*NAtoms)
+            H=transpose(H)
+            forall(i=1:3*NAtoms)
+                H(:,i)=H(:,i)*sqrtmass(i)
+            end forall
 		!Rule out 3 * NAtoms - vibdim translations and rotations
 		    freqabs=dAbs(freqall)
 		    forall(i=1:3*NAtoms)
-		        indices(i)=i
+		        indice(i)=i
 		    end forall
-			call dQuickSort(freqabs,1,3*NAtoms,indices,3*NAtoms)
+			call dQuickSort(freqabs,1,3*NAtoms,indice,3*NAtoms)
 			freqabs=freqall
 		    forall(i=1:vibdim)
-				freqall(i)=freqabs(indices(i+3*NAtoms-vibdim))
-				mode(:,i)=H(:,indices(i+3*NAtoms-vibdim))
+				freqall(i)=freqabs(indice(i+3*NAtoms-vibdim))
+				mode(:,i)=H(:,indice(i+3*NAtoms-vibdim))
             end forall
 		do i=1,vibdim!freq^2 -> freq
 			if(freqall(i)<0d0) then
@@ -611,12 +616,12 @@ end subroutine StandardizeGeometry
 		end do
 		!Sort freq ascendingly, then sort normal modes accordingly
 		    forall(i=1:vibdim)
-		        indices(i)=i
+		        indice(i)=i
 			end forall
-			call dQuickSort(freq,1,vibdim,indices(1:vibdim),vibdim)
+			call dQuickSort(freq,1,vibdim,indice(1:vibdim),vibdim)
 			H(:,1:vibdim)=mode
 			forall(i=1:vibdim)
-                mode(:,i)=H(:,indices(i))
+                mode(:,i)=H(:,indice(i))
             end forall
 	end subroutine VibrationAnalysis
 
@@ -626,56 +631,66 @@ end subroutine StandardizeGeometry
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
     !        mode = normal modes contained in each row in input frame
+    !        H will be overwritten
     subroutine WilsonGFMethod(freq,mode,H,intdim,B,mass,NAtoms)
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
         real*8,dimension(intdim,intdim),intent(out)::mode
-        real*8,dimension(intdim,intdim),intent(in)::H
+        real*8,dimension(intdim,intdim),intent(inout)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
-        integer::i
-        integer,dimension(intdim)::indices
+        integer::i,j
+        integer,dimension(intdim)::indice
         real*8::temp
         real*8,dimension(intdim)::freqtemp
-        real*8,dimension(intdim,intdim)::Hsave,GF
+        real*8,dimension(intdim,intdim)::Hsave
         real*8,dimension(intdim,3*NAtoms)::Btemp
+        Hsave=H!Save Hessian
+        call syL2U(Hsave,intdim)
         forall(i=1:NAtoms)
             Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
         end forall
         mode=matmul(Btemp,transpose(B))
-        Hsave=H
-        call My_dsygv(2,'V',mode,Hsave,freq,intdim,i)
-        if(i==0) then!freq^2 and unmetriced transposed normal modes are normally obtained
+        call My_dsygv(2,'V',mode,H,freq,intdim,i)
+        if(i==0) then!freq^2 and raw normal modes are normally obtained
             forall(i=1:intdim)
                 freq(i)=dSqrt(freq(i))
             end forall
-            mode=matmul(transpose(mode),H)
+            mode=matmul(transpose(mode),Hsave)
+            forall(i=1:intdim)
+                mode(i,:)=mode(i,:)/freq(i)
+            end forall
         else!Hessian is not positive definite, need more complicated treatment
-            Hsave=H
-            call syL2U(Hsave,intdim)
-            GF=matmul(mode,Hsave)
-            call My_dgeev('V',GF,freq,freqtemp,mode,intdim)
+            H=matmul(mode,Hsave)!H stores G . F matrix
+            call My_dgeev('V',H,freq,freqtemp,mode,intdim)
             do i=1,intdim!freq^2 -> freq
                 if(freq(i)<0d0) then
                     freq(i)=-dSqrt(-freq(i))
-                    Hsave(:,i)=0d0
-                    Hsave(i,:)=0d0
                 else
                     freq(i)=dSqrt(freq(i))
                 end if
             end do
-            do i=1,intdim!Normalize normal modes under H metric (negative dimensions are neglected)
-                temp=dot_product(mode(:,i),matmul(Hsave,mode(:,i)))
-                if(temp>0d0) mode(:,i)=mode(:,i)/dSqrt(temp)
-            end do
-            call My_dgetri(mode,intdim)
             forall(i=1:intdim)!Sort freq ascendingly, then sort normal modes accordingly
-                indices(i)=i
+                indice(i)=i
             end forall
-            call dQuickSort(freq,1,intdim,indices,intdim)
-            GF=mode
+            call dQuickSort(freq,1,intdim,indice,intdim)
+            H=mode
             forall(i=1:intdim)
-                mode(i,:)=GF(indices(i),:)
+                mode(:,i)=H(:,indice(i))
+            end forall
+            do i=1,intdim!Normal modes for positive dimensions
+                if(freq(i)>0d0) exit
+            end do
+            forall(j=i:intdim)
+                H(:,j)=Hsave(:,indice(j))
+                H(j,:)=Hsave(indice(j),:)
+            end forall
+            forall(j=i:intdim)
+                mode(i:intdim,j)=mode(i:intdim,j)/dSqrt(dot_product(mode(i:intdim,j),matmul(H(i:intdim,i:intdim),mode(i:intdim,j))))
+            end forall
+            mode(i:intdim,i:intdim)=matmul(transpose(mode(i:intdim,i:intdim)),H(i:intdim,i:intdim))
+            forall(j=i:intdim)
+                mode(j,:)=mode(j,:)/freq(j)
             end forall
         end if
 	end subroutine WilsonGFMethod

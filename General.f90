@@ -17,9 +17,9 @@ module General
 contains
 !Show date hour minute second
 subroutine ShowTime()
-    integer::value(1:8)
-    call date_and_time(values=value)
-    write(*,*)value(3),'d',value(5),':',value(6),':',value(7)
+    integer,dimension(8)::time
+    call date_and_time(values=time)
+    write(*,*)time(3),'d',time(5),':',time(6),':',time(7)
 end subroutine ShowTime
 
 ! x_input = x_output * 10^i
@@ -81,30 +81,32 @@ end subroutine dScientificNotation
 !---------- Random number ----------
     !A better version of random_seed
     subroutine BetterRandomSeed()
-        integer ii,nn,value(1:8)
-        integer,allocatable :: seed(:)
-        double precision flagd
-        call random_seed(size=nn)
-        allocate(seed(nn))
-        call date_and_time(values=value)
-        seed = value(8)+37*(/(ii-1,ii=1,nn)/)
+        integer::i,j
+        integer,dimension(8)::time
+        integer,allocatable,dimension(:)::seed
+        real*8::flagd
+        call random_seed(size=j)
+        allocate(seed(j))
+        call date_and_time(values=time)
+        seed=time(8)+37d0*(/(i-1,i=1,j)/)
         call random_seed(put=seed)
         deallocate(seed)
-        do ii=1,value(6)*3600+value(7)*60+value(8)
+        do i=1,time(6)*3600d0+time(7)*60d0+time(8)
             call random_number(flagd)
         end do
     end subroutine BetterRandomSeed
 
     !Make random_number more random
-    subroutine BetterRandomNumber(harvest)
-        implicit none
-        integer ii,value(1:8)
+    real*8 function BetterRandomNumber()
+        integer::i
+        integer,dimension(8)::time
         real*8::harvest
-        call date_and_time(values=value)
-        do ii=1,max(value(8)/100,2)
+        call date_and_time(values=time)
+        do i=1,max(time(8)/100,2)
           call random_number(harvest)
-        enddo
-    end subroutine BetterRandomNumber
+        end do
+        BetterRandomNumber=harvest
+    end function BetterRandomNumber
 
     !Generate a random number in [-1,1)
     real*8 function random_number_minus1to1()
@@ -113,7 +115,7 @@ end subroutine dScientificNotation
     end function
     !More random
     real*8 function BetterRandomNumber_minus1to1()
-        call BetterRandomNumber(BetterRandomNumber_minus1to1)
+        BetterRandomNumber_minus1to1=BetterRandomNumber()
         BetterRandomNumber_minus1to1=2d0*BetterRandomNumber_minus1to1-1d0
     end function
 
@@ -130,8 +132,8 @@ end subroutine dScientificNotation
     real*8 function BetterGaussianRandomNumber(mean,sigma)
         real*8,intent(in)::mean,sigma
         real*8::r1,r2
-        call BetterRandomNumber(r1)
-        call BetterRandomNumber(r2)
+        r1=BetterRandomNumber()
+        r2=BetterRandomNumber()
         BetterGaussianRandomNumber=mean+sigma*dsqrt(-2d0*dlog(r1))*dcos(6.283185307179586d0*r2)
     end function BetterGaussianRandomNumber
 
@@ -157,14 +159,14 @@ end subroutine dScientificNotation
         real*8,dimension(4)::BetterRandomUnitQuaternion
         real*8,dimension(2)::r1,r2
         do while(.true.)
-            call BetterRandomNumber(r1(1))
-            call BetterRandomNumber(r1(2))
+            r1(1)=BetterRandomNumber()
+            r1(2)=BetterRandomNumber()
             r1=r1*2d0-1d0
             if(dot_product(r1,r1)<1d0) exit
         end do
         do while(.true.)
-            call BetterRandomNumber(r2(1))
-            call BetterRandomNumber(r2(2))
+            r2(1)=BetterRandomNumber()
+            r2(2)=BetterRandomNumber()
             r2=r2*2d0-1d0
             if(dot_product(r2,r2)<1d0) exit
         end do
