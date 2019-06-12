@@ -625,7 +625,7 @@ end subroutine StandardizeGeometry
     !             intdim x 3*NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
-    !         H   = normal modes in input frame
+    !         H   = normal modes contained in each row in input frame
     subroutine WilsonGFMethod(freq,H,intdim,B,mass,NAtoms)
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
@@ -644,6 +644,7 @@ end subroutine StandardizeGeometry
             call syL2U(H,intdim)
             GF=matmul(matmul(Btemp,transpose(B)),H)
             call My_dgeev('V',GF,freq,freqtemp,H,intdim)!Hessian is not necessarily positive definite, so do not call sygv
+            call My_dgetri(H,intdim)
         do i=1,intdim!freq^2 -> freq
             if(freq(i)<0d0) then
                 freq(i)=-dSqrt(-freq(i))
@@ -658,7 +659,7 @@ end subroutine StandardizeGeometry
             call dQuickSort(freq,1,intdim,indices,intdim)
             GF=H
             forall(i=1:intdim)
-                H(:,i)=GF(:,indices(i))
+                H(i,:)=GF(indices(i),:)
             end forall
 	end subroutine WilsonGFMethod
 !------------------- End --------------------
