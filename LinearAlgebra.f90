@@ -725,25 +725,26 @@ contains
         call dsyev(jobtype,'L',N,A,N,eigval,work,3*N,info)
     end subroutine My_dsyev
 
-    !gtype: 1, A . eigvec = B . eigvec . diag(eigval)
-    !       2, A . B . eigvec = eigvec . diag(eigval)
-    !N order real symmetric positive definite matrix B
-    !Optional: info: if B is po, info returns 0; else, the info-th leading minor of B <= 0 and diagonalization failed
-    !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under B metric
-    !B harvests the Cholesky L . L^T decomposition. B will be overwritten even fail
+    !gtype: 1, A . eigvec = S . eigvec . diag(eigval)
+    !       2, A . S . eigvec = eigvec . diag(eigval)
+    !N order real symmetric positive definite matrix S
+    !Optional: info: return 0 if normal termination; else, the info-th leading minor of S <= 0 and diagonalization failed
+    !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under S metric
+    !S harvests the Cholesky L . L^T decomposition. S will be overwritten even fail
     !A will be overwritten even for 'N' job
-    subroutine My_dsygv(gtype,jobtype,A,B,eigval,N,info)
+    subroutine My_dsygv(gtype,jobtype,A,S,eigval,N,info)
         integer,intent(in)::gtype,N
         character,intent(in)::jobtype
-        real*8,dimension(N,N),intent(inout)::A,B
+        real*8,dimension(N,N),intent(inout)::A,S
         real*8,dimension(N),intent(out)::eigval
         integer,intent(out),optional::info
         integer::temp
         real*8,dimension(3*N)::work
         if(present(info)) then
-            call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,info)
+            call dsygv(gtype,jobtype,'L',N,A,N,S,N,eigval,work,3*N,info)
+            if(info>0) info=info-N
         else
-            call dsygv(gtype,jobtype,'L',N,A,N,B,N,eigval,work,3*N,temp)
+            call dsygv(gtype,jobtype,'L',N,A,N,S,N,eigval,work,3*N,temp)
         end if
     end subroutine My_dsygv
 

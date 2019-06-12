@@ -625,42 +625,59 @@ end subroutine StandardizeGeometry
     !             intdim x 3*NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
-    !         H   = normal modes contained in each row in input frame
-    subroutine WilsonGFMethod(freq,H,intdim,B,mass,NAtoms)
+    !        mode = normal modes contained in each row in input frame
+    subroutine WilsonGFMethod(freq,mode,H,intdim,B,mass,NAtoms)
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
-        real*8,dimension(intdim,intdim),intent(inout)::H
-        real*8,dimension(intdim,3*NAtoms),intent(inout)::B
+        real*8,dimension(intdim,intdim),intent(out)::mode
+        real*8,dimension(intdim,intdim),intent(in)::H
+        real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
         integer::i
         integer,dimension(intdim)::indices
+        real*8::temp
         real*8,dimension(intdim)::freqtemp
-        real*8,dimension(intdim,intdim)::GF
+        real*8,dimension(intdim,intdim)::Hsave,GF
         real*8,dimension(intdim,3*NAtoms)::Btemp
-        !GF method: obtain freq^2 and normal modes
-            forall(i=1:NAtoms)
-                Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
-            end forall
-            call syL2U(H,intdim)
-            GF=matmul(matmul(Btemp,transpose(B)),H)
-            call My_dgeev('V',GF,freq,freqtemp,H,intdim)!Hessian is not necessarily positive definite, so do not call sygv
-            call My_dgetri(H,intdim)
-        do i=1,intdim!freq^2 -> freq
-            if(freq(i)<0d0) then
-                freq(i)=-dSqrt(-freq(i))
-            else
-                freq(i)=dSqrt(freq(i))
-            end if
-        end do
-        !Sort freq ascendingly, then sort normal modes accordingly
+        forall(i=1:NAtoms)
+            Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
+        end forall
+        mode=matmul(Btemp,transpose(B))
+        Hsave=H
+        call My_dsygv(2,'V',mode,Hsave,freq,intdim,i)
+        if(i==0) then!freq^2 and unmetriced transposed normal modes are normally obtained
             forall(i=1:intdim)
+                freq(i)=dSqrt(freq(i))
+            end forall
+            mode=matmul(transpose(mode),H)
+        else!Hessian is not positive definite, need more complicated treatment
+            Hsave=H
+            call syL2U(Hsave,intdim)
+            GF=matmul(mode,Hsave)
+            call My_dgeev('V',GF,freq,freqtemp,mode,intdim)
+            do i=1,intdim!freq^2 -> freq
+                if(freq(i)<0d0) then
+                    freq(i)=-dSqrt(-freq(i))
+                    Hsave(:,i)=0d0
+                    Hsave(i,:)=0d0
+                else
+                    freq(i)=dSqrt(freq(i))
+                end if
+            end do
+            do i=1,intdim!Normalize normal modes under H metric (negative dimensions are neglected)
+                temp=dot_product(mode(:,i),matmul(Hsave,mode(:,i)))
+                if(temp>0d0) mode(:,i)=mode(:,i)/dSqrt(temp)
+            end do
+            call My_dgetri(mode,intdim)
+            forall(i=1:intdim)!Sort freq ascendingly, then sort normal modes accordingly
                 indices(i)=i
             end forall
             call dQuickSort(freq,1,intdim,indices,intdim)
-            GF=H
+            GF=mode
             forall(i=1:intdim)
-                H(i,:)=GF(indices(i),:)
+                mode(i,:)=GF(indices(i),:)
             end forall
+        end if
 	end subroutine WilsonGFMethod
 !------------------- End --------------------
 
