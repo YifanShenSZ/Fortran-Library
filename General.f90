@@ -3,9 +3,11 @@ module General
     implicit none
 
 !Derived type
-    !Analog to double 2nd pointer in C
-    !Example: type(d2PArray),allocatable,dimension(:)::A
-    !         A(i).Array(j) is the same to A[i][j] in C (forget about starting from 0 or 1)
+    !Analog to 2nd pointer in C
+    type i2PArray
+        integer,allocatable,dimension(:)::Array
+    end type i2PArray
+
     type d2PArray
         real*8,allocatable,dimension(:)::Array
     end type d2PArray
