@@ -635,6 +635,12 @@ end subroutine StandardizeGeometry
     !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
     !        H will be overwritten
     subroutine WilsonGFMethod(freq,mode,L,H,intdim,B,mass,NAtoms)
+        !The solving procedure is:
+        !    1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
+        !       LAPACK will normalized L by l(:,i) . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
+        !       This is why I call l raw normal mode
+        !    2, if H is positive definite, step 1 will succeed thus we only have to convert w^2 to w and l to L,
+        !       else resolve (G . H) . l = l . PHI by traditional eigenvalue then convert w^2 to w and l to L   
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
         real*8,dimension(intdim,intdim),intent(out)::mode,L
@@ -646,7 +652,7 @@ end subroutine StandardizeGeometry
         real*8,dimension(intdim)::freqtemp
         real*8,dimension(intdim,intdim)::Hsave
         real*8,dimension(intdim,3*NAtoms)::Btemp
-        !For imaginary mode case
+        !For imaginary frequency case
         real*8::dtemp
         complex*16::ztemp
         complex*16,dimension(intdim,intdim)::zmode,zL
@@ -665,7 +671,7 @@ end subroutine StandardizeGeometry
                 mode(i,:)=mode(i,:)/freq(i)
             end forall
         else!Hessian is not positive definite, need more complicated treatment
-            H=matmul(L,Hsave)!H stores G . F matrix
+            H=matmul(L,Hsave)!H stores G . H matrix
             call My_dgeev('V',H,freq,freqtemp,L,intdim)
             forall(i=1:intdim)!Sort freq^2 ascendingly, then sort raw normal modes accordingly
                 indice(i)=i
