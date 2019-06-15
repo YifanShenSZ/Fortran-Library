@@ -631,6 +631,16 @@ contains
             call dgetri(N,A,N,ipiv,work,N,info)
         end subroutine My_dgetri
 
+        subroutine My_zgetri(A,N)
+            integer,intent(in)::N
+            complex*16,dimension(N,N),intent(inout)::A
+            integer::info
+            integer,dimension(N)::ipiv
+            complex*16,dimension(N)::work
+            call dgetrf(N,N,A,N,ipiv,info)
+            call dgetri(N,A,N,ipiv,work,N,info)
+        end subroutine My_zgetri
+
         subroutine My_dsytri(A,N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A

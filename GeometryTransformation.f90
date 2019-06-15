@@ -4,6 +4,7 @@
 !    Normal mode and vibrational frequency
 module GeometryTransformation
     use General
+    use Mathematics
     use LinearAlgebra
     use NonlinearOptimization
     implicit none
@@ -630,39 +631,50 @@ end subroutine StandardizeGeometry
     !             intdim x 3*NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
-    !        mode = normal modes contained in each row in input frame
+    !        mode = normal modes contained in each row in input frame (Wilson L^-1 matrix)
+    !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
     !        H will be overwritten
-    subroutine WilsonGFMethod(freq,mode,H,intdim,B,mass,NAtoms)
+    subroutine WilsonGFMethod(freq,mode,L,H,intdim,B,mass,NAtoms)
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
-        real*8,dimension(intdim,intdim),intent(out)::mode
+        real*8,dimension(intdim,intdim),intent(out)::mode,L
         real*8,dimension(intdim,intdim),intent(inout)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
-        integer::i,j
+        integer::i
         integer,dimension(intdim)::indice
-        real*8::temp
         real*8,dimension(intdim)::freqtemp
         real*8,dimension(intdim,intdim)::Hsave
         real*8,dimension(intdim,3*NAtoms)::Btemp
+        !For imaginary mode case
+        real*8::dtemp
+        complex*16::ztemp
+        complex*16,dimension(intdim,intdim)::zmode,zL
         Hsave=H!Save Hessian
         call syL2U(Hsave,intdim)
         forall(i=1:NAtoms)
             Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i)
         end forall
-        mode=matmul(Btemp,transpose(B))
-        call My_dsygv(2,'V',mode,H,freq,intdim,i)
+        L=matmul(Btemp,transpose(B))
+        call My_dsygv(2,'V',L,H,freq,intdim,i)
         if(i==0) then!freq^2 and raw normal modes are normally obtained
+            mode=matmul(transpose(L),Hsave)
             forall(i=1:intdim)
                 freq(i)=dSqrt(freq(i))
-            end forall
-            mode=matmul(transpose(mode),Hsave)
-            forall(i=1:intdim)
+                L(:,i)=L(:,i)*freq(i)
                 mode(i,:)=mode(i,:)/freq(i)
             end forall
         else!Hessian is not positive definite, need more complicated treatment
-            H=matmul(mode,Hsave)!H stores G . F matrix
-            call My_dgeev('V',H,freq,freqtemp,mode,intdim)
+            H=matmul(L,Hsave)!H stores G . F matrix
+            call My_dgeev('V',H,freq,freqtemp,L,intdim)
+            forall(i=1:intdim)!Sort freq^2 ascendingly, then sort raw normal modes accordingly
+                indice(i)=i
+            end forall
+            call dQuickSort(freq,1,intdim,indice,intdim)
+            H=L
+            forall(i=1:intdim)
+                L(:,i)=H(:,indice(i))
+            end forall
             do i=1,intdim!freq^2 -> freq
                 if(freq(i)<0d0) then
                     freq(i)=-dSqrt(-freq(i))
@@ -670,28 +682,26 @@ end subroutine StandardizeGeometry
                     freq(i)=dSqrt(freq(i))
                 end if
             end do
-            forall(i=1:intdim)!Sort freq ascendingly, then sort normal modes accordingly
-                indice(i)=i
-            end forall
-            call dQuickSort(freq,1,intdim,indice,intdim)
-            H=mode
-            forall(i=1:intdim)
-                mode(:,i)=H(:,indice(i))
-            end forall
-            do i=1,intdim!Normal modes for positive dimensions
-                if(freq(i)>0d0) exit
+            do i=1,intdim!Raw normal modes -> normal modes
+                dtemp=dot_product(L(:,i),matmul(Hsave,L(:,i)))
+                if(dtemp<0d0) then
+                    if(freq(i)<0d0) then
+                        zL(:,i)=L(:,i)/dSqrt(-dtemp)*(-freq(i))
+                    else
+                        zL(:,i)=L(:,i)/(ci*dSqrt(-dtemp))*(-freq(i))
+                    end if
+                else
+                    if(freq(i)<0d0) then
+                        zL(:,i)=L(:,i)/dSqrt(dtemp)*ci*(-freq(i))
+                    else
+                        zL(:,i)=L(:,i)/dSqrt(dtemp)*freq(i)
+                    end if
+                end if
             end do
-            forall(j=i:intdim)
-                H(:,j)=Hsave(:,indice(j))
-                H(j,:)=Hsave(indice(j),:)
-            end forall
-            forall(j=i:intdim)
-                mode(i:intdim,j)=mode(i:intdim,j)/dSqrt(dot_product(mode(i:intdim,j),matmul(H(i:intdim,i:intdim),mode(i:intdim,j))))
-            end forall
-            mode(i:intdim,i:intdim)=matmul(transpose(mode(i:intdim,i:intdim)),H(i:intdim,i:intdim))
-            forall(j=i:intdim)
-                mode(j,:)=mode(j,:)/freq(j)
-            end forall
+            L=dble(zL)
+            zmode=zL
+            call My_zgetri(zmode,intdim)
+            mode=dble(zmode)
         end if
 	end subroutine WilsonGFMethod
 !------------------- End --------------------
