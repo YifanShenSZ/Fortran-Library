@@ -8,12 +8,7 @@
 !    only solvers in Augmented Lagrangian section are constrained
 !    only solvers in Heuristic section are global
 !Global optimization remains an unsolved problem, since it is NP-complete
-!    2-step method is my favourite approach for global optimization:
-!        Step 1: A fast but inexact hopper to explore the phase space
-!        Step 2: A rigorous local optimizer to polish the best estimation explored
-!    How to build a hopper is highly empirical, examples are SurfGen and cluster structure optimization (basin-hopping),
-!    so you have to construct your own hopper based on your specific problem
-!    Heuristic algorithm is general but naive: pay exponentially for NP-completeness
+!    Heuristic algorithm is general but naive: search entire space (pay exponentially)
 module NonlinearOptimization
     use LinearAlgebra
     use mkl_rci_type!For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
