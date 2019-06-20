@@ -48,7 +48,7 @@ contains
         vector_direct_sum(M+1:M+N)=b
     end function vector_direct_sum
     
-    !Quaternion multiplication a * b
+    !Quaternion multiplication a * b, where a quaternion is represented by a 4 dimensional vector
     function quamul(a,b)
         real*8,dimension(4),intent(in)::a,b
         real*8,dimension(4)::quamul
@@ -57,7 +57,7 @@ contains
         quamul(3)=a(3)*b(1)+a(1)*b(3)+a(2)*b(4)-a(4)*b(2)
         quamul(4)=a(4)*b(1)+a(1)*b(4)+a(3)*b(2)-a(2)*b(3)
     end function quamul
-    !Rotate r by quaternion q, q=(cos(theta/2),sin(theta/2)*axis)
+    !Rotate 3 dimensional vector r by quaternion q, q=(cos(theta/2),sin(theta/2)*axis)
     function Rotate(q,r)
         real*8,dimension(4),intent(in)::q
         real*8,dimension(3),intent(in)::r
@@ -73,7 +73,28 @@ contains
 !----------------- End -----------------
 
 !--------------- Matrix ----------------
-    !N order matrix A, Tr(A) = sum of diagonals
+    !N order matrix A, return det(A)
+    real*8 function determinant(A,N)
+        integer,intent(in)::N
+        real*8,dimension(N,N),intent(in)::A
+        integer::i
+        integer,dimension(N)::ipiv
+        real*8::sign
+        call dgetrf(N,N,A,N,ipiv,i)
+        determinant=A(1,1)
+        if(ipiv(1)==1) then
+            sign=1d0
+        else
+            sign=-1d0
+        end if
+        do i=2,N
+            determinant=determinant*A(i,i)
+            if(ipiv(i)/=i) sign=-sign
+        end do
+        determinant=determinant*sign
+    end function determinant
+
+    !N order matrix A, return Tr(A)
     real*8 function Trace(A,N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A
@@ -102,7 +123,7 @@ contains
         call dsymm('L','L',M,N,1d0,A,M,B,M,0d0,matmul_dsymm,M)
     end function
 
-    !M x N matrix A, N order vector x, return A . x
+    !M x N matrix A, N dimensional vector x, return A . x
     function mvmul_dgemv(A,x,M,N)
         integer,intent(in)::M,N
         real*8,dimension(M,N),intent(in)::A
@@ -536,7 +557,7 @@ contains
         !Solve the linear system A . x = b
         !b harvests the solution x
         
-        !N order vector b
+        !N dimensional vector b
         !A harvests the Doolittle LU decomposition
         subroutine My_dgesv(A,b,N)
             integer,intent(in)::N
@@ -558,7 +579,7 @@ contains
             call dgesv(N,M,A,N,ipiv,b,N,info)
         end subroutine My_dgesvM
     
-        !N order vector b
+        !N dimensional vector b
         !A harvests the Bunch-Kaufman L . D . L^T decomposition (D is 1x1 and 2x2 block diagonal)
         subroutine My_dsysv(A,b,N)
             integer,intent(in)::N
@@ -582,7 +603,7 @@ contains
             call dsysv('L',N,M,A,N,ipiv,b,N,work,N,info)
         end subroutine My_dsysvM
     
-        !N order vector b
+        !N dimensional vector b
         !Optional: info: If A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
         !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
         !b will not be overwritten if fail
