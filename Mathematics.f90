@@ -722,6 +722,33 @@ contains
 !----------------------- End ------------------------
 
 !----------------- Special function -----------------
+    real*8 function inverse_erfc(x)
+        real*8::x
+        logical::flag
+        real*8::temp
+        flag=.false.
+        if(x>1d0) then
+            x=2d0-x
+            flag=.true.
+        end if
+        if(x<0.1d0) then
+            temp=-0.4515827052894548d0-2d0*log(x)
+            inverse_erfc=Sqrt((temp-log(temp))/2d0)
+        else if(x<0.25d0) then
+            temp=4.995264535887506d0*(x-0.15)
+            inverse_erfc=1.0179024648320276d0-temp/2d0+temp**2*0.2544756162080069d0&
+                -temp**3*0.21435423798518619d0+temp**4*0.20605638309556853d0
+        else 
+            temp=(1d0-x)*1.7724538509055159d0
+            inverse_erfc=temp/2d0+temp**3/24d0+temp**5*7d0/960d0+temp**7*127d0/80640d0&
+                +temp**9*4369d0/11612160d0
+        end if
+        if(flag) then
+            x=2d0-x
+            inverse_erfc=-inverse_erfc
+        end if
+    end function inverse_erfc
+
     !========== Gaussian integral ==========
         !Integrate[ 1 / Sqrt(2pi) / sigma * Exp(-0.5 * (x / sigma)^2) * x^i, {x, -Infinity, Infinity}]
         real*8 function GaussianIntegral(i,sigma)
@@ -953,33 +980,6 @@ contains
             end if
         end function gamma_inc
     !================= End =================
-
-    real*8 function inverse_erfc(x)
-        real*8::x
-        logical::flag
-        real*8::temp
-        flag=.false.
-        if(x>1d0) then
-            x=2d0-x
-            flag=.true.
-        end if
-        if(x<0.1d0) then
-            temp=-0.4515827052894548d0-2d0*log(x)
-            inverse_erfc=Sqrt((temp-log(temp))/2d0)
-        else if(x<0.25d0) then
-            temp=4.995264535887506d0*(x-0.15)
-            inverse_erfc=1.0179024648320276d0-temp/2d0+temp**2*0.2544756162080069d0&
-                -temp**3*0.21435423798518619d0+temp**4*0.20605638309556853d0
-        else 
-            temp=(1d0-x)*1.7724538509055159d0
-            inverse_erfc=temp/2d0+temp**3/24d0+temp**5*7d0/960d0+temp**7*127d0/80640d0&
-                +temp**9*4369d0/11612160d0
-        end if
-        if(flag) then
-            x=2d0-x
-            inverse_erfc=-inverse_erfc
-        end if
-    end function inverse_erfc
 !----------------------- End ------------------------
 
 !---------- Ordinary differential equation ----------
@@ -1180,7 +1180,7 @@ contains
     end function dRomberg
 !----------------------- End ------------------------
 
-!---------------- Fourier transform -----------------
+!---------------- Fourier transform ----------------- NEED DEBUG
     !Fourier and inverse Fourier transform is defined by: (This definition is unitary transformation)
     !    f(k) = Integrate[ exp(-ikx) * f(x), { x, -Infinity, Infinity }] / Sqrt(2pi)
     !    f(x) = Integrate[ exp( ikx) * f(k), { k, -Infinity, Infinity }] / Sqrt(2pi)
