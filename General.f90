@@ -178,108 +178,189 @@ end subroutine dScientificNotation
 !--------------- End ---------------
 
 !------------- Sorting -------------
-    !Inputs: N order vector item & indices, item contains the elements to be sorted, indices(i)=i
+    !Two classical O(NlogN) sorting methods are implemented:
+    !    Quick sort is faster, but unstable
+    !    Merge sort is stable, but slower
+
+    !Inputs: N dimensional vector item & indices, item contains the elements to be sorted, indices(i)=i
     !        sort from item(first) to item(last), inclusive
     !Returns: item (modified) contains elements in ascending order
     !         indices(i) is the original index of sorted item(i)
     recursive subroutine dQuickSort(item,first,last,indices,N)
-        integer,intent(in)::N
+        integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
-        integer,intent(in)::first,last
         integer,dimension(N),intent(inout)::indices
         integer::mid
         if (First<Last) then
-           call dSplit(item,first,last,mid,indices,N)
-           call dQuickSort(item,first,mid-1,indices,N)
-           call dQuickSort(item,mid+1,last,indices,N)
+           call split(item,first,last,mid,indices,N)
+           call dQuickSort(item,first,mid-1,indices,N); call dQuickSort(item,mid+1,last,indices,N)
         end if
         contains
-            subroutine dSplit(item,low,high,mid,indices,N)
-                integer,intent(in)::N
-                real*8,dimension(N),intent(inout)::Item
-                integer,intent(in)::low,high
-                integer,intent(inout)::mid
-                integer,dimension(N),intent(inout)::indices
-                integer::left,right,iPivot,iSwap
-                real*8::pivot,swap
-                left=low
-                right=high
-                pivot=item(low)
-                iPivot=indices(low)
-                do while ( left < right )
-                    do while ( left < right .and. item(right) >= pivot )
-                        right = right - 1
-                    end do
-                    do while ( left < right .and. item(left) <= pivot )
-                        left = left + 1
-                    end do
-                    if (left < right) then
-                        swap        = item(left)
-                        item(left)  = item(right)
-                        item(right) = swap
-                        iSwap          = indices(left)
-                        indices(left)  = indices(right)
-                        indices(right) = iSwap
-                    end if
+        subroutine split(item,low,high,mid,indices,N)
+            integer,intent(in)::N,low,high
+            real*8,dimension(N),intent(inout)::Item
+            integer,intent(inout)::mid
+            integer,dimension(N),intent(inout)::indices
+            integer::left,right,iPivot,iSwap
+            real*8::pivot,swap
+            left=low; right=high; pivot=item(low); iPivot=indices(low)
+            do while(left<right)
+                do while(left<right.and.item(right)>=pivot)
+                    right=right-1
                 end do
-                item(low)   = item(right)
-                item(right) = pivot
-                mid         = right
-                indices(low)   = indices(right)
-                indices(right) = iPivot
-            end subroutine dSplit
+                do while(left<right.and.item(left)<=pivot)
+                    left=left+1
+                end do
+                if(left<right) then
+                    swap=item(left); item(left)=item(right); item(right)=swap
+                    iSwap=indices(left); indices(left)=indices(right); indices(right)=iSwap
+                end if
+            end do
+            item(low)=item(right); item(right)=pivot; mid=right
+            indices(low)=indices(right); indices(right)=iPivot
+        end subroutine split
     end subroutine dQuickSort
     
-    !Inputs: N order vector item & indices, item contains the elements to be sorted, indices(i)=i
+    !Inputs: N dimensional vector item & indices, item contains the elements to be sorted, indices(i)=i
     !        sort from item(first) to item(last), inclusive
     !Returns: item (modified) contains elements in ascending order
     !         indices(i) is the original index of sorted item(i)
     recursive subroutine iQuickSort(item,first,last,indices,N)
-        integer,intent(in)::N
-        integer,dimension(N),intent(inout)::item
-        integer,intent(in)::first,last
-        integer,dimension(N),intent(inout)::indices
+        integer,intent(in)::N,first,last
+        integer,dimension(N),intent(inout)::item,indices
         integer::mid
         if (First<Last) then
-           call iSplit(item,first,last,mid,indices,N)
-           call iQuickSort(item,first,mid-1,indices,N)
-           call iQuickSort(item,mid+1,last,indices,N)
+           call split(item,first,last,mid,indices,N)
+           call iQuickSort(item,first,mid-1,indices,N); call iQuickSort(item,mid+1,last,indices,N)
         end if
         contains
-            subroutine iSplit(item,low,high,mid,indices,N)
-                integer,intent(in)::N
-                integer,dimension(N),intent(inout)::Item
-                integer,intent(in)::low,high
-                integer,intent(inout)::mid
-                integer,dimension(N),intent(inout)::indices
-                integer::left,right,iPivot,iSwap,pivot,swap
-                left=low
-                right=high
-                pivot=item(low)
-                iPivot=indices(low)
-                do while ( left < right )
-                    do while ( left < right .and. item(right) >= pivot )
-                        right = right - 1
-                    end do
-                    do while ( left < right .and. item(left) <= pivot )
-                        left = left + 1
-                    end do
-                    if (left < right) then
-                        swap        = item(left)
-                        item(left)  = item(right)
-                        item(right) = swap
-                        iSwap          = indices(left)
-                        indices(left)  = indices(right)
-                        indices(right) = iSwap
-                    end if
+        subroutine split(item,low,high,mid,indices,N)
+            integer,intent(in)::N,low,high
+            integer,dimension(N),intent(inout)::item,indices
+            integer,intent(inout)::mid
+            integer::left,right,iPivot,iSwap,pivot,swap
+            left=low; right=high; pivot=item(low); iPivot=indices(low)
+            do while(left<right)
+                do while(left<right.and.item(right)>=pivot)
+                    right=right-1
                 end do
-                item(low)   = item(right)
-                item(right) = pivot
-                mid         = right
-                indices(low)   = indices(right)
-                indices(right) = iPivot
-            end subroutine iSplit
+                do while(left<right.and.item(left)<=pivot)
+                    left=left+1
+                end do
+                if(left<right) then
+                    swap=item(left); item(left)=item(right); item(right)=swap
+                    iSwap=indices(left); indices(left)=indices(right); indices(right)=iSwap
+                end if
+            end do
+            item(low)=item(right); item(right)=pivot; mid=right
+            indices(low)=indices(right); indices(right)=iPivot
+        end subroutine split
     end subroutine iQuickSort
+    
+    !Inputs: N dimensional vector item, item contains the elements to be sorted
+    !        sort from item(first) to item(last), inclusive
+    !Returns: item (modified) contains elements in ascending order
+    !         NRP harvests the number of reverse pairs
+    subroutine dMergeSort(item,first,last,NRP,N)
+        integer,intent(in)::N,first,last
+        real*8,dimension(N),intent(inout)::item
+        integer,intent(out)::NRP
+        integer::length
+        real*8,allocatable,dimension(:)::work
+        NRP=0; length=last-first+1; allocate(work((length+1)/2))
+        call sort(item(first:last),length,work)
+        contains
+        recursive subroutine sort(A,N,work)
+            integer,intent(in)::N
+            real*8,dimension(N),intent(inout)::A
+            real*8,dimension((N+1)/2),intent(out)::work
+            integer::NA,NB
+            real*8::swap
+            if(N<2) return
+            if(N==2) then
+                if(A(1)>A(2)) then
+                    swap=A(1); A(1)=A(2); A(2)=swap; NRP=NRP+1
+                end if
+                return
+            end if
+            NA=(N+1)/2; NB=N-NA
+            call sort(A(1:NA),NA,work); call sort(A(NA+1:N),NB,work)
+            if(A(NA)>A(NA+1)) then
+                work(1:NA)=A(1:NA); call merge(work(1:NA),NA,A(NA+1:N),NB,A,N)
+            end if
+        end subroutine sort
+        subroutine merge(A,NA,B,NB,C,NC)
+            integer,intent(in):: NA,NB,NC!Normal usage: NA + NB = NC
+            real*8,dimension(NA),intent(inout)::A
+            real*8,dimension(NB),intent(in)::B
+            real*8,dimension(NC),intent(inout)::C!B overlays C(NA+1:NC)
+            integer::i,j,k
+            i=1; j=1; k=1
+            do while(i<=NA.and.j<=NB)
+                if(A(i)<=B(j)) then
+                    C(k)=A(i); i=i+1
+                else
+                    C(k)=B(j); j=j+1; NRP=NRP+NA-i+1
+                end if
+                k=k+1
+            end do
+            do while(i<=NA)!B overlays C(NA+1:NC), no need to account for case i reaches NA earlier
+               C(k)=A(i); i=i+1; k=k+1
+            end do
+        end subroutine merge
+    end subroutine dMergeSort
+
+    !Inputs: N dimensional vector item, item contains the elements to be sorted
+    !        sort from item(first) to item(last), inclusive
+    !Returns: item (modified) contains elements in ascending order
+    !         NRP harvests the number of reverse pairs
+    subroutine iMergeSort(item,first,last,NRP,N)
+        integer,intent(in)::N,first,last
+        integer,dimension(N),intent(inout)::item
+        integer,intent(out)::NRP
+        integer::length
+        integer,allocatable,dimension(:)::work
+        NRP=0; length=last-first+1; allocate(work((length+1)/2))
+        call sort(item(first:last),length,work)
+        contains
+        recursive subroutine sort(A,N,work)
+            integer,intent(in)::N
+            integer,dimension(N),intent(inout)::A
+            integer,dimension((N+1)/2),intent(out)::work
+            integer::NA,NB,swap
+            if(N<2) return
+            if(N==2) then
+                if(A(1)>A(2)) then
+                    swap=A(1); A(1)=A(2); A(2)=swap; NRP=NRP+1
+                end if
+                return
+            end if
+            NA=(N+1)/2; NB=N-NA
+            call sort(A(1:NA),NA,work); call sort(A(NA+1:N),NB,work)
+            if(A(NA)>A(NA+1)) then
+                work(1:NA)=A(1:NA); call merge(work(1:NA),NA,A(NA+1:N),NB,A,N)
+            end if
+        end subroutine sort
+        subroutine merge(A,NA,B,NB,C,NC)
+            integer,intent(in):: NA,NB,NC!Normal usage: NA + NB = NC
+            integer,dimension(NA),intent(inout)::A
+            integer,dimension(NB),intent(in)::B
+            integer,dimension(NC),intent(inout)::C!B overlays C(NA+1:NC)
+            integer::i,j,k
+            i=1; j=1; k=1
+            do while(i<=NA.and.j<=NB)
+                if(A(i)<=B(j)) then
+                    C(k)=A(i); i=i+1
+                else
+                    C(k)=B(j); j=j+1; NRP=NRP+NA-i+1
+                end if
+                k=k+1
+            end do
+            do while(i<=NA)!B overlays C(NA+1:NC), no need to account for case i reaches NA earlier
+               C(k)=A(i); i=i+1; k=k+1
+            end do
+        end subroutine merge
+    end subroutine iMergeSort
 !--------------- End ---------------
 
 end module General
