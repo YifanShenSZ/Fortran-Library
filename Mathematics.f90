@@ -1202,7 +1202,7 @@ contains
                 phi(j)=phi(j)+exp(-ci*k(j)*x(i))*psy(i)
             end do
         end do
-        phi=phi*(x(2)-x(1))/2.506628274631d0
+        phi=phi*(x(2)-x(1))/sqrtpim2
     end subroutine dFourierTransform
 
     !Inverse Fourier transform N data points (k,phi) into (x,psy)
@@ -1220,7 +1220,7 @@ contains
                 psy(j)=psy(j)+exp(ci*k(i)*x(j))*phi(i)
             end do
         end do
-        psy=psy*(k(2)-k(1))/2.506628274631d0
+        psy=psy*(k(2)-k(1))/sqrtpim2
     end subroutine dInverseFourierTransform
 
     !Fast fourier transform 2**r data points (x,psy) into (k,phi)
