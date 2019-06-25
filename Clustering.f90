@@ -211,19 +211,19 @@ subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance
         if(My_dlange('M',responsibility-responsibilityold,N,K)<tol) exit!Check convergence
         !Maximization
         forall(i=1:N)!Prepare
-            responsibility(i,:)=weight(i)*responsibility(i,:)
+            responsibilityold(i,:)=weight(i)*responsibility(i,:)
         end forall
         forall(i=1:K)!Update population
-            population(i)=sum(responsibility(:,i))
+            population(i)=sum(responsibilityold(:,i))
         end forall
-        centre=matmul(data,responsibility)!Update centre & covariance
+        centre=matmul(data,responsibilityold)!Update centre & covariance
         do icentre=1,K
             forall(i=1:dim,j=1:dim,i>=j)
                 covariance(i,j,icentre)=0d0
             end forall
             do j=1,N
                 vectemp=data(:,j)-centre(:,icentre)
-                covariance(:,:,icentre)=vector_direct_square(vectemp,dim)*responsibility(j,icentre)
+                covariance(:,:,icentre)=vector_direct_square(vectemp,dim)*responsibilityold(j,icentre)
             end do
         end do
         forall(icentre=1:K)
