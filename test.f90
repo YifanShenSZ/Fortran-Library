@@ -1,11 +1,8 @@
 !A test program on Fortran-Library
 program main
-    use General
-    use Mathematics
-    use LinearAlgebra
+    use General; use Mathematics; use LinearAlgebra
+    use NonlinearOptimization; use IntegralTransform; use Clustering; use Statistics; use Chemistry
     use GeometryTransformation
-    use NonlinearOptimization
-    use Chemistry
     implicit none
     character*32::chartemp
     integer::i,j,k,l,dim,M,N
@@ -17,31 +14,50 @@ program main
     real*8,dimension(4)::quaternion
     real*8,dimension(9)::H2Ogeom,H2Ogeom1,H2Ogeom2
     real*8,dimension(10)::eigval,x,low,up
-    real*8,dimension(16)::fftx
     real*8,dimension(10,10)::A,B,C,eigvec
     real*8,dimension(10,10,10)::A3,B3,C3
     real*8,dimension(10,10,10,10)::A4
     complex*16,dimension(10)::zeigval
-    complex*16,dimension(16)::fftpsy
+    
     complex*16,dimension(10,10)::zA,zB,zeigvec
+    !Integral transform
+    complex*16,dimension(16)::fftpsy
+    !Clustering
+    real*8,dimension(10)::weight
+    real*8,dimension(10,10)::data
+    real*8,dimension(10,2)::centre
+    integer,dimension(10)::ascription
+    real*8,dimension(2)::population
+    real*8,dimension(10,2)::responsibility
+    real*8,dimension(10,10,2)::covariance
 
     call BetterRandomSeed()
     write(*,*)'This is a test program on Fortran-Library'
     write(*,*)'Correct routines should print close to 0'
     write(*,*)
 
-write(*,*)'Testing all mathematical routines...'
-    !NEED DEBUG
-    !forall(i=1:16)
-    !    fftx(i)=(i-1)*0.1d0
-    !    fftpsy(i)=exp(ci*(pim2/1.6d0)*fftx(i))
-    !end forall
-    !call dFFT(fftx,fftpsy,4)
-    !write(*,*)fftpsy
-write(*,*)'Mathematical routines test passed'
+write(*,*)'!!!!!!!!!! Testing all general basic routines... !!!!!!!!!!'
+    write(*,*)
+    write(*,*)'Quick sort'
+        call random_number(low)
+        up=low
+        call dQuickSort(low,1,10,indicesort,10)
+        call dMergeSort(up,1,10,i,10)
+        write(*,*)norm2(up-low)
+    write(*,*)
+    write(*,*)'Merge sort'
+        low=[1d0,3d0,5d0,7d0,2d0,6d0,4d0,8d0,7d0,8d0]
+        call dMergeSort(low,1,10,i,10)
+        write(*,*)i-8
+    write(*,*)
+write(*,*)'---------- General basic routines test passed ----------'
 write(*,*)
 
-write(*,*)'Testing all linear algebra routines...'
+write(*,*)'!!!!!!!!!! Testing all mathematical routines... !!!!!!!!!!'
+write(*,*)'---------- Mathematical routines test passed ----------'
+write(*,*)
+
+write(*,*)'!!!!!!!!!! Testing all linear algebra routines... !!!!!!!!!!'
     write(*,*)
     write(*,*)'Testing vector operation...'
         write(*,*)
@@ -52,6 +68,10 @@ write(*,*)'Testing all linear algebra routines...'
             write(*,*)triple_product(avec,bvec,cvec)-dot_product(cross_product(avec,bvec),cvec)
     write(*,*)
     write(*,*)'Testing matrix operation...'
+        write(*,*)
+        write(*,*)'Determinant'
+            mode=reshape([1d0,2d0,3d0,4d0,5d0,6d0,7d0,8d0,9d0],[3,3])
+            write(*,*)determinant(mode,3)
         write(*,*)
         write(*,*)'matmul_dgemm, matmul_dsymm'
             do j=1,10
@@ -296,10 +316,10 @@ write(*,*)'Testing all linear algebra routines...'
         call My_dsyev('N',eigvec,eigval,10)
         write(*,*)d2normge(A,10,10)-dSqrt(maxval(eigval))
     write(*,*)
-write(*,*)'Linear algebra routines test passed'
+write(*,*)'---------- Linear algebra routines test passed ----------'
 write(*,*)
 
-write(*,*)'Testing all nonlinear-optimization solvers...'
+write(*,*)'!!!!!!!!!! Testing all nonlinear-optimization solvers... !!!!!!!!!!'
     write(*,*)
     dim=10
     M=10
@@ -434,10 +454,62 @@ write(*,*)'Testing all nonlinear-optimization solvers...'
         call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,UnconstrainedSolver=chartemp)
         write(*,*)norm2(x)-1d0
     write(*,*)
-write(*,*)'Nonlinear-optimization solvers test passed'
+write(*,*)'---------- Nonlinear-optimization solvers test passed ----------'
 write(*,*)
 
-write(*,*)'Testing all geometry transformation routines...'
+write(*,*)'!!!!!!!!!! Testing all integral transform routines... !!!!!!!!!!'
+    forall(i=1:16)
+        fftpsy(i)=exp(ci*(pim2/1.6d0)*(i-1)*0.1d0)
+    end forall
+    call FFT(fftpsy,4)
+    fftpsy(2)=fftpsy(2)-16d0
+    write(*,*)dot_product(fftpsy,fftpsy)
+write(*,*)'---------- Integral transform routines test passed ----------'
+write(*,*)
+
+write(*,*)'!!!!!!!!!! Testing all clustering routines... !!!!!!!!!!'
+    write(*,*)
+    weight=1d0
+    do i=1,5
+        data(:,i)=0d0
+        do j=1,10
+            data(j,i)=BetterGaussianRandomNumber(-5d0,1d0)
+        end do
+    end do
+    do i=6,10
+        data(:,i)=0d0
+        do j=1,10
+            data(j,i)=BetterGaussianRandomNumber(5d0,1d0)
+        end do
+    end do
+    write(*,*)'K-means'
+        call Kmeans(10,10,data,weight,2,centre,ascription)
+        if(centre(1,1)<0d0) then
+            ascription(1:5)=ascription(1:5)-1
+            ascription(6:10)=ascription(6:10)-2
+            write(*,*)dot_product(ascription,ascription)
+        else
+            ascription(1:5)=ascription(1:5)-2
+            ascription(6:10)=ascription(6:10)-1
+            write(*,*)dot_product(ascription,ascription)
+        end if
+    write(*,*)
+    write(*,*)'Gaussian mixture model'
+        call GaussianMixtureModel(10,10,data,weight,2,population,centre,covariance,responsibility)
+        if(centre(1,1)<0d0) then
+            responsibility(1:5,1)=responsibility(1:5,1)-1d0
+            responsibility(6:10,2)=responsibility(6:10,2)-1d0
+            write(*,*)norm2(population-0.5d0),My_dlange('M',responsibility,10,2)
+        else
+            responsibility(1:5,2)=responsibility(1:5,2)-1d0
+            responsibility(6:10,1)=responsibility(6:10,1)-1d0
+            write(*,*)norm2(population-0.5d0),My_dlange('M',responsibility,10,2)
+        end if
+    write(*,*)
+write(*,*)'---------- Clustering routines test passed ----------'
+write(*,*)
+
+write(*,*)'!!!!!!!!!! Testing all geometry transformation routines... !!!!!!!!!!'
     write(*,*)
     write(*,*)'Standardize geometry'
         H2Ogeom(1:3)=[0d0,0d0,1d0]
@@ -454,24 +526,10 @@ write(*,*)'Testing all geometry transformation routines...'
         call StandardizeGeometry(H2Ogeom2,mass,3,1,reference=H2Ogeom1,difference=difference)
         write(*,*)difference
     write(*,*)
-    write(*,*)'GF method'
-        do i=1,3
-            do j=i,3
-                intHessian(j,i)=BetterRandomNumber()
-            end do
-            intHessian(i,i)=intHessian(i,i)*1d1
-        end do
-        do i=1,9
-            do j=1,3
-                WilsonB(j,i)=BetterRandomNumber()
-            end do
-        end do
-        call WilsonGFMethod(avec,mode,intHessian,3,WilsonB,mass,3)
-    write(*,*)
-write(*,*)'Geometry transformation routines test passed'
+write(*,*)'---------- Geometry transformation routines test passed ----------'
 write(*,*)
 
-write(*,*)'Testing all chemistry routines...'
+write(*,*)'!!!!!!!!!! Testing all chemistry routines... !!!!!!!!!!'
     call InitializePhaseFixing(10)
     write(*,*)
     write(*,*)'dFixdHPhase'
@@ -542,7 +600,7 @@ write(*,*)'Testing all chemistry routines...'
             write(*,*)'B =-A',My_dlansy('M',A-B,10),My_dlange('M',C+eigvec,10,10)
         end if
     write(*,*)
-write(*,*)'Chemistry routines test passed'
+write(*,*)'---------- Chemistry routines test passed ----------'
 write(*,*)
 
 contains

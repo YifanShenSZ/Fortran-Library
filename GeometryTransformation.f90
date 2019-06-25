@@ -3,9 +3,7 @@
 !    Cartesian <-> internal coodinate
 !    Normal mode and vibrational frequency
 module GeometryTransformation
-    use General
-    use Mathematics
-    use LinearAlgebra
+    use General; use Mathematics; use LinearAlgebra
     use NonlinearOptimization
     implicit none
 

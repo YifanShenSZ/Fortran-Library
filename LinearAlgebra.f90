@@ -38,6 +38,17 @@ contains
         end forall
     end function vector_direct_product
 
+    !N dimensional vector a, vector_direct_square(a) = a a, which is symmetric
+    function vector_direct_square(a,N)
+        integer,intent(in)::N
+        real*8,dimension(N),intent(in)::a
+        real*8,dimension(N,N)::vector_direct_square
+        integer::i,j
+        forall(i=1:N,j=1:N,i>=j)
+            vector_direct_square(i,j)=a(i)*a(j)
+        end forall
+    end function vector_direct_square
+
     !M dimensional vector a, N dimensional vector b, return [ a^T, b^T ]^T
     function vector_direct_sum(a,b,M,N)
         integer,intent(in)::M,N
@@ -74,6 +85,7 @@ contains
 
 !--------------- Matrix ----------------
     !N order matrix A, return det(A)
+    !A harvests the Doolittle LU decomposition
     real*8 function determinant(A,N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A

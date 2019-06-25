@@ -40,8 +40,8 @@ Dependency:
 
 Source code level from bottom to top:
 1. General, Mathematics, LinearAlgebra
-2. (mkl_rci, NonlinearOptimization), (mkl_dfti, IntegralTransform), Statistics, Chemistry
-3. Clustering, GeometryTransformation
+2. (mkl_rci, NonlinearOptimization), (mkl_dfti, IntegralTransform), Clustering, Statistics, Chemistry
+3. GeometryTransformation
 
 test.f90 and makefile are to build a demo program, testing the functionality
 

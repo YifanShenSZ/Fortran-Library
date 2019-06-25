@@ -11,8 +11,7 @@
 !    Heuristic algorithm is general but naive: search entire space (pay exponentially)
 module NonlinearOptimization
     use LinearAlgebra
-    use mkl_rci_type!For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
-    use mkl_rci     !For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
+    use mkl_rci_type; use mkl_rci!For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
     implicit none
 
 contains

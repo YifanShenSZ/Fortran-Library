@@ -15,8 +15,7 @@
 !              Each cluster must be an ellipse
 !              Might fall into local maximum on large data set
 module Clustering
-    use General; use LinearAlgebra
-    use Statistics
+    use General; use Mathematics; use LinearAlgebra
     implicit none
 
 contains
@@ -130,6 +129,7 @@ subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance
     integer::icentre,i,j
     real*8::tol,dbletemp
     real*8,dimension(dim)::vectemp
+    real*8,dimension(dim,dim)::matrixtemp
     real*8,dimension(N,K)::responsibilityold!Responsibility old
     !Initialization work space
     logical::geninit
@@ -191,10 +191,15 @@ subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance
         dbletemp=sqrtpim2**N!Preparation for normal distribution calculation
     do!Main loop
         !Expectation
-        do i=1,K!1st, prepare for normal distribution calculation
+        do icentre=1,K!1st, prepare for normal distribution calculation
+            forall(i=1:dim,j=1:dim,i>=j)
+                matrixtemp(i,j)=covariance(i,j,icentre)
+            end forall
+            call syL2U(matrixtemp,dim)
             !Store the pre-exponential coefficient in population
-            population(i)=population(i)/dbletemp/dSqrt(determinant(covariance(:,:,i),dim))
-            call My_dsytri(covariance(:,:,i),dim)!Invert covariance matrices
+            population(icentre)=population(icentre)/dbletemp/dSqrt(determinant(matrixtemp,dim))
+            call My_dsytri(covariance(:,:,icentre),dim)!Invert covariance matrices
+            call syL2U(covariance(:,:,icentre),dim)
         end do
         forall(i=1:K,j=1:N)!2nd, compute the probability density on each data point contributed by each gaussian
             responsibility(j,i)=population(i)&!Store in responsibility
@@ -203,7 +208,7 @@ subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance
         forall(i=1:N)!Finally, update responsibility
             responsibility(i,:)=responsibility(i,:)/sum(responsibility(i,:))
         end forall
-        if(My_dlange('M',responsibility-responsibilityold,N,K)<tol) return!Check convergence
+        if(My_dlange('M',responsibility-responsibilityold,N,K)<tol) exit!Check convergence
         !Maximization
         forall(i=1:N)!Prepare
             responsibility(i,:)=weight(i)*responsibility(i,:)
@@ -229,6 +234,29 @@ subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance
         end forall
         responsibilityold=responsibility!Get ready for next loop
     end do
+    !Exit after expectation, do a maximization accordingly
+    forall(i=1:N)!Prepare
+        responsibilityold(i,:)=weight(i)*responsibility(i,:)
+    end forall
+    forall(i=1:K)!Update population
+        population(i)=sum(responsibilityold(:,i))
+    end forall
+    centre=matmul(data,responsibilityold)!Update centre & covariance
+    do icentre=1,K
+        forall(i=1:dim,j=1:dim,i>=j)
+            covariance(i,j,icentre)=0d0
+        end forall
+        do j=1,N
+            vectemp=data(:,j)-centre(:,icentre)
+            covariance(:,:,icentre)=vector_direct_square(vectemp,dim)*responsibilityold(j,icentre)
+        end do
+    end do
+    forall(icentre=1:K)
+        centre(:,icentre)=centre(:,icentre)/population(icentre)
+        forall(i=1:dim,j=1:dim,i>=j)
+            covariance(i,j,icentre)=covariance(i,j,icentre)/population(icentre)
+        end forall
+    end forall
 end subroutine GaussianMixtureModel
 
 end module Clustering
