@@ -1,3 +1,6 @@
+test.exe
+*.mod
+*.obj
 My Advisor Results - Fortran/
 x64/
 *.u2d
