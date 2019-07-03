@@ -400,7 +400,7 @@ end function deigvec_ByKnowneigval_dA
 !gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
 !Note this gauge does not determine adiabatic states uniquely:
 !    the transformation angle can differ by arbitrary integer times of pi / 4,
-!    so there are 8 possibilities in total (although differ by pi is only a total phase change)
+!    so there are 4 possibilities in total (differ by pi is only a total phase change)
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
 !Required: grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
 !          h: interstate coupling between the intersected states
@@ -441,7 +441,7 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
             differencemin=dot_product((dh22min-dh11min)/2d0-gref,(dh22min-dh11min)/2d0-gref)+dot_product(dh12min-href,dh12min-href)
         end if
         thetamin=theta
-        do i=1,7!Try 7 remaining solutions
+        do i=1,3!Try 3 remaining solutions
             theta=theta+pid4
             sinsqtheta=sin(theta); cossqtheta=cos(theta)
             sin2theta=2d0*sinsqtheta*cossqtheta
