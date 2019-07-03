@@ -421,13 +421,13 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     real*8,allocatable,dimension(:)::phitemp
     g=(grad2-grad1)/2d0; sinsqtheta=dot_product(g,h)
     if(present(gref).and.present(href)) then
-        if(sinsqtheta==0d0) then
+        if(dAbs(sinsqtheta)<1d-14) then
             theta=0d0!Try principle value
             dh12min=h; dh11min=grad1; dh22min=grad2
             differencemin=dot_product(g-gref,g-gref)+dot_product(h-href,h-href)
         else
             theta=dot_product(g,g)-dot_product(h,h)
-            if(theta==0d0) then
+            if(dAbs(theta)<1d-14) then
                 theta=pid8
             else
                 theta=atan(2d0*sinsqtheta/theta)/4d0
@@ -470,9 +470,9 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
             end if
         end if
     else
-        if(sinsqtheta==0d0) return
+        if(dAbs(sinsqtheta)<1d-14) return
         cossqtheta=dot_product(g,g)-dot_product(h,h)
-        if(cossqtheta==0d0) then
+        if(dAbs(cossqtheta)<1d-14) then
             theta=pid8
         else
             theta=atan(2d0*sinsqtheta/cossqtheta)/4d0
