@@ -423,7 +423,7 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     g=(grad2-grad1)/2d0; sinsqtheta=dot_product(g,h)
     if(present(gref).and.present(href)) then
         if(dAbs(sinsqtheta)<1d-14) then
-            theta=0d0!Try principle value
+            thetamin=0d0!Try principle value
             dh12min=h
             difference=dot_product(g-gref,g-gref); differencex=dot_product(g+gref,g+gref)
             if(differencex<difference) then
@@ -436,11 +436,11 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
         else
             theta=dot_product(g,g)-dot_product(h,h)
             if(dAbs(theta)<1d-14) then
-                theta=pid8
+                thetamin=pid8
             else
-                theta=atan(2d0*sinsqtheta/theta)/4d0
+                thetamin=atan(2d0*sinsqtheta/theta)/4d0
             end if!Try principle value
-            sinsqtheta=sin(theta); cossqtheta=cos(theta)
+            sinsqtheta=sin(thetamin); cossqtheta=cos(thetamin)
             sin2theta=2d0*sinsqtheta*cossqtheta
             sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
             dh12min=(cossqtheta-sinsqtheta)*h-sin2theta*g
@@ -455,7 +455,6 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
                 exchangemin=.false.; differencemin=difference+dot_product(dh12min-href,dh12min-href)
             end if
         end if
-        thetamin=theta
         do i=1,3!Try 3 remaining solutions
             theta=theta+pid4
             sinsqtheta=sin(theta); cossqtheta=cos(theta)
