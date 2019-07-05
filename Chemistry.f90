@@ -455,7 +455,7 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
                 exchangemin=.false.; differencemin=difference+dot_product(dh12min-href,dh12min-href)
             end if
         end if
-        do i=1,3!Try 3 remaining solutions
+        theta=thetamin; do i=1,3!Try 3 remaining solutions
             theta=theta+pid4
             sinsqtheta=sin(theta); cossqtheta=cos(theta)
             sin2theta=2d0*sinsqtheta*cossqtheta
