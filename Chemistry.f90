@@ -398,9 +398,10 @@ end function deigvec_ByKnowneigval_dA
 
 !At conical intersection there is a gauge degree of freedom, conical intersection adapted coordinate is
 !gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
-!Note this gauge does not determine adiabatic states uniquely:
-!    the transformation angle can differ by arbitrary integer times of pi / 4,
-!    so there are 4 possibilities in total (differ by pi is only a total phase change)
+!Note this gauge does not determine adiabatic states uniquely: 8 possibilities in total
+!    The transformation rotation angle can differ by arbitrary integer times of pi / 4,
+!        so there are 4 possibilities (differ by pi is only a total phase change)
+!    The state ordering could be exchanged, introducing 2 times of possibilities
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
 !Required: grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
 !          h: interstate coupling between the intersected states
@@ -415,16 +416,23 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     !Optional argument:
         real*8,dimension(:),intent(inout),optional::phi1,phi2
 		real*8,dimension(dim),intent(in),optional::gref,href
-    integer::i
-    real*8::theta,sinsqtheta,cossqtheta,sin2theta,thetamin,difference,differencemin
+    logical::exchange,exchangemin; integer::i
+    real*8::theta,sinsqtheta,cossqtheta,sin2theta,thetamin,differencemin,difference,differencex
     real*8,dimension(dim)::g,dh11,dh12,dh22,dh11min,dh12min,dh22min
     real*8,allocatable,dimension(:)::phitemp
     g=(grad2-grad1)/2d0; sinsqtheta=dot_product(g,h)
     if(present(gref).and.present(href)) then
         if(dAbs(sinsqtheta)<1d-14) then
             theta=0d0!Try principle value
-            dh12min=h; dh11min=grad1; dh22min=grad2
-            differencemin=dot_product(g-gref,g-gref)+dot_product(h-href,h-href)
+            dh12min=h
+            difference=dot_product(g-gref,g-gref); differencex=dot_product(g+gref,g+gref)
+            if(differencex<difference) then
+                exchangemin=.true.; differencemin=differencex+dot_product(h-href,h-href)
+                dh11min=grad2; dh22min=grad1
+            else
+                exchangemin=.false.; differencemin=difference+dot_product(h-href,h-href)
+                dh11min=grad1; dh22min=grad2
+            end if
         else
             theta=dot_product(g,g)-dot_product(h,h)
             if(dAbs(theta)<1d-14) then
@@ -438,7 +446,14 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
             dh12min=(cossqtheta-sinsqtheta)*h-sin2theta*g
             dh11min=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
             dh22min=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
-            differencemin=dot_product((dh22min-dh11min)/2d0-gref,(dh22min-dh11min)/2d0-gref)+dot_product(dh12min-href,dh12min-href)
+            g=(dh22min-dh11min)/2d0
+            difference=dot_product(g-gref,g-gref); differencex=dot_product(g+gref,g+gref)
+            if(differencex<difference) then
+                exchangemin=.true.; differencemin=differencex+dot_product(dh12min-href,dh12min-href)
+                g=dh11min; dh11min=dh22min; dh22min=g
+            else
+                exchangemin=.false.; differencemin=difference+dot_product(dh12min-href,dh12min-href)
+            end if
         end if
         thetamin=theta
         do i=1,3!Try 3 remaining solutions
@@ -449,21 +464,34 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
             dh12=(cossqtheta-sinsqtheta)*h-sin2theta*g
             dh11=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
             dh22=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
-            difference=dot_product((dh22-dh11)/2d0-gref,(dh22-dh11)/2d0-gref)+dot_product(dh12-href,dh12-href)
+            g=(dh22-dh11)/2d0
+            difference=dot_product(g-gref,g-gref); differencex=dot_product(g+gref,g+gref)
+            if(differencex<difference) then
+                exchange=.true.; difference=differencex+dot_product(dh12-href,dh12-href)
+            else
+                exchange=.false.; difference=difference+dot_product(dh12-href,dh12-href)
+            end if
             if(difference<differencemin) then
-                thetamin=theta
-                dh12min=dh12; dh11min=dh11; dh22min=dh22
-                differencemin=difference
+                differencemin=difference; exchangemin=exchange; thetamin=theta; dh12min=dh12
+                if(exchange) then
+                    dh11min=dh22; dh22min=dh11
+                else
+                    dh11min=dh11; dh22min=dh22
+                end if
             end if
         end do
         grad1=dh11min; grad2=dh22min; h=dh12min
         if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
             if(size(phi1)==size(phi2)) then
                 sinsqtheta=sin(thetamin); cossqtheta=cos(thetamin)
-                allocate(phitemp(size(phi1)))
-                phitemp=phi1
-                phi1=cossqtheta*phitemp-sinsqtheta*phi2
-                phi2=sinsqtheta*phitemp+cossqtheta*phi2
+                allocate(phitemp(size(phi1))); phitemp=phi1
+                if(exchangemin) then
+                    phi1=sinsqtheta*phitemp+cossqtheta*phi2
+                    phi2=cossqtheta*phitemp-sinsqtheta*phi2
+                else
+                    phi1=cossqtheta*phitemp-sinsqtheta*phi2
+                    phi2=sinsqtheta*phitemp+cossqtheta*phi2
+                end if
                 deallocate(phitemp)
             else
                 write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
@@ -471,11 +499,11 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
         end if
     else
         if(dAbs(sinsqtheta)<1d-14) return
-        cossqtheta=dot_product(g,g)-dot_product(h,h)
-        if(dAbs(cossqtheta)<1d-14) then
+        theta=dot_product(g,g)-dot_product(h,h)
+        if(dAbs(theta)<1d-14) then
             theta=pid8
         else
-            theta=atan(2d0*sinsqtheta/cossqtheta)/4d0
+            theta=atan(2d0*sinsqtheta/theta)/4d0
         end if
         sinsqtheta=dSin(theta); cossqtheta=dCos(theta)
         if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
