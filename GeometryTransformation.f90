@@ -76,7 +76,7 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
         end do
     !Diagonalize momentum of inertia
         call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)
+        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
         UT=transpose(moi)
     !Transform geometry (and optionally gradient) to principle axes frame
     if(present(reference)) then
@@ -105,27 +105,19 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
         if(present(difference)) difference=temp!Harvest || output geom - reference ||_2^2
         geom=r(:,indicemin)!Determine the geometry
         select case(indicemin)!Determine the principle axes
-            case(2)
-                moi(:,1:2)=-moi(:,1:2)
-            case(3)
-                moi(:,1)=-moi(:,1)
-                moi(:,3)=-moi(:,3)
-            case(4)
-                moi(:,2:3)=-moi(:,2:3)
+            case(2); moi(:,1:2)=-moi(:,1:2)
+            case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
+            case(4); moi(:,2:3)=-moi(:,2:3)
         end select
         if(present(grad).or.present(nadgrad)) UT=transpose(moi)!Update U^T
     else
         forall(i=1:NAtoms); geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i)); end forall
     end if
     if(present(grad)) then
-        forall(i=1:NAtoms)
-            !grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
-            grad(3*i-2:3*i)=matmul(UT,grad(3*i-2:3*i))
-        end forall
+        forall(i=1:NAtoms); grad(3*i-2:3*i)=matmul(UT,grad(3*i-2:3*i)); end forall
     end if
     if(present(nadgrad)) then
         forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
-            !nadgrad(3*i-2:3*i,istate,jstate)=matmul(moi,nadgrad(3*i-2:3*i,istate,jstate))
             nadgrad(3*i-2:3*i,istate,jstate)=matmul(UT,nadgrad(3*i-2:3*i,istate,jstate))
         end forall
     end if
