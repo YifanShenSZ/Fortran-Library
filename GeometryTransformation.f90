@@ -63,11 +63,9 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
     real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
     real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
     !Compute current centre of mass
-        com=0d0
-        SystemMass=0d0
+        com=0d0; SystemMass=0d0
         do i=1,NAtoms
-            com=com+mass(i)*geom(3*i-2:3*i)
-            SystemMass=SystemMass+mass(i)
+            com=com+mass(i)*geom(3*i-2:3*i); SystemMass=SystemMass+mass(i)
         end do
         com=com/SystemMass
     !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
@@ -101,8 +99,7 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
         do i=2,4
             SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
             if(SystemMass<temp) then
-                temp=SystemMass
-                indicemin=i
+                temp=SystemMass; indicemin=i
             end if
         end do
         if(present(difference)) difference=temp!Harvest || output geom - reference ||_2^2
@@ -117,18 +114,18 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
                 moi(:,2:3)=-moi(:,2:3)
         end select
     else
-        forall(i=1:NAtoms)
-            geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i))
-        end forall
+        forall(i=1:NAtoms); geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i)); end forall
     end if
     if(present(grad)) then
         forall(i=1:NAtoms)
-            grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
+            !grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
+        grad(3*i-2:3*i)=matmul(UT,grad(3*i-2:3*i))
         end forall
     end if
     if(present(nadgrad)) then
         forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
-            nadgrad(3*i-2:3*i,istate,jstate)=matmul(moi,nadgrad(3*i-2:3*i,istate,jstate))
+            !nadgrad(3*i-2:3*i,istate,jstate)=matmul(moi,nadgrad(3*i-2:3*i,istate,jstate))
+            nadgrad(3*i-2:3*i,istate,jstate)=matmul(UT,nadgrad(3*i-2:3*i,istate,jstate))
         end forall
     end if
 end subroutine StandardizeGeometry
