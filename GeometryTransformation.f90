@@ -113,13 +113,14 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
             case(4)
                 moi(:,2:3)=-moi(:,2:3)
         end select
+        if(present(grad).or.present(nadgrad)) UT=transpose(moi)!Update U^T
     else
         forall(i=1:NAtoms); geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i)); end forall
     end if
     if(present(grad)) then
         forall(i=1:NAtoms)
             !grad(3*i-2:3*i)=matmul(moi,grad(3*i-2:3*i))
-        grad(3*i-2:3*i)=matmul(UT,grad(3*i-2:3*i))
+            grad(3*i-2:3*i)=matmul(UT,grad(3*i-2:3*i))
         end forall
     end if
     if(present(nadgrad)) then
