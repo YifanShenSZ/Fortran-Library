@@ -2345,8 +2345,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     else
                         do iIteration=1,maxit
@@ -2354,8 +2353,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     end if
                 else
@@ -2365,8 +2363,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     else
 						do iIteration=1,maxit
@@ -2374,8 +2371,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     end if
                 end if
@@ -2387,8 +2383,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     else
                         do iIteration=1,maxit
@@ -2396,8 +2391,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     end if
                 else
@@ -2407,8 +2401,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     else
                         do iIteration=1,maxit
@@ -2416,8 +2409,7 @@ contains
                             Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                             call c(cx,x,M,N)
                             if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx
-                            miu=miu*incrmt
+                            lamda=lamda-miu*cx; miu=miu*incrmt
                         end do
                     end if
                 end if
@@ -2428,8 +2420,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx
-                        miu=miu*incrmt
+                        lamda=lamda-miu*cx; miu=miu*incrmt
                     end do
                 else
                     do iIteration=1,maxit
@@ -2437,8 +2428,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx
-                        miu=miu*incrmt
+                        lamda=lamda-miu*cx; miu=miu*incrmt
                     end do
                 end if
             case('ConjugateGradient')
@@ -2448,8 +2438,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx
-                        miu=miu*incrmt
+                        lamda=lamda-miu*cx; miu=miu*incrmt
                     end do
                 else
                     do iIteration=1,maxit
@@ -2457,8 +2446,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx
-                        miu=miu*incrmt
+                        lamda=lamda-miu*cx; miu=miu*incrmt
                     end do
                 end if
             case default!Throw a warning
@@ -2474,17 +2462,14 @@ contains
                 integer,intent(in)::N
                 real*8,dimension(N),intent(in)::x
                 real*8,intent(out)::Lx
-                call f(Lx,x,N)
-                call c(cx,x,M,N)
+                call f(Lx,x,N); call c(cx,x,M,N)
                 Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
             end subroutine L
             subroutine Ld(Ldx,x,N)
                 integer,intent(in)::N
                 real*8,dimension(N),intent(in)::x
                 real*8,dimension(N),intent(out)::Ldx
-                call fd(Ldx,x,N)
-                call c(cx,x,M,N)
-                call cd(cdx,x,M,N)
+                call fd(Ldx,x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
                 Ldx=Ldx+matmul(cdx,miu*cx-lamda)
             end subroutine Ld
             integer function L_Ld(Lx,Ldx,x,N)!Compute c & cd together is cheaper
@@ -2492,11 +2477,9 @@ contains
                 real*8,dimension(N),intent(in)::x
                 real*8,intent(out)::Lx
                 real*8,dimension(N),intent(out)::Ldx
-                call f(Lx,x,N)
-                call c(cx,x,M,N)
+                call f(Lx,x,N); call c(cx,x,M,N)
                 Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
-                call fd(Ldx,x,N)
-                call cd(cdx,x,M,N)
+                call fd(Ldx,x,N); call cd(cdx,x,M,N)
                 Ldx=Ldx+matmul(cdx,miu*cx-lamda)
                 L_Ld=0!return 0
             end function L_Ld
@@ -2505,8 +2488,7 @@ contains
                 real*8,dimension(N),intent(in)::x
                 real*8,intent(out)::Lx
                 real*8,dimension(N),intent(out)::Ldx
-                i=f_fd(Lx,Ldx,x,N)
-                call c(cx,x,M,N)
+                i=f_fd(Lx,Ldx,x,N); call c(cx,x,M,N)
                 Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
                 call cd(cdx,x,M,N)
                 Ldx=Ldx+matmul(cdx,miu*cx-lamda)
@@ -2516,10 +2498,7 @@ contains
                 integer,intent(in)::N
                 real*8,dimension(N),intent(in)::x
                 real*8,dimension(N,N),intent(out)::Lddx
-                i=fdd(Lddx,x,N)
-                i=cdd(cddx,x,M,N)
-                call c(cx,x,M,N)
-                call cd(cdx,x,M,N)
+                i=fdd(Lddx,x,N); i=cdd(cddx,x,M,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
                 cx=miu*cx-lamda
                 forall(i=1:N)
                     Lddxtemp(:,i)=matmul(cddx(i,:,:),cx)
