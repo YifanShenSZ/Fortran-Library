@@ -402,12 +402,13 @@ end function deigvec_ByKnowneigval_dA
 !    The transformation rotation angle can differ by arbitrary integer times of pi / 4,
 !        so there are 4 possibilities (differ by pi is only a total phase change)
 !    The state ordering could be exchanged, introducing 2 times of possibilities
+!This can also be viewed as: we only know g & h will be along 2 lines, so there are 8 different assignments
 !Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
 !Required: grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
 !          h: interstate coupling between the intersected states
 !          dim: integer specifying the dimension of grad1 & grad2 & h
 !Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
-!          gref & href: reference g & h to uniquely determine gh orthogonalization as the 1 with smallest difference to reference out of 4
+!          gref & href: reference g & h to uniquely determine gh orthogonalization as the 1 with smallest difference to reference out of 8
 !On exit grad1, grad2, h (and optionally phi1, phi2) will be gauged
 subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     !Required argument:
