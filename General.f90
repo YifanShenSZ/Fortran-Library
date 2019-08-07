@@ -17,15 +17,13 @@ module General
     end type d2PMatrix
 
 contains
-!Show date hour minute second
-subroutine ShowTime()
+subroutine ShowTime()!Show date hour minute second
     integer,dimension(8)::time
     call date_and_time(values=time)
     write(*,*)time(3),'d',time(5),':',time(6),':',time(7)
 end subroutine ShowTime
 
-! x_input = x_output * 10^i
-subroutine dScientificNotation(x,i)
+subroutine dScientificNotation(x,i)! x_input = x_output * 10^i
     real*8,intent(inout)::x
     integer,intent(out)::i
     i=0
