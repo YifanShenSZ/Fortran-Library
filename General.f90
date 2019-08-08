@@ -20,7 +20,7 @@ contains
 subroutine ShowTime()!Show date hour minute second
     integer,dimension(8)::time
     call date_and_time(values=time)
-    write(*,*)time(3),'d',time(5),':',time(6),':',time(7)
+    write(*,'(1x,I4,1x,A4,1x,I2,1x,A5,1x,I2,1x,A3,1x,I2,A1,I2,A1,I2)')time(1),'year',time(2),'month',time(3),'day',time(5),':',time(6),':',time(7)
 end subroutine ShowTime
 
 subroutine dScientificNotation(x,i)! x_input = x_output * 10^i

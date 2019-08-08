@@ -34,7 +34,7 @@ program main
     call BetterRandomSeed()
     write(*,*)'This is a test program on Fortran-Library'
     write(*,*)'Correct routines should print close to 0'
-    write(*,*)
+    call ShowTime()
 
 write(*,*)'!!!!!!!!!! Testing all general basic routines... !!!!!!!!!!'
     write(*,*)
@@ -602,6 +602,9 @@ write(*,*)'!!!!!!!!!! Testing all chemistry routines... !!!!!!!!!!'
     write(*,*)
 write(*,*)'---------- Chemistry routines test passed ----------'
 write(*,*)
+
+    call ShowTime()
+    write(*,*)'Mission complete'
 
 contains
 !Routines for testing nonlinear-optimization solvers
