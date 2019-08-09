@@ -570,10 +570,8 @@ end subroutine StandardizeGeometry
 		real*8,dimension(vibdim,vibdim),intent(out)::mode
         real*8,dimension(3*NAtoms,3*NAtoms),intent(inout)::H
 		real*8,dimension(NAtoms),intent(in)::mass
-		integer::i
-		integer,dimension(3*NAtoms)::indice
-		real*8,dimension(NAtoms)::sqrtmass
-		real*8,dimension(3*NAtoms)::freqall,freqabs
+		integer::i; integer,dimension(3*NAtoms)::indice
+		real*8,dimension(NAtoms)::sqrtmass; real*8,dimension(3*NAtoms)::freqall,freqabs
 		!Obtain freq^2 and normal modes
 		    sqrtmass=dSqrt(mass)
 		    forall(i=1:NAtoms)
@@ -581,15 +579,10 @@ end subroutine StandardizeGeometry
 		    	H(3*i-2:3*i,:)=H(3*i-2:3*i,:)/sqrtmass(i)
 		    end forall
             call My_dsyev('V',H,freqall,3*NAtoms)
-            H=transpose(H)
-            forall(i=1:3*NAtoms)
-                H(:,i)=H(:,i)*sqrtmass(i)
-            end forall
+            H=transpose(H); forall(i=1:3*NAtoms); H(:,i)=H(:,i)*sqrtmass(i); end forall
 		!Rule out 3 * NAtoms - vibdim translations and rotations
 		    freqabs=dAbs(freqall)
-		    forall(i=1:3*NAtoms)
-		        indice(i)=i
-		    end forall
+		    forall(i=1:3*NAtoms); indice(i)=i; end forall
 			call dQuickSort(freqabs,1,3*NAtoms,indice,3*NAtoms)
 			freqabs=freqall
 		    forall(i=1:vibdim)
@@ -597,21 +590,13 @@ end subroutine StandardizeGeometry
 				mode(:,i)=H(:,indice(i+3*NAtoms-vibdim))
             end forall
 		do i=1,vibdim!freq^2 -> freq
-			if(freqall(i)<0d0) then
-                freq(i)=-dSqrt(-freqall(i))
-            else
-                freq(i)=dSqrt(freqall(i))
-            end if
+			if(freqall(i)<0d0) then; freq(i)=-dSqrt(-freqall(i))
+            else; freq(i)=dSqrt(freqall(i)); end if
 		end do
 		!Sort freq ascendingly, then sort normal modes accordingly
-		    forall(i=1:vibdim)
-		        indice(i)=i
-			end forall
+		    forall(i=1:vibdim); indice(i)=i; end forall
 			call dQuickSort(freq,1,vibdim,indice(1:vibdim),vibdim)
-			H(:,1:vibdim)=mode
-			forall(i=1:vibdim)
-                mode(:,i)=H(:,indice(i))
-            end forall
+			H(:,1:vibdim)=mode; forall(i=1:vibdim); mode(:,i)=H(:,indice(i)); end forall
 	end subroutine VibrationAnalysis
 
     !Use Wilson GF method to obtain normal mode and vibrational frequency from Hessian in internal coordinate

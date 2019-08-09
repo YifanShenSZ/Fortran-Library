@@ -6,8 +6,8 @@ module Mathematics
     !Mathematical constant
         real*8,parameter::pi=3.141592653589793d0,enature=2.718281828459045d0,EulerGamma=5.7721566490153286060651209d-1
         complex*16,parameter::ci=(0d0,1d0)
-        !Frequently used form (m is short for multiply, d is short for divide)
-        real*8,parameter::Sqrt2=1.4142135623730951d0,Sqrt3=1.7320508075688772d0,&
+        !Frequently used form (m = multiply, d = divide, inv = inverse)
+        real*8,parameter::Sqrt2=1.4142135623730951d0,Sqrt3=1.7320508075688772d0,invSqrt2=0.7071067811865475d0,&
             pim2=6.283185307179586d0,pim4=12.566370614359172d0,&
             pid2=1.5707963267948966d0,pid4=0.7853981633974483d0,pid8=0.39269908169872414d0,&
             pisqd3=3.2898681336964524d0,&
