@@ -2084,21 +2084,21 @@ contains
 !---------- Equality constraint ----------
     !Lagrangian multiplier method is a classical way to treat equality constraint:
     !    L = f - lamda . c
+    !where f is the target function to be minimized, lamda is Lagrangian multiplier, c is equality constraint c(x) = 0
     !Textbook is wrong: it claims Lagrangian multiplier method transforms constrained optimization into unconstrained one
     !However, L has no lower bound, since lamda . c can approach infinity when c != 0 and lamda diverges
     !Lagrangian multiplier method actually turns a minimization problem into a saddle point problem,
-    !which cannot necessarily be solved through decreasing f(x), making all unconstrained minimizers fail
+    !which cannot necessarily be solved through decreasing f(x), deteriorating all unconstrained minimizers
     !Lagrangian multiplier method is numerically feasible only when at least 1 of the following statements is true:
     !    L has unique saddle point
     !    The initial guess is sufficiently close to the exact solution
     !under which circumstance we may simply minimize || L'(x) ||
     !In general case, we have to turn to the augmented Lagrangian method:
     !    Augmented Lagrangian = f - lamda . c + miu / 2 * c . c
-    !    where f is the target function to be minimized, c is equality constraint c(x) = 0,
-    !    lamda is Lagrangian multiplier, miu is constraint violation penalty strength
+    !where miu is constraint violation penalty strength
     !Suggestion:
     !    Augmented Lagrangian has ill conditioned Hessian when miu is too large, deteriorating performance of line searchers
-    !    so do not take too much interations and push accuracy to double precision limit
+    !    so do not take too much interations nor push accuracy to double precision limit
     !External procedure:
     !    subroutine f(f(x),x,N)
     !    subroutine fd(f'(x),x,N)
