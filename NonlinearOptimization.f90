@@ -5,7 +5,7 @@
 !    adopt MKL trust region solver
 !    or build your own merit function then use other routines to search for its minimum
 !This module mainly provides unconstrained local minimizer
-!    only solvers in Augmented Lagrangian section are constrained
+!    only solvers in Equality constraint section are constrained
 !    only solvers in Heuristic section are global
 !Global optimization remains an unsolved problem, since it is NP-complete
 !    Heuristic algorithm is general but naive: search entire space (pay exponentially)
@@ -15,7 +15,7 @@ module NonlinearOptimization
     implicit none
 
 contains
-!-------------- Line search ---------------
+!-------------- Line search --------------
     !Suggestion:
     !    If dimensionality is low, adopt quasi-Newton (or Newton if Hessian is cheap and initial guess is close)
     !    If dimensionality is so high that O(dim^2) memory is unaffordable, adopt conjugate gradient or L-BFGS
@@ -65,41 +65,20 @@ contains
         !Initialize
             terminate=.false.
             !Set parameter according to optional argument
-                if(present(Strong)) then
-                    sw=Strong
-                else
-                    sw=.true.
-                end if
-                if(present(Warning)) then
-                    warn=Warning
-                else
-                    warn=.true.
-                end if
-                if(present(MaxIteration)) then
-                    maxit=MaxIteration
-                else
-                    maxit=1000
-                end if
-                if(present(Precision)) then!To save sqrt cost, precision is squared
-                    tol=Precision*Precision
-                else
-                    tol=1d-30
-                end if
-                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
-                    minstep=MinStepLength*MinStepLength
-                else
-                    minstep=1d-30
-                end if
-                if(present(WolfeConst1)) then
-                    c1=max(1d-15,WolfeConst1)!Fail safe
-                else
-                    c1=1d-4
-                end if
-                if(present(WolfeConst2)) then
-                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
-                else
-                    c2=0.9d0
-                end if
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                    else; tol=1d-30; end if
+                if(present(MinStepLength)) then; minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+                    else; minstep=1d-30; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
+                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    else; c2=0.9d0; end if
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 info=f_fd(fnew,fdnew,x,dim)
             else
@@ -269,7 +248,7 @@ contains
             end if
         end if
         if(iIteration>maxit.and.warn) then
-            write(*,*)'Failed Newton-Raphson: max iteration exceeded!'
+            write(*,'(1x,A46)')'Failed Newton-Raphson: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
@@ -362,46 +341,22 @@ contains
         !Initialize
             terminate=.false.
             !Set parameter according to optional argument
-                if(present(ExactStep)) then
-                    freq=ExactStep
-                else
-                    freq=20
-                end if
-                if(present(Strong)) then
-                    sw=Strong
-                else
-                    sw=.true.
-                end if
-                if(present(Warning)) then
-                    warn=Warning
-                else
-                    warn=.true.
-                end if
-                if(present(MaxIteration)) then
-                    maxit=MaxIteration
-                else
-                    maxit=1000
-                end if
-                if(present(Precision)) then!To save sqrt cost, precision is squared
-                    tol=Precision*Precision
-                else
-                    tol=1d-30
-                end if
-                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
-                    minstep=MinStepLength*MinStepLength
-                else
-                    minstep=1d-30
-                end if
-                if(present(WolfeConst1)) then
-                    c1=max(1d-15,WolfeConst1)!Fail safe
-                else
-                    c1=1d-4
-                end if
-                if(present(WolfeConst2)) then
-                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
-                else
-                    c2=0.9d0
-                end if
+                if(present(ExactStep)) then; freq=ExactStep
+                    else; freq=20; end if
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                    else; tol=1d-30; end if
+                if(present(MinStepLength)) then; minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+                    else; minstep=1d-30; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
+                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    else; c2=0.9d0; end if
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 i=f_fd(fnew,fdnew,x,dim)
             else
@@ -856,50 +811,23 @@ contains
         !Initialize
             terminate=.false.
             !Set parameter according to optional argument
-                if(present(Memory)) then
-                    mem=max(1,Memory)!Fail safe
-                else
-                    mem=10
-                end if
-                if(present(Strong)) then
-                    sw=Strong
-                else
-                    sw=.true.
-                end if
-                if(present(Warning)) then
-                    warn=Warning
-                else
-                    warn=.true.
-                end if
-                if(present(MaxIteration)) then
-                    maxit=MaxIteration
-                else
-                    maxit=1000
-                end if
-                if(present(Precision)) then!To save sqrt cost, precision is squared
-                    tol=Precision*Precision
-                else
-                    tol=1d-30
-                end if
-                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
-                    minstep=MinStepLength*MinStepLength
-                else
-                    minstep=1d-30
-                end if
-                if(present(WolfeConst1)) then
-                    c1=max(1d-15,WolfeConst1)!Fail safe
-                else
-                    c1=1d-4
-                end if
-                if(present(WolfeConst2)) then
-                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
-                else
-                    c2=0.9d0
-                end if
-            allocate(rho(0:mem))
-            allocate(alpha(0:mem))
-            allocate(s(dim,0:mem))
-            allocate(y(dim,0:mem))
+                if(present(Memory)) then; mem=max(1,Memory)!Fail safe
+                    else; mem=10; end if
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                    else; tol=1d-30; end if
+                if(present(MinStepLength)) then; minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+                    else; minstep=1d-30; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
+                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    else; c2=0.9d0; end if
+            allocate(rho(0:mem)); allocate(alpha(0:mem)); allocate(s(dim,0:mem)); allocate(y(dim,0:mem))
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 i=f_fd(fnew,fdnew,x,dim)
             else
@@ -1140,46 +1068,22 @@ contains
         !Initialize
             terminate=.false.
             !Set parameter according to optional argument
-                if(present(Method)) then
-                    type=Method
-                else
-                    type='DY'
-                end if
-                if(present(Strong)) then
-                    sw=Strong
-                else
-                    sw=.true.
-                end if
-                if(present(Warning)) then
-                    warn=Warning
-                else
-                    warn=.true.
-                end if
-                if(present(MaxIteration)) then
-                    maxit=MaxIteration
-                else
-                    maxit=1000
-                end if
-                if(present(Precision)) then!To save sqrt cost, precision is squared
-                    tol=Precision*Precision
-                else
-                    tol=1d-30
-                end if
-                if(present(MinStepLength)) then!To save sqrt cost, MinStepLength is squared
-                    minstep=MinStepLength*MinStepLength
-                else
-                    minstep=1d-30
-                end if
-                if(present(WolfeConst1)) then
-                    c1=max(1d-15,WolfeConst1)!Fail safe
-                else
-                    c1=1d-4
-                end if
-                if(present(WolfeConst2)) then
-                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
-                else
-                    c2=0.45d0
-                end if
+                if(present(Method)) then; type=Method
+                    else; type='DY'; end if
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                    else; tol=1d-30; end if
+                if(present(MinStepLength)) then;  minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+                    else; minstep=1d-30; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
+                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    else; c2=0.45d0; end if
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 info=f_fd(fnew,fdnew,x,dim)
             else
@@ -1940,9 +1844,9 @@ contains
                 end subroutine zoom
         end subroutine StrongWolfe_fdwithf
     !================ End =================
-!------------------ End -------------------
+!------------------ End ------------------
 
-!-------------- Trust region --------------
+!------------- Trust region --------------
     !MKL trust-region nonlinear least square problem (trnlsp) solver wrapper
     !Solve f'(x) = 0 by minimizing merit function F(x) = f'(x)^2 through trust-region method
     !with model function m(p) = [ f'(x) + J(x) . p ]^2, where J(x) is the Jacobian
@@ -2003,34 +1907,20 @@ contains
         real*8,dimension(M,N)::J
         !Initialize
             !Set parameter according to optional argument
-                if(present(Warning)) then
-                    warn=Warning
-                else
-                    warn=.true.
-                end if
-                if(present(MaxIteration)) then
-                    maxit=MaxIteration
-                else
-                    maxit=1000
-                end if
-                if(present(MaxStepIteration)) then
-                    maxstepit=MaxStepIteration
-                else
-                    maxstepit=100
-                end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(MaxStepIteration)) then; maxstepit=MaxStepIteration
+                    else; maxstepit=100; end if
                 tol=[1d-15,1d-15,1d-15,1d-15,1d-15,1d-15]
-                if(present(Precision)) then
-                    tol(2)=Precision
-                end if
+                if(present(Precision)) tol(2)=Precision
                 if(present(MinStepLength)) then
                     tol(1)=MinStepLength
                     tol(4)=MinStepLength
                     tol(5)=MinStepLength
                 end if
-            fdx=0d0
-            J=0d0
-            StepBound=100d0
-            RCI_request=0
+            fdx=0d0; J=0d0; StepBound=100d0; RCI_request=0
         if(present(low).and.present(up)) then
             if(dtrnlspbc_init(handle,N,M,x,low,up,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
                 write(*,*)'Trust region abort: invalid initialization'
@@ -2189,14 +2079,19 @@ contains
                 call fd(fdx,x,M,N)
             end subroutine fd_j
     end subroutine TrustRegion
-!------------------ End -------------------
+!------------------ End ------------------
 
-!---------- Augmented Lagrangian ----------
+!---------- Equality constraint ----------
+    !Lagrangian multiplier method is a classical way to treat equality constraint:
+    !    L = f - lamda . c
     !Textbook is wrong: it claims Lagrangian multiplier method transforms constrained optimization into unconstrained one
-    !However, L has no lower bound, approaching -infinity when multiplier diverges subject to violated constraint
+    !However, L has no lower bound, since lamda . c can approach infinity when c != 0 and lamda diverges
     !Lagrangian multiplier method actually turns a minimization problem into a saddle point problem,
-    !which cannot necessarily be solved through try decreasing f(x), making all unconstrained minimizers fail
-    !Lagrangian multiplier method is only good when L has unique saddle point: we may simply minimize || L'(x) ||
+    !which cannot necessarily be solved through decreasing f(x), making all unconstrained minimizers fail
+    !Lagrangian multiplier method is numerically feasible only when at least 1 of the following statements is true:
+    !    L has unique saddle point
+    !    The initial guess is sufficiently close to the exact solution
+    !under which circumstance we may simply minimize || L'(x) ||
     !In general case, we have to turn to the augmented Lagrangian method:
     !    Augmented Lagrangian = f - lamda . c + miu / 2 * c . c
     !    where f is the target function to be minimized, c is equality constraint c(x) = 0,
@@ -2213,9 +2108,65 @@ contains
     !    subroutine cd(c'(x),x,M,N)
     !    integer function cdd(c''(x),x,M,N)
     !    N dimensional vector x & f'(x), N order matrix f''(x),
-    !    M dimensional vector c, N x M matrix c'(x), N x M x M 3rd-order tensor c''(x)
-    !Required argument:
+    !    M dimensional vector c, N x M matrix c'(x), N x N x M 3rd-order tensor c''(x)
+    !Common required argument:
     !    subroutine f & fd & c & cd, N dimensional vector x, integer N & M
+    !On input x is an initial guess, on exit x is a local minimum of f(x) subject to constraint c(x)
+
+    !Lagrangian multiplier method for equality constraint
+    !Please read the instruction above to make sure this is really feasible for your problem
+    !Additional required argument:
+    !    lamda: on input is an initial guess of Lagranguan multiplier, on exit is the solution
+    !Optional argument:
+    !    Warning: (default = true) if false, all warnings will be suppressed
+    !    MaxIteration: (default = 1000) max number of iterations to perform
+    !    Precision: (default = 1d-15) convergence considered when || L'(x) ||_2 < Precision
+    subroutine LagrangianMultiplier(fd,fdd,c,cd,cdd,x,lamda,N,M,&
+        Warning,MaxIteration,Precision)
+        !Required argument
+            external::fd,c,cd; integer,external::fdd,cdd
+            integer,intent(in)::N,M
+            real*8,dimension(N),intent(inout)::x; real*8,dimension(M),intent(inout)::lamda
+        !Optional argument
+            logical,intent(in),optional::Warning
+            integer,intent(in),optional::MaxIteration
+            real*8,intent(in),optional::Precision
+        !Job control
+            logical::warn; integer::maxit; real*8::tol
+        integer::iIteration,i,dim
+        real*8,dimension(N+M)::minusLd; real*8,dimension(N+M,N+M)::Ldd
+        real*8,dimension(M)::cx; real*8,dimension(N,M)::cdx; real*8,dimension(N,N,M)::cddx
+        !Set parameter according to optional argument
+            if(present(Warning)) then; warn=Warning
+                else; warn=.true.; end if
+            if(present(MaxIteration)) then; maxit=MaxIteration
+                else; maxit=1000; end if
+            if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                else; tol=1d-30; end if
+        dim=N+M
+        do iIteration=1,maxit
+            !Construct -Ld and Ldd
+                call fd(minusLd(1:N),x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
+                minusLd(1:N)=matmul(cdx,lamda)-minusLd(1:N); minusLd(N+1:dim)=cx
+                if(dot_product(minusLd,minusLd)<tol) return!Converged
+                i=fdd(Ldd(1:N,1:N),x,N); i=cdd(cddx,x,M,N)
+                forall(i=1:N)
+                    Ldd(i,1:N)=Ldd(i,1:N)-matmul(cddx(i,:,:),lamda)
+                end forall
+                Ldd(N+1:dim,1:N)=-transpose(cdx); Ldd(N+1:dim,N+1:dim)=0d0
+            !Newton iteration
+                call My_dsysv(Ldd,minusLd,dim)
+                x=x+minusLd(1:N); lamda=lamda+minusLd(N+1:dim)
+        end do
+        if(iIteration>maxit.and.warn) then
+            write(*,'(1x,A53)')'Failed Lagrangian multiplier: max iteration exceeded!'
+            call fd(minusLd(1:N),x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
+            minusLd(1:N)=matmul(cdx,lamda)-minusLd(1:N); minusLd(N+1:dim)=cx
+            write(*,*)'Euclidean norm of Lagrangian gradient =',Norm2(minusLd)
+        end if
+    end subroutine LagrangianMultiplier
+
+    !Augmented Lagrangian method for equality constraint
     !Optional argument:
     !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line seaercher is available
     !    lamda0: (default = 0) initial guess of lamda
@@ -2225,9 +2176,6 @@ contains
     !        MaxIteration: max number of augmented Lagrangian iterations to perform
     !        Precision: convergence considered when || c(x) ||_2 < Precision
 	!        Increment: each iteration change miu by how much time
-    !On input x is an initial guess, on exit x is a local minimum of f(x) subject to constraint c(x)
-
-    !Augmented Lagrangian method for equality constraint
     subroutine AugmentedLagrangian(f,fd,c,cd,x,N,M,UnconstrainedSolver,lamda0,miu0,&
         f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,cdd,ExactStep,Memory,Method)
         !Required argument
@@ -2255,86 +2203,44 @@ contains
         real*8,dimension(N,N)::Lddxtemp
         !Set parameter according to optional argument
             !Augmented Lagrangian optional argument
-                if(present(UnconstrainedSolver)) then
-                    solver=UnconstrainedSolver
-                else
-                    solver='BFGS'
-                end if
-                if(present(lamda0)) then
-                    lamda=lamda0
-                else
-                    lamda=0d0
-                end if
-                if(present(miu0)) then
-                    miu=max(1d0,miu0)
-                else
-                    miu=1d0
-                end if
+                if(present(UnconstrainedSolver)) then; solver=UnconstrainedSolver
+                    else; solver='BFGS'; end if
+                if(present(lamda0)) then; lamda=lamda0
+                    else; lamda=0d0; end if
+                if(present(miu0)) then; miu=max(1d0,miu0)
+                    else; miu=1d0; end if
             !Common line search optional argument
-                if(present(Strong)) then
-                    sw=Strong
-                else
-                    sw=.true.
-                end if
-                if(present(Warning)) then
-                    warn=Warning
-                else
-                    warn=.true.
-                end if
-                if(present(MaxIteration)) then
-                    maxit=MaxIteration
-                else
-                    maxit=1000
-                end if
-                if(present(Precision)) then
-                    tol=Precision
-                else
-                    tol=1d-15
-                end if
-                if(present(MinStepLength)) then
-                    minstep=MinStepLength
-                else
-                    minstep=1d-15
-                end if
-                if(present(WolfeConst1)) then
-                    c1=max(1d-15,WolfeConst1)!Fail safe
-                else
-                    c1=1d-4
-                end if
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision
+                    else; tol=1d-15; end if
+                if(present(MinStepLength)) then; minstep=MinStepLength
+                    else;  minstep=1d-15; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
                 if(present(WolfeConst2)) then
-                c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                 else
                     if(present(UnconstrainedSolver)) then
-                        if(UnconstrainedSolver=='ConjugateGradient') then
-                            c2=0.45d0
-                        else
-                            c2=0.9d0
-                        end if
+                        if(UnconstrainedSolver=='ConjugateGradient') then; c2=0.45d0
+                            else; c2=0.9d0; end if
                     else
                         c2=0.9d0
                     end if
                 end if
-                if(present(Increment)) then
-                    incrmt=Increment
-                else
-                    incrmt=1.05d0
-                end if
+                if(present(Increment)) then; incrmt=Increment
+                    else; incrmt=1.05d0; end if
             !Solver specific optional argument
-                if(present(ExactStep)) then
-                    freq=ExactStep
-                else
-                    freq=20
-                end if
-                if(present(Memory)) then
-                    mem=max(1,Memory)!Fail safe
-                else
-                    mem=10
-                end if
-                if(present(Method)) then
-                    type=Method
-                else
-                    type='DY'
-				end if
+                if(present(ExactStep)) then; freq=ExactStep
+                    else; freq=20; end if
+                if(present(Memory)) then; mem=max(1,Memory)!Fail safe
+                    else; mem=10; end if
+                if(present(Method)) then; type=Method
+                    else; type='DY'; end if
 		tolsq=tol*tol!To save sqrt cost, precision is squared
         select case(solver)
             case('NewtonRaphson')
@@ -2507,10 +2413,10 @@ contains
                 Ldd=0!return 0
             end function Ldd
     end subroutine AugmentedLagrangian
-!------------------ End -------------------
+!------------------ End ------------------
 
-!--------------- Heuristic ----------------
+!--------------- Heuristic ---------------
     !Not implemented
-!------------------ End -------------------
+!------------------ End ------------------
 
 end module NonlinearOptimization

@@ -8,6 +8,7 @@ program main
     integer::i,j,k,l,dim,M,N
     integer,dimension(10)::indicesort
     real*8::difference,DoubleTemp,dbtp
+    real*8,dimension(1)::lamda
     real*8,dimension(3)::avec,bvec,cvec,mass
     real*8,dimension(3,3)::intHessian,mode
     real*8,dimension(3,9)::WilsonB
@@ -431,15 +432,20 @@ write(*,*)'!!!!!!!!!! Testing all nonlinear-optimization solvers... !!!!!!!!!!'
     write(*,*)
     write(*,*)'Testing constrained solvers...'
         write(*,*)
+        write(*,*)'Lagrangian multiplier'
+        call random_number(x); call random_number(lamda)
+        call LagrangianMultiplier(fd,fdd,constraint,constraintd,constraintdd,x,lamda,dim,1,Warning=.false.)
+		write(*,*)norm2(x)-1d0
+        write(*,*)
         write(*,*)'augmented Lagrangian based on BFGS'
         call random_number(x)
-        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.)
+        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,fdd=fdd,cdd=constraintdd)
 		write(*,*)norm2(x)-1d0
 		write(*,*)
 		write(*,*)'augmented Lagrangian based on Newton'
 		chartemp='NewtonRaphson'
         call random_number(x)
-        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,UnconstrainedSolver=chartemp)
+        call AugmentedLagrangian(f,fd,constraint,constraintd,x,dim,1,Warning=.false.,UnconstrainedSolver=chartemp,fdd=fdd,cdd=constraintdd)
 		write(*,*)norm2(x)-1d0
 		write(*,*)
 		write(*,*)'augmented Lagrangian based on LBFGS'
@@ -677,18 +683,26 @@ contains
         fdd_tr=0!return 0
     end function fdd_tr
 
-    subroutine constraint(c,x,M,N)
+    subroutine constraint(cx,x,M,N)
         integer,intent(in)::M,N
         real*8,dimension(N),intent(in)::x
-        real*8,dimension(M),intent(out)::c
-        c(1)=dot_product(x,x)-1d0
+        real*8,dimension(M),intent(out)::cx
+        cx(1)=dot_product(x,x)-1d0
     end subroutine constraint
 
-    subroutine constraintd(cd,x,M,N)
+    subroutine constraintd(cdx,x,M,N)
         integer,intent(in)::M,N
         real*8,dimension(N),intent(in)::x
-        real*8,dimension(N,M),intent(out)::cd
-        cd(:,1)=2d0*x
+        real*8,dimension(N,M),intent(out)::cdx
+        cdx(:,1)=2d0*x
     end subroutine constraintd
+
+    integer function constraintdd(cddx,x,M,N)
+        integer,intent(in)::M,N
+        real*8,dimension(N),intent(in)::x
+        real*8,dimension(N,N,M),intent(out)::cddx
+        cddx(:,:,1)=2d0
+        constraintdd=0!return 0
+    end function constraintdd
 
 end program main
