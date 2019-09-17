@@ -45,9 +45,8 @@ contains
 !Optional argument:
 !    reference: uniquely define the standard geometry by the 1 with smallest difference to reference out of 4
 !    difference: harvest || output geom - reference ||_2^2
-!    grad: 3NAtoms order vector gradient to transform to standard coordinate
-!    nadgrad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
-subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad,nadgrad)
+!    grad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
+subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad)
     !Required argument
         integer,intent(in)::NAtoms,NStates
         real*8,dimension(3*NAtoms),intent(inout)::geom
@@ -55,8 +54,7 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
     !Optional argument
         real*8,dimension(3*NAtoms),intent(in),optional::reference
         real*8,intent(out),optional::difference
-        real*8,dimension(3*NAtoms),intent(inout),optional::grad
-        real*8,dimension(3*NAtoms,NStates,NStates),intent(inout),optional::nadgrad
+        real*8,dimension(3*NAtoms,NStates,NStates),intent(inout),optional::grad
     integer::i,indicemin,istate,jstate
     real*8::SystemMass,temp
     real*8,dimension(3)::com!Short for Centre Of Mass
@@ -109,16 +107,13 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
             case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
             case(4); moi(:,2:3)=-moi(:,2:3)
         end select
-        if(present(grad).or.present(nadgrad)) UT=transpose(moi)!Update U^T
+        if(present(grad)) UT=transpose(moi)!Update U^T
     else
         forall(i=1:NAtoms); geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i)); end forall
     end if
     if(present(grad)) then
-        forall(i=1:NAtoms); grad(3*i-2:3*i)=matmul(UT,grad(3*i-2:3*i)); end forall
-    end if
-    if(present(nadgrad)) then
         forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
-            nadgrad(3*i-2:3*i,istate,jstate)=matmul(UT,nadgrad(3*i-2:3*i,istate,jstate))
+            grad(3*i-2:3*i,istate,jstate)=matmul(UT,grad(3*i-2:3*i,istate,jstate))
         end forall
     end if
 end subroutine StandardizeGeometry
@@ -136,21 +131,26 @@ end subroutine StandardizeGeometry
     !r is a 3NAtoms order vector with r[3*i-2:3*i] corresponding to the coordinate of i-th atom
     !Nomenclature:
     !    cartdim & intdim: Cartesian & internal space dimension
-    !    cartgrad & intgrad: Cartesian & internal gradient
-    !    cartnadgrad & intnadgrad: Cartesian & internal nonadiabatic gradient (cartdim & intdim x NStates x NStates 3rd-order tensor)
+    !    cartgrad & intgrad: Cartesian & internal gradient (cartdim & intdim x NStates x NStates 3rd-order tensor)
 
     !Define internal coordinate (GeometryTransformation_IntCDef), return the dimension of internal space (intdim)
-    !Input: Definition: internal coordinate definition format (Available: Columbus7)
+    !Input: Definition: internal coordinate definition format (Available: Columbus7, default)
+    !On exit, intdim harvests the number of internal coordinates
+    !For Columbus7, the subroutine will look for Columbus7 internal coordinate file intcfl
+    !    default  , the subroutine will look for file InternalCoordinateDefinition
+    !The default format is:
+    !    Two lines specify an internal coordinate
+    !    1st line is the type
+    !    2nd line consists the serial numbers of the involved atoms, separated by arbitrary blank space
+    !    Defining an internal coordinate by linear combination of different motions is not supported
+    !    See InvolvedMotion in Derived type section for available types and ordering of atoms
     subroutine DefineInternalCoordinate(Definition,intdim)
         character*32,intent(in)::Definition
         integer,intent(out)::intdim
         if(allocated(GeometryTransformation_IntCDef)) deallocate(GeometryTransformation_IntCDef)
         select case(Definition)
-            case('Columbus7')
-                call Columbus7()
-            case default
-                write(*,'(1x,A57,1x,A32)')'Program abort: unsupported internal coordinate definition',Definition
-                stop
+            case('Columbus7'); call Columbus7()
+            case default; call default()
         end select
         contains
             subroutine Columbus7()
@@ -166,32 +166,23 @@ end subroutine StandardizeGeometry
                         read(99,*)!First line is always 'TEXAS'
                         do
                             read(99,'(A24)')CharTemp24
-                            if (index(CharTemp24,'STRE')==0.and.index(CharTemp24,'BEND')==0.and.index(CharTemp24,'TORS')==0) exit
+                            if(index(CharTemp24,'STRE')==0.and.index(CharTemp24,'BEND')==0.and.index(CharTemp24,'TORS')==0) exit
                             NLines=NLines+1
                             if(scan(CharTemp24,'K')==1) intdim=intdim+1
                         end do
                         rewind 99
                     !Get whether a line is the start of a new internal coordinate, and what type of motion a line stands for
-                        allocate(KLine(intdim+1))
-                        KLine(intdim+1)=NLines+1
+                        allocate(KLine(intdim+1)); KLine(intdim+1)=NLines+1
                         allocate(MotionType(NLines))
                         j=1
                         read(99,*)!First line is always 'TEXAS'
                         do i=1,NLines
                             read(99,'(A24)')CharTemp24
-                            if(scan(CharTemp24,'K')==1) then
-                                KLine(j)=i
-                                j=j+1
-                            end if
-                            if(index(CharTemp24,'STRE')>0) then
-                                MotionType(i)='stretching'
-                            else if(index(CharTemp24,'BEND')>0) then
-                                MotionType(i)='bending'
-                            else if(index(CharTemp24,'TORS')>0) then
-                                MotionType(i)='torsion'
-                            end if
-                        end do
-                        rewind 99
+                            if(scan(CharTemp24,'K')==1) then; KLine(j)=i; j=j+1; end if
+                            if(index(CharTemp24,'STRE')>0) then; MotionType(i)='stretching'
+                                else if(index(CharTemp24,'BEND')>0) then; MotionType(i)='bending'
+                                else if(index(CharTemp24,'TORS')>0) then; MotionType(i)='torsion'; end if
+                        end do; rewind 99
                     !Finally read Columbus internal coordinate definition. Linear combinations are normalized
                         allocate(GeometryTransformation_IntCDef(intdim))
                         k=1!Counter for line
@@ -249,43 +240,55 @@ end subroutine StandardizeGeometry
                             end if
                         end do
                 close(99)
-                !Clean up
-                    deallocate(MotionType)
-                    deallocate(KLine)
+                deallocate(MotionType); deallocate(KLine)!Clean up
             end subroutine Columbus7
+            subroutine default()
+                integer::i
+                open(unit=99,file='InternalCoordinateDefinition',status='old')
+                    intdim=0!Get how many internal coordinates there are
+                    do
+                        read(99,*,iostat=i); if(i/=0) exit
+                        intdim=intdim+1
+                    end do; intdim=intdim/2; rewind 99
+                    allocate(GeometryTransformation_IntCDef(intdim))
+                    do i=1,intdim
+                        GeometryTransformation_IntCDef.NMotions=1
+                        allocate(GeometryTransformation_IntCDef(i).motion(1))
+                        read(99,*)GeometryTransformation_IntCDef(i).motion(1).type
+                        GeometryTransformation_IntCDef(i).motion(1).coeff=1d0
+                        select case(GeometryTransformation_IntCDef(i).motion(1).type)
+                            case('stretching'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
+                            case('bending'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
+                            case('torsion'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                            case default!Throw a warning
+                                write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',&
+                                                          GeometryTransformation_IntCDef(i).motion(1).type
+                                stop
+                        end select
+                        read(99,*)GeometryTransformation_IntCDef(i).motion(1).atom
+                    end do
+                close(99)
+            end subroutine default
     end subroutine DefineInternalCoordinate
 
     !========== Cartesian -> Internal ==========
         !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
         !Required: r, cartdim, q, intdim, NStates
-        !Optional: cartgrad, intgrad, cartnadgrad, intnadgrad
-        !r & cartgrad & cartnadgrad are the input Cartesian space value, q & intgrad & intnadgrad harvest corresponding internal space value
-        subroutine Cartesian2Internal(r,cartdim,q,intdim,NStates,cartgrad,intgrad,cartnadgrad,intnadgrad)
+        !Optional: cartgrad, intgrad
+        !r & cartgrad are the input Cartesian space value, q & intgrad harvest corresponding internal space value
+        subroutine Cartesian2Internal(r,cartdim,q,intdim,NStates,cartgrad,intgrad)
             !Required argument
                 integer,intent(in)::cartdim,intdim,NStates
                 real*8,dimension(cartdim),intent(in)::r
                 real*8,dimension(intdim),intent(out)::q
             !Optional argument
-                real*8,dimension(cartdim),intent(in),optional::cartgrad
-                real*8,dimension(intdim),intent(out),optional::intgrad
-                real*8,dimension(cartdim,NStates,NStates),intent(in),optional::cartnadgrad
-                real*8,dimension(intdim,NStates,NStates),intent(out),optional::intnadgrad
-            integer::i,j
-            real*8,dimension(intdim,cartdim)::B
+                real*8,dimension(cartdim,NStates,NStates),intent(in),optional::cartgrad
+                real*8,dimension(intdim,NStates,NStates),intent(out),optional::intgrad
+            integer::i,j; real*8,dimension(intdim,cartdim)::B
             call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
             if(present(cartgrad).and.present(intgrad)) then
                 call dGeneralizedInverseTranspose(B,intdim,cartdim)
-                intgrad=matmul(B,cartgrad)
-                if(present(cartnadgrad).and.present(intnadgrad)) then
-                    forall(i=1:NStates,j=1:NStates)
-                        intnadgrad(:,i,j)=matmul(B,cartnadgrad(:,i,j))
-                    end forall
-                end if
-            else if(present(cartnadgrad).and.present(intnadgrad)) then
-                call dGeneralizedInverseTranspose(B,intdim,cartdim)
-                forall(i=1:NStates,j=1:NStates)
-                    intnadgrad(:,i,j)=matmul(B,cartnadgrad(:,i,j))
-                end forall
+                forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
             end if
         end subroutine Cartesian2Internal
         
@@ -511,9 +514,9 @@ end subroutine StandardizeGeometry
 
         !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
         !Required: q, intdim, r, cartdim, NStates
-        !Optional: mass & r0 (same as above), intgrad, cartgrad, intnadgrad, cartnadgrad
-        !q & intgrad & intnadgrad are the input internal space value, r & cartgrad & cartnadgrad harvest corresponding Cartesian space value
-        subroutine Internal2Cartesian(q,intdim,r,cartdim,NStates,mass,r0,intgrad,cartgrad,intnadgrad,cartnadgrad)
+        !Optional: mass & r0 (same as above), cartgrad, intgrad
+        !q & intgrad are the input internal space value, r & cartgrad harvest corresponding Cartesian space value
+        subroutine Internal2Cartesian(q,intdim,r,cartdim,NStates,mass,r0,intgrad,cartgrad)
             !Required argument
                 integer,intent(in)::intdim,cartdim,NStates
                 real*8,dimension(intdim),intent(in)::q
@@ -521,32 +524,19 @@ end subroutine StandardizeGeometry
             !Optional argument
                 real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
-                real*8,dimension(intdim),intent(in),optional::intgrad
-                real*8,dimension(cartdim),intent(out),optional::cartgrad
-                real*8,dimension(intdim,NStates,NStates),intent(in),optional::intnadgrad
-                real*8,dimension(cartdim,NStates,NStates),intent(out),optional::cartnadgrad
-            integer::i,j
-            real*8,dimension(intdim)::qtemp
-            real*8,dimension(intdim,cartdim)::B
+                real*8,dimension(intdim,NStates,NStates),intent(in),optional::intgrad
+                real*8,dimension(cartdim,NStates,NStates),intent(out),optional::cartgrad
+            integer::i,j; real*8,dimension(intdim)::qtemp; real*8,dimension(intdim,cartdim)::B
             if(present(mass)) then
-                if(present(r0)) then
-                    r=CartesianCoordinater(q,cartdim,intdim,mass=mass,r0=r0)
-                else
-                    r=CartesianCoordinater(q,cartdim,intdim,mass=mass)
-                end if
+                if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,mass=mass,r0=r0)
+                    else; r=CartesianCoordinater(q,cartdim,intdim,mass=mass); end if
             else
-                if(present(r0)) then
-                    r=CartesianCoordinater(q,cartdim,intdim,r0=r0)
-                else
-                    r=CartesianCoordinater(q,cartdim,intdim)
-                end if
+                if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,r0=r0)
+                    else; r=CartesianCoordinater(q,cartdim,intdim); end if
             end if
             call WilsonBMatrixAndInternalCoordinateq(B,qtemp,r,intdim,cartdim)
-            if(present(intgrad).and.present(cartgrad)) cartgrad=matmul(transpose(B),intgrad)
-            if(present(intnadgrad).and.present(cartnadgrad)) then
-                forall(i=1:NStates,j=1:NStates)
-                    cartnadgrad(:,i,j)=matmul(transpose(B),intnadgrad(:,i,j))
-                end forall
+            if(present(intgrad).and.present(cartgrad)) then
+                forall(i=1:NStates,j=1:NStates); cartgrad(:,i,j)=matmul(transpose(B),intgrad(:,i,j)); end forall
             end if
         end subroutine Internal2Cartesian
     !=================== End ===================
