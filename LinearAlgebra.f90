@@ -117,6 +117,15 @@ contains
         end do
     end function Trace
 
+    !N order matrix A, return the main diagonal vector of A
+    function diag(A,N)
+        integer,intent(in)::N
+        real*8,dimension(N,N),intent(in)::A
+        real*8,dimension(N)::diag
+        integer::i
+        forall(i=1:N); diag(i)=A(i,i); end forall
+    end function diag
+
     !M x K matrix A, K x N matrix B, return A . B
     function matmul_dgemm(A,B,M,K,N)
         integer,intent(in)::M,K,N
