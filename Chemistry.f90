@@ -117,7 +117,7 @@ subroutine Avogadro_Vibration(NAtoms,symbol,structure,vibdim,freq,mode,FileName)
     if(present(FileName)) then; open(unit=99,file=FileName,status='replace')
     else; open(unit=99,file='avogadro.log',status='replace'); end if
         write(99,'(A29)')'---------- Comment ----------'
-        write(99,'(A78)')'    Drag this file into Avogadro to visualize the molecule and the normal mode'
+        write(99,'(A76)')'    Open this file in Avogadro to visualize the molecule and the normal mode'
         write(99,'(A65)')'    Only the standard orientation and normal modes are meaningful'
         write(99,'(A83)')'    Other lines are meant to cheat Avogadro to consider this file as a Gaussian log'
         write(99,'(A29)')'------------ End ------------'
