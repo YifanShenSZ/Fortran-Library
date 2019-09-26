@@ -100,7 +100,7 @@ character*2 function Number2Symbol(element)!Vice versa
     end select
 end function Number2Symbol
 
-!Write molecular structure and vibration to a Avogadro format file
+!Write molecular structure and vibration to an Avogadro format file
 !Required:         NAtoms order vector symbol         = element symbol of each atom
 !                 3 x NAtoms matrix structure         = Cartesian coordinate of each atom in Angstrom
 !                   vibdim order vector freq          = vibrational angular frequencies in cm^-1
