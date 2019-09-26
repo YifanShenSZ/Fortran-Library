@@ -544,7 +544,7 @@ end subroutine StandardizeGeometry
 
 !--------------- Normal mode ----------------
 	!Normal mode is the mass weighted eigenvector of Hessian:
-	!    In cartesian coordinate, it is the usual eigenvector
+	!    In Cartesian coordinate, it is the usual eigenvector
 	!    In  internal coordinate, it is the generalized eigenvector of G under Hessian metric
 	!G is built from mass and Wilson B matrix, for details see Wilson GF method in: (note that Wilson calls Hessian by F)
 	!E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
@@ -591,7 +591,7 @@ end subroutine StandardizeGeometry
 
     !Use Wilson GF method to obtain normal mode and vibrational frequency from Hessian in internal coordinate
     !Input:  intdim order real symmetric matrix H = Hessian in internal coordinate
-    !             intdim x 3*NAtoms matrix B      = Wilson B matrix
+    !              intdim x 3NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
     !        mode = normal modes contained in each row in input frame (Wilson L^-1 matrix)

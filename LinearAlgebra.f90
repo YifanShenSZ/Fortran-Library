@@ -58,6 +58,16 @@ contains
         vector_direct_sum(1:M)=a
         vector_direct_sum(M+1:M+N)=b
     end function vector_direct_sum
+
+    !N dimensional vector a, return diag(a)
+    function diag(a,N)
+        integer,intent(in)::N
+        real*8,dimension(N),intent(in)::a
+        real*8,dimension(N,N)::diag
+        integer::i
+        diag=0d0
+        forall(i=1:N); diag(i,i)=a(i); end forall
+    end function diag
     
     !Quaternion multiplication a * b, where a quaternion is represented by a 4 dimensional vector
     function quamul(a,b)
@@ -118,13 +128,13 @@ contains
     end function Trace
 
     !N order matrix A, return the main diagonal vector of A
-    function diag(A,N)
+    function DiagVector(A,N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A
-        real*8,dimension(N)::diag
+        real*8,dimension(N)::DiagVector
         integer::i
-        forall(i=1:N); diag(i)=A(i,i); end forall
-    end function diag
+        forall(i=1:N); DiagVector(i)=A(i,i); end forall
+    end function DiagVector
 
     !M x K matrix A, K x N matrix B, return A . B
     function matmul_dgemm(A,B,M,K,N)

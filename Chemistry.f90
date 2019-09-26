@@ -100,6 +100,99 @@ character*2 function Number2Symbol(element)!Vice versa
     end select
 end function Number2Symbol
 
+!Write molecular structure and vibration to a Avogadro format file
+!Required:         NAtoms order vector symbol         = element symbol of each atom
+!                 3 x NAtoms matrix structure         = Cartesian coordinate of each atom in Angstrom
+!                   vibdim order vector freq          = vibrational angular frequencies in cm^-1
+!          3 x NAtoms x vibdim 3-rd order tensor mode = Cartesian normal modes
+!Optional: FileName: (default = 'avogadro.log') name of the output file
+subroutine Avogadro_Vibration(NAtoms,symbol,structure,vibdim,freq,mode,FileName)
+    integer,intent(in)::NAtoms,vibdim
+    character*2,dimension(NAtoms),intent(in)::symbol
+    real*8,dimension(3,NAtoms),intent(in)::structure
+    real*8,dimension(vibdim),intent(in)::freq
+    real*8,dimension(3,NAtoms,vibdim),intent(in)::mode
+    character*32,optional,intent(in)::FileName
+    integer::i; integer,dimension(NAtoms)::number
+    if(present(FileName)) then; open(unit=99,file=FileName,status='replace')
+    else; open(unit=99,file='avogadro.log',status='replace'); end if
+        write(99,'(A29)')'---------- Comment ----------'
+        write(99,'(A78)')'    Drag this file into Avogadro to visualize the molecule and the normal mode'
+        write(99,'(A65)')'    Only the standard orientation and normal modes are meaningful'
+        write(99,'(A83)')'    Other lines are meant to cheat Avogadro to consider this file as a Gaussian log'
+        write(99,'(A29)')'------------ End ------------'
+        write(99,*)
+        write(99,'(A36)')'Gaussian, Inc.  All Rights Reserved.'
+        write(99,'(A16)')' # freq hf/3-21g'
+        write(99,'(A29)')' Charge =  0 Multiplicity = 1'
+        write(99,*)
+        write(99,'(A71)')'                         Standard orientation:                         '
+        write(99,'(A70)')' ---------------------------------------------------------------------'
+        write(99,'(A66)')' Center     Atomic      Atomic             Coordinates (Angstroms)'
+        write(99,'(A67)')' Number     Number       Type             X           Y           Z'
+        write(99,'(A70)')' ---------------------------------------------------------------------'
+        do i=1,NAtoms
+            number(i)=Symbol2Number(symbol(i))
+            write(99,'(I7,I11,I12,4x,3F12.6)')i,number(i),0,structure(:,i)
+        end do
+        write(99,'(A70)')' ---------------------------------------------------------------------'
+        do i=0,vibdim/3-1; call Print3Columns(3*i+1); end do
+        select case(mod(vibdim,3))
+        case(1); call PrintColumn(vibdim)
+        case(2); call Print2Columns(vibdim-1)
+        end select
+    close(99)
+    contains
+    subroutine PrintColumn(start)
+        integer,intent(in)::start
+        integer::i
+        write(99,'(I23)')start
+        write(99,'(A15,F12.4)')' Frequencies --',freq(start)
+        write(99,'(A15,F12.4)')' Red. masses --',0d0
+        write(99,'(A15,F12.4)')' Frc consts  --',0d0
+        write(99,'(A15,F12.4)')' IR Inten    --',0d0
+        write(99,'(A15,F12.4)')' Raman Activ --',0d0
+        write(99,'(A15,F12.4)')' Depolar (P) --',0d0
+        write(99,'(A15,F12.4)')' Depolar (U) --',0d0
+        write(99,'(A31)')'  Atom  AN      X      Y      Z'
+        do i=1,NAtoms
+            write(99,'(I6,I4,2x,3F7.2)')i,number(i),mode(:,i,start)
+        end do
+    end subroutine PrintColumn
+    subroutine Print2Columns(start)
+        integer,intent(in)::start
+        integer::i
+        write(99,'(2I23)')start,start+1
+        write(99,'(A15,F12.4,F23.4)')' Frequencies --',freq(start),freq(start+1)
+        write(99,'(A15,F12.4,F23.4)')' Red. masses --',0d0,0d0
+        write(99,'(A15,F12.4,F23.4)')' Frc consts  --',0d0,0d0
+        write(99,'(A15,F12.4,F23.4)')' IR Inten    --',0d0,0d0
+        write(99,'(A15,F12.4,F23.4)')' Raman Activ --',0d0,0d0
+        write(99,'(A15,F12.4,F23.4)')' Depolar (P) --',0d0,0d0
+        write(99,'(A15,F12.4,F23.4)')' Depolar (U) --',0d0,0d0
+        write(99,'(A54)')'  Atom  AN      X      Y      Z        X      Y      Z'
+        do i=1,NAtoms
+            write(99,'(I6,I4,2x,3F7.2,2x,3F7.2)')i,number(i),mode(:,i,start),mode(:,i,start+1)
+        end do
+    end subroutine Print2Columns
+    subroutine Print3Columns(start)
+        integer,intent(in)::start
+        integer::i
+        write(99,'(3I23)')start,start+1,start+2
+        write(99,'(A15,F12.4,2F23.4)')' Frequencies --',freq(start),freq(start+1),freq(start+2)
+        write(99,'(A15,F12.4,2F23.4)')' Red. masses --',0d0,0d0,0d0
+        write(99,'(A15,F12.4,2F23.4)')' Frc consts  --',0d0,0d0,0d0
+        write(99,'(A15,F12.4,2F23.4)')' IR Inten    --',0d0,0d0,0d0
+        write(99,'(A15,F12.4,2F23.4)')' Raman Activ --',0d0,0d0,0d0
+        write(99,'(A15,F12.4,2F23.4)')' Depolar (P) --',0d0,0d0,0d0
+        write(99,'(A15,F12.4,2F23.4)')' Depolar (U) --',0d0,0d0,0d0
+        write(99,'(A77)')'  Atom  AN      X      Y      Z        X      Y      Z        X      Y      Z'
+        do i=1,NAtoms
+            write(99,'(I6,I4,2x,3F7.2,2x,3F7.2,2x,3F7.2)')i,number(i),mode(:,i,start),mode(:,i,start+1),mode(:,i,start+2)
+        end do
+    end subroutine Print3Columns
+end subroutine Avogadro_Vibration
+
 !Input:  N dimensional ascendingly sorted array energy
 !Output: degenerate harvests whether exists almost degenerate energy levels (energy difference < threshold)
 subroutine CheckDegeneracy(degenerate,threshold,energy,N)
@@ -115,6 +208,124 @@ subroutine CheckDegeneracy(degenerate,threshold,energy,N)
         end if  
     end do
 end subroutine CheckDegeneracy
+
+!At conical intersection there is a gauge degree of freedom, conical intersection adapted coordinate is
+!gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
+!Note this gauge does not determine adiabatic states uniquely: 8 possibilities in total
+!    The transformation rotation angle can differ by arbitrary integer times of pi / 4,
+!        so there are 4 possibilities (differ by pi is only a total phase change)
+!    The state ordering could be exchanged, introducing 2 times of possibilities
+!This can also be viewed as: we only know g & h will be along 2 lines, so there are 8 different assignments
+!Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
+!Required: grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
+!          h: interstate coupling between the intersected states
+!          dim: integer specifying the dimension of grad1 & grad2 & h
+!Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
+!          gref & href: reference g & h to uniquely determine gh orthogonalization as the 1 with smallest difference to reference out of 8
+!On exit grad1, grad2, h (and optionally phi1, phi2) will be gauged
+subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
+    !Required argument:
+        integer,intent(in)::dim
+        real*8,dimension(dim),intent(inout)::grad1,grad2,h
+    !Optional argument:
+        real*8,dimension(:),intent(inout),optional::phi1,phi2
+		real*8,dimension(dim),intent(in),optional::gref,href
+    logical::exchange,exchangemin; integer::i
+    real*8::theta,sinsqtheta,cossqtheta,sin2theta,thetamin,differencemin,difference,differencex
+    real*8,dimension(dim)::g,dh11,dh21,dh22,dh11min,dh21min,dh22min,gtemp,vectemp
+    real*8,allocatable,dimension(:)::phitemp
+    g=(grad2-grad1)/2d0; sinsqtheta=dot_product(g,h)
+    if(present(gref).and.present(href)) then
+        if(dAbs(sinsqtheta)<1d-15) then
+            thetamin=0d0!Try principle value
+            dh21min=h
+            vectemp=g-gref; difference=dot_product(vectemp,vectemp)
+            vectemp=g+gref; differencex=dot_product(vectemp,vectemp)
+            if(differencex<difference) then
+                exchangemin=.true.; vectemp=h-href; differencemin=differencex+dot_product(vectemp,vectemp)
+                dh11min=grad2; dh22min=grad1
+            else
+                exchangemin=.false.; vectemp=h-href; differencemin=difference+dot_product(vectemp,vectemp)
+                dh11min=grad1; dh22min=grad2
+            end if
+        else
+            theta=dot_product(g,g)-dot_product(h,h)
+            if(dAbs(theta)<1d-15) then; thetamin=pid8
+            else; thetamin=atan(2d0*sinsqtheta/theta)/4d0; end if
+            sinsqtheta=sin(thetamin); cossqtheta=cos(thetamin)!Try principle value
+            sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
+            dh11min=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
+            dh22min=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
+            dh21min=(cossqtheta-sinsqtheta)*h-sin2theta*g
+            gtemp=(dh22min-dh11min)/2d0
+            vectemp=gtemp-gref; difference=dot_product(vectemp,vectemp)
+            vectemp=gtemp+gref; differencex=dot_product(vectemp,vectemp)
+            if(differencex<difference) then
+                exchangemin=.true.; vectemp=dh21min-href; differencemin=differencex+dot_product(vectemp,vectemp)
+                vectemp=dh11min; dh11min=dh22min; dh22min=vectemp
+            else
+                exchangemin=.false.; vectemp=dh21min-href; differencemin=difference+dot_product(vectemp,vectemp)
+            end if
+        end if
+        theta=thetamin; do i=1,3!Try 3 remaining solutions
+            theta=theta+pid4
+            sinsqtheta=sin(theta); cossqtheta=cos(theta)
+            sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
+            dh11=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
+            dh22=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
+            dh21=(cossqtheta-sinsqtheta)*h-sin2theta*g
+            gtemp=(dh22-dh11)/2d0
+            vectemp=gtemp-gref; difference=dot_product(vectemp,vectemp)
+            vectemp=gtemp+gref; differencex=dot_product(vectemp,vectemp)
+            if(differencex<difference) then; exchange=.true.; vectemp=dh21-href; difference=differencex+dot_product(vectemp,vectemp)
+            else; exchange=.false.; vectemp=dh21-href; difference=difference+dot_product(vectemp,vectemp); end if
+            if(difference<differencemin) then
+                differencemin=difference; exchangemin=exchange; thetamin=theta; dh21min=dh21
+                if(exchange) then; dh11min=dh22; dh22min=dh11
+                else; dh11min=dh11; dh22min=dh22; end if
+            end if
+        end do
+        grad1=dh11min; grad2=dh22min; h=dh21min
+        if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
+            if(size(phi1)==size(phi2)) then
+                sinsqtheta=sin(thetamin); cossqtheta=cos(thetamin)
+                allocate(phitemp(size(phi1))); phitemp=phi1
+                if(exchangemin) then
+                    phi1=sinsqtheta*phitemp+cossqtheta*phi2
+                    phi2=cossqtheta*phitemp-sinsqtheta*phi2
+                else
+                    phi1=cossqtheta*phitemp-sinsqtheta*phi2
+                    phi2=sinsqtheta*phitemp+cossqtheta*phi2
+                end if
+                deallocate(phitemp)
+            else
+                write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
+            end if
+        end if
+    else
+        if(dAbs(sinsqtheta)<1d-15) return
+        theta=dot_product(g,g)-dot_product(h,h)
+        if(dAbs(theta)<1d-15) then; theta=pid8
+        else; theta=atan(2d0*sinsqtheta/theta)/4d0; end if
+        sinsqtheta=dSin(theta); cossqtheta=dCos(theta)
+        if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
+            if(size(phi1)==size(phi2)) then
+                allocate(phitemp(size(phi1)))
+                phitemp=phi1
+                phi1=cossqtheta*phitemp-sinsqtheta*phi2
+                phi2=sinsqtheta*phitemp+cossqtheta*phi2
+                deallocate(phitemp)
+            else
+                write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
+            end if
+        end if
+        sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
+        dh11=grad1
+        grad1=cossqtheta*dh11+sinsqtheta*grad2-sin2theta*h
+        grad2=sinsqtheta*dh11+cossqtheta*grad2+sin2theta*h
+        h=(cossqtheta-sinsqtheta)*h-sin2theta*g
+    end if
+end subroutine ghOrthogonalization
 
 !--------------------- Phase fixing ---------------------
     !Eigenvector has indeterminate phase, consequently any inner product involving two
@@ -395,123 +606,5 @@ function deigvec_ByKnowneigval_dA(eigval,dA,dim,N)
         deigvec_ByKnowneigval_dA(:,i,j)=dA(:,i,j)/(eigval(j)-eigval(i))
     end forall
 end function deigvec_ByKnowneigval_dA
-
-!At conical intersection there is a gauge degree of freedom, conical intersection adapted coordinate is
-!gauge g . h = 0, where g & h are force difference & interstate coupling between intersected states
-!Note this gauge does not determine adiabatic states uniquely: 8 possibilities in total
-!    The transformation rotation angle can differ by arbitrary integer times of pi / 4,
-!        so there are 4 possibilities (differ by pi is only a total phase change)
-!    The state ordering could be exchanged, introducing 2 times of possibilities
-!This can also be viewed as: we only know g & h will be along 2 lines, so there are 8 different assignments
-!Reference: D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
-!Required: grad1 & grad2: energy gradient on 1st & 2nd intersected potential energy surfaces
-!          h: interstate coupling between the intersected states
-!          dim: integer specifying the dimension of grad1 & grad2 & h
-!Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
-!          gref & href: reference g & h to uniquely determine gh orthogonalization as the 1 with smallest difference to reference out of 8
-!On exit grad1, grad2, h (and optionally phi1, phi2) will be gauged
-subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
-    !Required argument:
-        integer,intent(in)::dim
-        real*8,dimension(dim),intent(inout)::grad1,grad2,h
-    !Optional argument:
-        real*8,dimension(:),intent(inout),optional::phi1,phi2
-		real*8,dimension(dim),intent(in),optional::gref,href
-    logical::exchange,exchangemin; integer::i
-    real*8::theta,sinsqtheta,cossqtheta,sin2theta,thetamin,differencemin,difference,differencex
-    real*8,dimension(dim)::g,dh11,dh21,dh22,dh11min,dh21min,dh22min,gtemp,vectemp
-    real*8,allocatable,dimension(:)::phitemp
-    g=(grad2-grad1)/2d0; sinsqtheta=dot_product(g,h)
-    if(present(gref).and.present(href)) then
-        if(dAbs(sinsqtheta)<1d-15) then
-            thetamin=0d0!Try principle value
-            dh21min=h
-            vectemp=g-gref; difference=dot_product(vectemp,vectemp)
-            vectemp=g+gref; differencex=dot_product(vectemp,vectemp)
-            if(differencex<difference) then
-                exchangemin=.true.; vectemp=h-href; differencemin=differencex+dot_product(vectemp,vectemp)
-                dh11min=grad2; dh22min=grad1
-            else
-                exchangemin=.false.; vectemp=h-href; differencemin=difference+dot_product(vectemp,vectemp)
-                dh11min=grad1; dh22min=grad2
-            end if
-        else
-            theta=dot_product(g,g)-dot_product(h,h)
-            if(dAbs(theta)<1d-15) then; thetamin=pid8
-            else; thetamin=atan(2d0*sinsqtheta/theta)/4d0; end if
-            sinsqtheta=sin(thetamin); cossqtheta=cos(thetamin)!Try principle value
-            sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
-            dh11min=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
-            dh22min=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
-            dh21min=(cossqtheta-sinsqtheta)*h-sin2theta*g
-            gtemp=(dh22min-dh11min)/2d0
-            vectemp=gtemp-gref; difference=dot_product(vectemp,vectemp)
-            vectemp=gtemp+gref; differencex=dot_product(vectemp,vectemp)
-            if(differencex<difference) then
-                exchangemin=.true.; vectemp=dh21min-href; differencemin=differencex+dot_product(vectemp,vectemp)
-                vectemp=dh11min; dh11min=dh22min; dh22min=vectemp
-            else
-                exchangemin=.false.; vectemp=dh21min-href; differencemin=difference+dot_product(vectemp,vectemp)
-            end if
-        end if
-        theta=thetamin; do i=1,3!Try 3 remaining solutions
-            theta=theta+pid4
-            sinsqtheta=sin(theta); cossqtheta=cos(theta)
-            sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
-            dh11=cossqtheta*grad1+sinsqtheta*grad2-sin2theta*h
-            dh22=sinsqtheta*grad1+cossqtheta*grad2+sin2theta*h
-            dh21=(cossqtheta-sinsqtheta)*h-sin2theta*g
-            gtemp=(dh22-dh11)/2d0
-            vectemp=gtemp-gref; difference=dot_product(vectemp,vectemp)
-            vectemp=gtemp+gref; differencex=dot_product(vectemp,vectemp)
-            if(differencex<difference) then; exchange=.true.; vectemp=dh21-href; difference=differencex+dot_product(vectemp,vectemp)
-            else; exchange=.false.; vectemp=dh21-href; difference=difference+dot_product(vectemp,vectemp); end if
-            if(difference<differencemin) then
-                differencemin=difference; exchangemin=exchange; thetamin=theta; dh21min=dh21
-                if(exchange) then; dh11min=dh22; dh22min=dh11
-                else; dh11min=dh11; dh22min=dh22; end if
-            end if
-        end do
-        grad1=dh11min; grad2=dh22min; h=dh21min
-        if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
-            if(size(phi1)==size(phi2)) then
-                sinsqtheta=sin(thetamin); cossqtheta=cos(thetamin)
-                allocate(phitemp(size(phi1))); phitemp=phi1
-                if(exchangemin) then
-                    phi1=sinsqtheta*phitemp+cossqtheta*phi2
-                    phi2=cossqtheta*phitemp-sinsqtheta*phi2
-                else
-                    phi1=cossqtheta*phitemp-sinsqtheta*phi2
-                    phi2=sinsqtheta*phitemp+cossqtheta*phi2
-                end if
-                deallocate(phitemp)
-            else
-                write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
-            end if
-        end if
-    else
-        if(dAbs(sinsqtheta)<1d-15) return
-        theta=dot_product(g,g)-dot_product(h,h)
-        if(dAbs(theta)<1d-15) then; theta=pid8
-        else; theta=atan(2d0*sinsqtheta/theta)/4d0; end if
-        sinsqtheta=dSin(theta); cossqtheta=dCos(theta)
-        if(present(phi1).and.present(phi2)) then!Also gauge wavefunctions
-            if(size(phi1)==size(phi2)) then
-                allocate(phitemp(size(phi1)))
-                phitemp=phi1
-                phi1=cossqtheta*phitemp-sinsqtheta*phi2
-                phi2=sinsqtheta*phitemp+cossqtheta*phi2
-                deallocate(phitemp)
-            else
-                write(*,'(1x,A89)')'gh orthogonolization warning: inconsistent size of wavefunctions, they will not be gauged'
-            end if
-        end if
-        sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
-        dh11=grad1
-        grad1=cossqtheta*dh11+sinsqtheta*grad2-sin2theta*h
-        grad2=sinsqtheta*dh11+cossqtheta*grad2+sin2theta*h
-        h=(cossqtheta-sinsqtheta)*h-sin2theta*g
-    end if
-end subroutine ghOrthogonalization
 
 end module Chemistry
