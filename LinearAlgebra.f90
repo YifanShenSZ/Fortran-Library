@@ -58,16 +58,6 @@ contains
         vector_direct_sum(1:M)=a
         vector_direct_sum(M+1:M+N)=b
     end function vector_direct_sum
-
-    !N dimensional vector a, return diag(a)
-    function diag(a,N)
-        integer,intent(in)::N
-        real*8,dimension(N),intent(in)::a
-        real*8,dimension(N,N)::diag
-        integer::i
-        diag=0d0
-        forall(i=1:N); diag(i,i)=a(i); end forall
-    end function diag
     
     !Quaternion multiplication a * b, where a quaternion is represented by a 4 dimensional vector
     function quamul(a,b)

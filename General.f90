@@ -46,22 +46,19 @@ subroutine dScientificNotation(x,i)! x_input = x_output * 10^i
 end subroutine dScientificNotation
 
 !---------- Tensor object ----------
-    !Return a N dimensional array filled with 1d0
+    !Return an N dimensional array filled with 1d0
     function ones(N)
         integer,intent(in)::N
         real*8,dimension(N)::ones
         ones=1d0
     end function ones
     
-    !Return a N order unit matrix
+    !Return an N order unit matrix
     function UnitMatrix(N)
         integer,intent(in)::N
         real*8,dimension(N,N)::UnitMatrix
         integer::i
-        UnitMatrix=0d0
-        forall(i=1:N)
-            UnitMatrix(i,i)=1d0
-        end forall
+        UnitMatrix=0d0; forall(i=1:N); UnitMatrix(i,i)=1d0; end forall
     end function UnitMatrix
     
     !Input:  N dimensional vector x
@@ -71,10 +68,7 @@ end subroutine dScientificNotation
         real*8,dimension(N),intent(in)::x
         real*8,dimension(N,N)::diag
         integer::i
-        diag=0d0
-        forall(i=1:N)
-            diag(i,i)=x(i)
-        end forall
+        diag=0d0; forall(i=1:N); diag(i,i)=x(i); end forall
     end function diag
 !--------------- End ---------------
 
