@@ -654,7 +654,7 @@ end subroutine StandardizeGeometry
         if(present(step)) then; dQ=diag(step*freq,intdim); else; dQ=diag(1d-3*freq,intdim); end if
         call dGeneralizedInverseTranspose(B,intdim,cartdim)
         cartmode=matmul(transpose(B),matmul(L,dQ))
-        forall(i=1:cartdim); cartmode(:,i)=cartmode(:,i)/norm2(cartmode(:,i)); end forall
+        forall(i=1:intdim); cartmode(:,i)=cartmode(:,i)/norm2(cartmode(:,i)); end forall
     end subroutine InternalMode2CartesianMode
 !------------------- End --------------------
 
