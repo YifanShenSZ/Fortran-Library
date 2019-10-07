@@ -627,11 +627,8 @@ end subroutine StandardizeGeometry
                 L(:,i)=L(:,i)*dSqrt(freq(i)/dot_product(L(:,i),matmul(Hsave,L(:,i))))
             end forall
             do i=1,intdim!freq^2 -> freq
-                if(freq(i)<0d0) then
-                    freq(i)=-dSqrt(-freq(i))
-                else
-                    freq(i)=dSqrt(freq(i))
-                end if
+                if(freq(i)<0d0) then; freq(i)=-dSqrt(-freq(i))
+                else; freq(i)=dSqrt(freq(i)); end if
             end do
             forall(i=1:intdim); indice(i)=i; end forall!Sort freq ascendingly, then sort normal modes accordingly
             call dQuickSort(freq,1,intdim,indice,intdim)
@@ -641,19 +638,20 @@ end subroutine StandardizeGeometry
     end subroutine WilsonGFMethod
     !Convert internal coordinate normal mode to Cartesian coordinate normal mode
     !Optional: step: (default = 1d-3) dQ = step * freq
-    !B will be overwritten
+    !L and B will be overwritten
     subroutine InternalMode2CartesianMode(freq,L,intdim,B,cartmode,cartdim,step)
         !Take a small normal mode displacement dQ, then solve L . dQ = dq = B . dr and renormalize dr
         integer,intent(in)::intdim,cartdim
         real*8,dimension(intdim),intent(in)::freq
-        real*8,dimension(intdim,intdim),intent(in)::L
+        real*8,dimension(intdim,intdim),intent(inout)::L
         real*8,dimension(intdim,cartdim),intent(inout)::B
         real*8,dimension(cartdim,intdim),intent(out)::cartmode
         real*8,optional,intent(in)::step
-        integer::i; real*8,dimension(intdim,intdim)::dQ
-        if(present(step)) then; dQ=diag(step*freq,intdim); else; dQ=diag(1d-3*freq,intdim); end if
+        integer::i; real*8::StepLength
+        if(present(step)) then; StepLength=step; else; StepLength=1d-3; end if
+        forall(i=1:intdim); L(:,i)=L(:,i)*StepLength*freq(i); end forall!L <- L . dQ
         call dGeneralizedInverseTranspose(B,intdim,cartdim)
-        cartmode=matmul(transpose(B),matmul(L,dQ))
+        cartmode=matmul(transpose(B),L)
         forall(i=1:intdim); cartmode(:,i)=cartmode(:,i)/norm2(cartmode(:,i)); end forall
     end subroutine InternalMode2CartesianMode
 !------------------- End --------------------
