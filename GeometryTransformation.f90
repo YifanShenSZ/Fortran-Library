@@ -597,7 +597,7 @@ end subroutine StandardizeGeometry
     !        Linv = normal modes contained in each row in input frame (Wilson L^-1 matrix)
     !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
     !H will be overwritten
-    subroutine WilsonGFMethod(freq,Linv,L,H,intdim,B,mass,NAtoms)
+    subroutine WilsonGFMethod(freq,L,Linv,H,intdim,B,mass,NAtoms)
         !The solving procedure is:
         !    1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
         !       LAPACK will normalized l by l(:,i) . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
@@ -606,7 +606,7 @@ end subroutine StandardizeGeometry
         !       else resolve (G . H) . l = l . w^2 by traditional eigenvalue then convert w^2 to w and l to L   
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
-        real*8,dimension(intdim,intdim),intent(out)::Linv,L
+        real*8,dimension(intdim,intdim),intent(out)::L,Linv
         real*8,dimension(intdim,intdim),intent(inout)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
@@ -648,9 +648,9 @@ end subroutine StandardizeGeometry
         real*8,dimension(intdim),intent(in)::freq
         real*8,dimension(intdim,intdim),intent(in)::L
         real*8,dimension(intdim,cartdim),intent(inout)::B
-        real*8,dimension(cartdim,cartdim),intent(out)::cartmode
+        real*8,dimension(cartdim,intdim),intent(out)::cartmode
         real*8,optional,intent(in)::step
-        integer::i; real*8,dimension(intdim,cartdim)::dQ
+        integer::i; real*8,dimension(intdim,intdim)::dQ
         if(present(step)) then; dQ=diag(step*freq,intdim); else; dQ=diag(1d-3*freq,intdim); end if
         call dGeneralizedInverseTranspose(B,intdim,cartdim)
         cartmode=matmul(transpose(B),matmul(L,dQ))
