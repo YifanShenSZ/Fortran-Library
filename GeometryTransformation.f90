@@ -125,7 +125,7 @@ end subroutine StandardizeGeometry
     !It is OK to define more than 3NAtoms-6 (or 3NAtoms-5 for linear molecule) internal coordinates,
     !    but only 3NAtoms-6 (or 3NAtoms-5 for linear molecule) partial derivatives are independent
     !!Although the transformation from Cartesian coordinate to internal coordinate is not necessarily linear,
-    !    for infinitesimal displacement it is linear, corresponding to a matrix form: dq = B dr
+    !    for infinitesimal displacement it is linear, corresponding to a matrix form: dq = B . dr
     !    where dq is internal coordinate differentiation, dr is Cartesian coordinate differentiation,
     !    B is Jacobian(q,r) (historically called Wilson B matrix)
     !r is a 3NAtoms order vector with r[3*i-2:3*i] corresponding to the coordinate of i-th atom
@@ -594,10 +594,10 @@ end subroutine StandardizeGeometry
     !              intdim x 3NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
-    !        mode = normal modes contained in each row in input frame (Wilson L^-1 matrix)
+    !        Linv = normal modes contained in each row in input frame (Wilson L^-1 matrix)
     !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
     !H will be overwritten
-    subroutine WilsonGFMethod(freq,mode,L,H,intdim,B,mass,NAtoms)
+    subroutine WilsonGFMethod(freq,Linv,L,H,intdim,B,mass,NAtoms)
         !The solving procedure is:
         !    1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
         !       LAPACK will normalized l by l(:,i) . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
@@ -606,7 +606,7 @@ end subroutine StandardizeGeometry
         !       else resolve (G . H) . l = l . w^2 by traditional eigenvalue then convert w^2 to w and l to L   
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
-        real*8,dimension(intdim,intdim),intent(out)::mode,L
+        real*8,dimension(intdim,intdim),intent(out)::Linv,L
         real*8,dimension(intdim,intdim),intent(inout)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
@@ -616,10 +616,10 @@ end subroutine StandardizeGeometry
         forall(i=1:NAtoms); Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i); end forall
         L=matmul(Btemp,transpose(B)); call My_dsygv(2,'V',L,H,freq,intdim,i)
         if(i==0) then!freq^2 and raw normal modes are normally obtained
-            mode=matmul(transpose(L),Hsave)
+            Linv=matmul(transpose(L),Hsave)
             forall(i=1:intdim)
                 freq(i)=dSqrt(freq(i))
-                L(:,i)=L(:,i)*freq(i); mode(i,:)=mode(i,:)/freq(i)
+                L(:,i)=L(:,i)*freq(i); Linv(i,:)=Linv(i,:)/freq(i)
             end forall
         else!Hessian is not positive definite, need more complicated treatment
             H=matmul(L,Hsave); call My_dgeev('V',H,freq,freqtemp,L,intdim)
@@ -636,9 +636,26 @@ end subroutine StandardizeGeometry
             forall(i=1:intdim); indice(i)=i; end forall!Sort freq ascendingly, then sort normal modes accordingly
             call dQuickSort(freq,1,intdim,indice,intdim)
             H=L; forall(i=1:intdim); L(:,i)=H(:,indice(i)); end forall
-            mode=L; call My_dgetri(mode,intdim)
+            Linv=L; call My_dgetri(Linv,intdim)
         end if
-	end subroutine WilsonGFMethod
+    end subroutine WilsonGFMethod
+    !Convert internal coordinate normal mode to Cartesian coordinate normal mode
+    !Optional: step: (default = 1d-3) dQ = step * freq
+    !B will be overwritten
+    subroutine InternalMode2CartesianMode(freq,L,intdim,B,cartmode,cartdim,step)
+        !Take a small normal mode displacement dQ, then solve L . dQ = dq = B . dr and renormalize dr
+        integer,intent(in)::intdim,cartdim
+        real*8,dimension(intdim),intent(in)::freq
+        real*8,dimension(intdim,intdim),intent(in)::L
+        real*8,dimension(intdim,cartdim),intent(inout)::B
+        real*8,dimension(cartdim,cartdim),intent(out)::cartmode
+        real*8,optional,intent(in)::step
+        integer::i; real*8,dimension(intdim,cartdim)::dQ
+        if(present(step)) then; dQ=diag(step*freq,intdim); else; dQ=diag(1d-3*freq,intdim); end if
+        call dGeneralizedInverseTranspose(B,intdim,cartdim)
+        cartmode=matmul(transpose(B),matmul(L,dQ))
+        forall(i=1:cartdim); cartmode(:,i)=cartmode(:,i)/norm2(cartmode(:,i)); end forall
+    end subroutine InternalMode2CartesianMode
 !------------------- End --------------------
 
 end module GeometryTransformation
