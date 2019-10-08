@@ -55,6 +55,18 @@ write(*,*)'---------- General basic routines test passed ----------'
 write(*,*)
 
 write(*,*)'!!!!!!!!!! Testing all mathematical routines... !!!!!!!!!!'
+    write(*,*)
+    write(*,*)'Testing special function...'
+        write(*,*)
+        write(*,*)'Gaussian'
+        write(*,*)Gaussian(0d0,0d0,1d0)-1d0/sqrt2pi,dGaussiandmiu(0d0,0d0,1d0),dGaussiandsigma(0d0,0d0,1d0)+2d0/sqrt2pi
+        write(*,*)
+        write(*,*)'Lorentzian'
+        write(*,*)Lorentzian(0d0,0d0,1d0)-1d0/pi,dLorentziandmiu(0d0,0d0,1d0),dLorentziandsigma(0d0,0d0,1d0)+1d0/pi
+        write(*,*)
+        write(*,*)'Erfc^-1'
+        write(*,*)inverse_erfc(0.9d0)-0.08885599049425767d0
+    write(*,*)
 write(*,*)'---------- Mathematical routines test passed ----------'
 write(*,*)
 
