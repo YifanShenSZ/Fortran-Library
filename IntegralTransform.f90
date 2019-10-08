@@ -33,7 +33,7 @@ subroutine dFourierTransform(x,psy,lx,k,phi,lk)
             phi(j)=phi(j)+exp(-ci*k(j)*x(i))*psy(i)
         end do
     end do
-    phi=phi*(x(2)-x(1))/sqrtpim2
+    phi=phi*(x(2)-x(1))/sqrt2pi
 end subroutine dFourierTransform
 
 !Inverse Fourier transform lk points (k,phi) to lx points (x,psy). k must be uniformly spaced
@@ -51,7 +51,7 @@ subroutine dInverseFourierTransform(k,phi,lk,x,psy,lx)
             psy(j)=psy(j)+exp(ci*k(i)*x(j))*phi(i)
         end do
     end do
-    psy=psy*(k(2)-k(1))/sqrtpim2
+    psy=psy*(k(2)-k(1))/sqrt2pi
 end subroutine dInverseFourierTransform
 
 !Fast fourier transform 2^n data points

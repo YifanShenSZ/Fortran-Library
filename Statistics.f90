@@ -25,7 +25,7 @@ real*8 function NormalDistribution(x,average,covariance,N)
     real*8,dimension(N,N)::covinv
     displacement=x-average; covinv=covariance; call My_dsytri(covinv,N)
     NormalDistribution=dExp(-0.5d0*dot_product(displacement,matmul(covinv,displacement)))&
-                       /sqrtpim2**N/dSqrt(determinant(covariance,N))
+                       /sqrt2pi**N/dSqrt(determinant(covariance,N))
 end function NormalDistribution
 
 end module Statistics

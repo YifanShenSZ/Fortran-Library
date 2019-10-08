@@ -188,7 +188,7 @@ subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance
                 covariance(i,j,icentre)=covariance(i,j,icentre)/population(icentre)
             end forall
         end if
-        dbletemp=sqrtpim2**N!Preparation for normal distribution calculation
+        dbletemp=sqrt2pi**N!Preparation for normal distribution calculation
     do!Main loop
         !Expectation
         do icentre=1,K!1st, prepare for normal distribution calculation
