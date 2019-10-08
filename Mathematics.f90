@@ -11,7 +11,7 @@ module Mathematics
             pim2=6.283185307179586d0,pim4=12.566370614359172d0,&
             pid2=1.5707963267948966d0,pid4=0.7853981633974483d0,pid8=0.39269908169872414d0,&
             pisqd3=3.2898681336964524d0,&
-            sqrtpi=1.7724538509055159d0,sqrtpim2=2.506628274631d0
+            sqrtpi=1.7724538509055159d0,sqrt2pi=2.506628274631d0
     !Physical constant (If has unit, then in atomic unit)
         real*8,parameter::NAvogadro=6.02214076d23
     !Unit conversion (Multiplying xIny converts from x to y)
@@ -483,14 +483,50 @@ contains
 !----------------------- End ------------------------
 
 !----------------- Special function -----------------
+    real*8 function Gaussian(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma; Gaussian=exp(-temp*temp/2d0)/(sqrt2pi*sigma)
+    end function Gaussian
+    real*8 function dGaussiandmiu(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma
+        dGaussiandmiu=2d0/(sqrt2pi*sigma*sigma)*temp*exp(-temp*temp/2d0)
+    end function dGaussiandmiu
+    real*8 function dGaussiandsigma(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma; temp=temp*temp
+        dGaussiandsigma=2d0/(sqrt2pi*sigma*sigma)*(temp-1d0)*exp(-temp/2d0)
+    end function dGaussiandsigma
+
+    real*8 function Lorentzian(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma; Lorentzian=1d0/(pi*sigma)/(1d0+temp*temp)
+    end function Lorentzian
+    real*8 function dLorentziandmiu(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp,temp1
+        temp=(x-miu)/sigma; temp1=1d0+temp*temp
+        dLorentziandmiu=2d0/(pi*sigma*sigma)*temp/(temp1*temp1)
+    end function dLorentziandmiu
+    real*8 function dLorentziandsigma(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp,temp1,temp2
+        temp=(x-miu)/sigma; temp=temp*temp
+        temp1=1d0+temp
+        temp2=pi*sigma*sigma
+        dLorentziandsigma=1d0/temp2/temp1*(2d0*temp/temp1-1d0)
+    end function dLorentziandsigma
+
     real*8 function inverse_erfc(x)
         real*8::x
-        logical::flag
-        real*8::temp
+        logical::flag; real*8::temp
         flag=.false.
         if(x>1d0) then
-            x=2d0-x
-            flag=.true.
+            x=2d0-x; flag=.true.
         end if
         if(x<0.1d0) then
             temp=-0.4515827052894548d0-2d0*log(x)
@@ -505,8 +541,7 @@ contains
                 +temp**9*4369d0/11612160d0
         end if
         if(flag) then
-            x=2d0-x
-            inverse_erfc=-inverse_erfc
+            x=2d0-x; inverse_erfc=-inverse_erfc
         end if
     end function inverse_erfc
 
