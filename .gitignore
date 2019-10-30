@@ -1,8 +1,10 @@
-test_*
-log_*
+*.a
+*.so
 *.mod
 *.o
 *.obj
+test_*
+log_*
 My Advisor Results - Fortran/
 x64/
 *.u2d
