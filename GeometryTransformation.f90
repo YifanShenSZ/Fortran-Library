@@ -124,7 +124,7 @@ end subroutine StandardizeGeometry
     !    unless appropriate metric tensor is applied
     !It is OK to define more than 3NAtoms-6 (or 3NAtoms-5 for linear molecule) internal coordinates,
     !    but only 3NAtoms-6 (or 3NAtoms-5 for linear molecule) partial derivatives are independent
-    !!Although the transformation from Cartesian coordinate to internal coordinate is not necessarily linear,
+    !Although the transformation from Cartesian coordinate to internal coordinate is not necessarily linear,
     !    for infinitesimal displacement it is linear, corresponding to a matrix form: dq = B . dr
     !    where dq is internal coordinate differentiation, dr is Cartesian coordinate differentiation,
     !    B is Jacobian(q,r) (historically called Wilson B matrix)
@@ -294,6 +294,7 @@ end subroutine StandardizeGeometry
         
         !Generate Wilson B matrix and internal coordinate q from Cartesian coordinate r and internal coordinate definition
         !The definition is a global variable, so only take r as input
+        !Reference: E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
         subroutine WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
             integer,intent(in)::intdim,cartdim
             real*8,dimension(intdim,cartdim),intent(out)::B
@@ -547,7 +548,7 @@ end subroutine StandardizeGeometry
 	!    In Cartesian coordinate, it is the usual eigenvector
 	!    In  internal coordinate, it is the generalized eigenvector of G under Hessian metric
 	!G is built from mass and Wilson B matrix, for details see Wilson GF method in: (note that Wilson calls Hessian by F)
-	!E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
+	!    E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
 
 	!Input:  3NAtoms order real symmetric matrix H = Hessian in Cartesian coordinate (will be overwritten)
 	!Output: vibdim order vector freq = vibrational angular frequencies (negative if imaginary)

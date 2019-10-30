@@ -53,3 +53,4 @@ test is to build a demo program, testing the functionality
 ## Reference
 > 1. J. Nocedal, S. J. Wright, *Numerical Optimization 2nd edition* (Springer, 2006)
 > 2. E. B. Wilson, J. C. Decius, P. C. Cross, *Molecular viobrations: the theory of infrared and Raman vibrational spectra* (Dover, 1980)
+> 3. D. R. Yarkony, J. Chem. Phys. 112, 2111 (2000)
