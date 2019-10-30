@@ -1,9 +1,10 @@
-test.exe
+test_*
+log_*
 *.mod
+*.o
 *.obj
 My Advisor Results - Fortran/
 x64/
 *.u2d
 *.vfproj
 mkl_*
-BAK.f90

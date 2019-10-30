@@ -27,8 +27,8 @@ endif
 .PHONY: install
 install:
 	mv *.mod $(prefix)/include
-	mv *.so  $(prefix)/lib
 	mv *.a   $(prefix)/lib
+	mv *.so  $(prefix)/lib
 
 .PHONY: test
 test:
@@ -40,3 +40,11 @@ ifeq (,$(findstring $(prefix)/lib,$(LD_LIBRARY_PATH)))
 else
 	./test_dynamic.exe > log_dynamic
 endif
+
+.PHONY: clean
+clean:
+	rm *.mod
+	rm *.a
+	rm *.so
+	rm test_*
+	rm log_*
