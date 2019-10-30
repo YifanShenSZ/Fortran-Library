@@ -43,8 +43,4 @@ endif
 
 .PHONY: clean
 clean:
-	rm -f *.mod
-	rm -f *.a
-	rm -f *.so
-	rm -f test_*
-	rm -f log_*
+	rm -f *.mod *.a *.so test_* log_*
