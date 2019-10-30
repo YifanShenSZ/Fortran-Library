@@ -1,21 +1,35 @@
-################################################################
-#                                                              #
-#        Makefile for a test program on Fortran-Library        #
-#                                                              #
-################################################################
+##############################################
+#                                            #
+#        Makefile for Fortran-Library        #
+#                                            #
+##############################################
 
 compiler = ifort
-MyLibDir = .
-MyLib = $(MyLibDir)/General.f90 $(MyLibDir)/Mathematics.f90 $(MyLibDir)/LinearAlgebra.f90 \
-$(MyLibDir)/mkl_rci.f90 $(MyLibDir)/NonlinearOptimization.f90 $(MyLibDir)/mkl_dfti.f90 $(MyLibDir)/IntegralTransform.f90 \
-$(MyLibDir)/Clustering.f90 $(MyLibDir)/Statistics.f90 $(MyLibDir)/Chemistry.f90 \
-$(MyLibDir)/GeometryTransformation.f90
-src = test.f90
-exe = test.exe
-flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -mkl -ipo -O3 -no-prec-div -fp-model fast=2
+src = General.f90 Mathematics.f90 LinearAlgebra.f90 \
+mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
+Clustering.f90 Statistics.f90 Chemistry.f90 \
+GeometryTransformation.f90
+flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -mkl -O3 -no-prec-div -fp-model fast=2
 
-$(exe): $(MyLib) $(src)
-	$(compiler) $(flag) $^ -o $(exe)
+make: $(src)
+ifeq ($(compiler),ifort)
+	ifort $(flag) -c $^
+	xiar rc libFL.a *.o
+	ifort $(flag) -shared -fpic $^ -o libFL.so
+else
+	gfortran $(flag) -c $^
+	ar cr libFL.a *.o
+	gfortran $(flag) -shared -pic $^ -o libFL.so
+endif
+	rm *.o
 
-clean:
-	rm *.mod
+install:
+	mv *.mod /usr/include
+	mv *.so /usr/lib
+	mv *.a /usr/lib
+
+test:
+	$(compiler) $(flag) -ipo test.f90 libFL.a -o test_static.exe
+	./test_static.exe > log_static
+	$(compiler) $(flag) -ipo test.f90 libFL.so -o test_dynamic.exe
+	./test_dynamic.exe > log_dynamic
