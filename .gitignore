@@ -2,7 +2,6 @@
 *.so
 *.mod
 *.o
-*.obj
 test_*
 log_*
 My Advisor Results - Fortran/

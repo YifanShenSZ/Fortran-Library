@@ -555,7 +555,8 @@ end subroutine StandardizeGeometry
     !        vibdim order matrix mode = normal modes in input frame contained in each row
     !        H will be overwritten
     !Lowest 3 * NAtoms - vibdim modes are considered translation and rotation thus ruled out
-	subroutine VibrationAnalysis(freq,mode,vibdim,H,mass,NAtoms)
+    subroutine VibrationAnalysis(freq,mode,vibdim,H,mass,NAtoms)
+        ! H . mode = diag{freq^2} . mode
 		integer,intent(in)::vibdim,NAtoms
 		real*8,dimension(vibdim),intent(out)::freq
 		real*8,dimension(vibdim,vibdim),intent(out)::mode
@@ -599,12 +600,11 @@ end subroutine StandardizeGeometry
     !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
     !H will be overwritten
     subroutine WilsonGFMethod(freq,L,Linv,H,intdim,B,mass,NAtoms)
-        !The solving procedure is:
-        !    1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
-        !       LAPACK will normalized l by l(:,i) . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
-        !       This is why I call l raw normal mode
-        !    2, if H is positive definite, step 1 will succeed thus we only have to convert w^2 to w and l to L,
-        !       else resolve (G . H) . l = l . w^2 by traditional eigenvalue then convert w^2 to w and l to L   
+        !Step 1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
+        !        LAPACK will normalized l by l(:,i)^T . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
+        !        This is why I call l raw normal mode. w is freq
+        !Step 2, if H is positive definite, then step 1 would succeed thus we only have to convert w^2 to w and l to L,
+        !        else resolve (G . H) . l = l . w^2 by traditional eigenvalue then convert
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim),intent(out)::freq
         real*8,dimension(intdim,intdim),intent(out)::L,Linv
@@ -638,19 +638,17 @@ end subroutine StandardizeGeometry
         end if
     end subroutine WilsonGFMethod
     !Convert internal coordinate normal mode to Cartesian coordinate normal mode
-    !Optional: step: (default = 1d-3) dQ = step * freq
     !L and B will be overwritten
-    subroutine InternalMode2CartesianMode(freq,L,intdim,B,cartmode,cartdim,step)
-        !Take a small normal mode displacement dQ, then solve L . dQ = dq = B . dr and renormalize dr
+    subroutine InternalMode2CartesianMode(freq,L,intdim,B,cartmode,cartdim)
+        !L . dQ = dq = B . dr, where Q denotes internal coordinate normal mode
+        !With any diagonal [dQ], the solution [dr] contains unnormalized Cartesian coordinate normal mode in each column
+        !For convenience here we let [dQ] = 1
         integer,intent(in)::intdim,cartdim
         real*8,dimension(intdim),intent(in)::freq
         real*8,dimension(intdim,intdim),intent(inout)::L
         real*8,dimension(intdim,cartdim),intent(inout)::B
         real*8,dimension(cartdim,intdim),intent(out)::cartmode
-        real*8,optional,intent(in)::step
-        integer::i; real*8::StepLength
-        if(present(step)) then; StepLength=step; else; StepLength=1d-3; end if
-        forall(i=1:intdim); L(:,i)=L(:,i)*StepLength*freq(i); end forall!L <- L . dQ
+        integer::i
         call dGeneralizedInverseTranspose(B,intdim,cartdim)
         cartmode=matmul(transpose(B),L)
         forall(i=1:intdim); cartmode(:,i)=cartmode(:,i)/norm2(cartmode(:,i)); end forall
