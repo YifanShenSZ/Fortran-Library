@@ -37,7 +37,7 @@ Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak
 2. (optional) make test, then check the log
 
 ## Source
-To see what this library is capable of in detail, you may open certain source file and simply fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
+To see what this library is capable of in detail, you may open certain source file then fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
 
 Source code level from bottom to top:
 1. General, Mathematics, LinearAlgebra

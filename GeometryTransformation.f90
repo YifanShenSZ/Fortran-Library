@@ -20,9 +20,10 @@ module GeometryTransformation
         real*8::coeff
         !For stretching, the motion coordinate is the bond length atom1_atom2
         !For bending,   the motion coordinate is bond angle atom1_atom2_atom3, range [0,pi]
+        !               derivative encounters singularity at pi
         !For torsion,   the motion coordinate is dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
-        !               n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc,
-        !               Dihedral angle has same sign to n_123 x n_234 . r_23
+        !               n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc
+        !               dihedral angle has same sign to n_123 x n_234 . r_23
         integer,allocatable,dimension(:)::atom
     end type InvolvedMotion
     type InternalCoordinateDefinition
@@ -336,7 +337,7 @@ end subroutine StandardizeGeometry
                     real*8,dimension(cartdim),intent(in)::r
                     type(InvolvedMotion),intent(in)::motion
                     real*8,dimension(3)::runit12
-                    b=0d0
+                    b=0d0!Initialize
                     runit12=r(3*motion.atom(2)-2:3*motion.atom(2))-r(3*motion.atom(1)-2:3*motion.atom(1))
                     q=Norm2(runit12)
                     runit12=runit12/q
@@ -352,15 +353,14 @@ end subroutine StandardizeGeometry
                     type(InvolvedMotion),intent(in)::motion
                     real*8::r21,r23,costheta,sintheta
                     real*8,dimension(3)::runit21,runit23
-                    b=0d0
+                    b=0d0!Initialize
+                    !Prepare
                     runit21=r(3*motion.atom(1)-2:3*motion.atom(1))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                        r21=Norm2(runit21)
-                        runit21=runit21/r21
+                        r21=Norm2(runit21); runit21=runit21/r21
                     runit23=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                        r23=Norm2(runit23)
-                        runit23=runit23/r23
-                    costheta=dot_product(runit21,runit23)
-                    sintheta=dSqrt(1d0-costheta*costheta)
+                        r23=Norm2(runit23); runit23=runit23/r23
+                    costheta=dot_product(runit21,runit23); sintheta=dSqrt(1d0-costheta*costheta)
+                    !Output
                     b(3*motion.atom(1)-2:3*motion.atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
                     b(3*motion.atom(3)-2:3*motion.atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
                     b(3*motion.atom(2)-2:3*motion.atom(2))=-b(3*motion.atom(1)-2:3*motion.atom(1))-b(3*motion.atom(3)-2:3*motion.atom(3))
@@ -378,27 +378,20 @@ end subroutine StandardizeGeometry
                     b=0d0!Initialize
                     !Prepare
                     n123=r(3*motion.atom(1)-2:3*motion.atom(1))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                        r21=Norm2(n123)
-                        n123=n123/r21
+                        r21=Norm2(n123); n123=n123/r21
                     runit23=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(2)-2:3*motion.atom(2))
-                        r23=Norm2(runit23)
-                        runit23=runit23/r23
+                        r23=Norm2(runit23); runit23=runit23/r23
                     n234=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(4)-2:3*motion.atom(4))
-                        r43=Norm2(n234)
-                        n234=n234/r43
-                    costheta1=dot_product(n123,runit23)
-                    sintheta1=dSqrt(1d0-costheta1*costheta1)
-                    n123=cross_product(n123,runit23)
-                        n123=n123/sintheta1
-                    costheta2=dot_product(runit23,n234)
-                    sintheta2=dSqrt(1d0-costheta2*costheta2)
-                    n234=cross_product(runit23,n234)
-                        n234=n234/sintheta2
+                        r43=Norm2(n234); n234=n234/r43
+                    costheta1=dot_product(n123,runit23); sintheta1=dSqrt(1d0-costheta1*costheta1)
+                    n123=cross_product(n123,runit23); n123=n123/sintheta1
+                    costheta2=dot_product(runit23,n234); sintheta2=dSqrt(1d0-costheta2*costheta2)
+                    n234=cross_product(runit23,n234); n234=n234/sintheta2
                     !Output
                     b(3*motion.atom(1)-2:3*motion.atom(1))=n123/(r21*sintheta1)
-                    b(3*motion.atom(4)-2:3*motion.atom(4))=-n234/(r43*sintheta2)
                     b(3*motion.atom(2)-2:3*motion.atom(2))=(r21*costheta1-r23)/(r21*r23*sintheta1)*n123+costheta2/(r23*sintheta2)*n234
                     b(3*motion.atom(3)-2:3*motion.atom(3))=(r23-r43*costheta2)/(r23*r43*sintheta2)*n234-costheta1/(r23*sintheta1)*n123
+                    b(3*motion.atom(4)-2:3*motion.atom(4))=-n234/(r43*sintheta2)
                     q=acos(dot_product(n123,n234))
                     if(triple_product(n123,n234,runit23)<0d0) q=-q
                 end subroutine bAndTorsion
