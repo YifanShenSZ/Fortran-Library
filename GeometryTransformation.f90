@@ -19,11 +19,12 @@ module GeometryTransformation
         character*10::type!Currently only support stretching, bending, torsion
         real*8::coeff
         !For stretching, the motion coordinate is the bond length atom1_atom2
-        !For bending,   the motion coordinate is bond angle atom1_atom2_atom3, range [0,pi]
-        !               derivative encounters singularity at pi
-        !For torsion,   the motion coordinate is dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
-        !               n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc
-        !               dihedral angle has same sign to n_123 x n_234 . r_23
+        !For bending,    the motion coordinate is bond angle atom1_atom2_atom3, range [0,pi]
+        !                derivative encounters singularity at pi
+        !For torsion,    the motion coordinate is dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
+        !                n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc
+        !                dihedral angle has same sign to n_123 x n_234 . r_23
+        !For OutOfPlane, 
         integer,allocatable,dimension(:)::atom
     end type InvolvedMotion
     type InternalCoordinateDefinition
@@ -120,14 +121,14 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
 end subroutine StandardizeGeometry
 
 !---------- Cartesian <-> Internal ----------
-    !An interal coordinate is the linear combination of several translationally and rotationally invariant displacements,
-    !    but only displacements under same unit can be combined, i.e., you must treat length and angle separately,
+    !An interal coordinate is the linear combination of several translationally and rotationally invariant displacements
+    !    but only displacements under same unit can be combined, i.e. you must treat length and angle separately
     !    unless appropriate metric tensor is applied
     !It is OK to define more than 3NAtoms-6 (or 3NAtoms-5 for linear molecule) internal coordinates,
     !    but only 3NAtoms-6 (or 3NAtoms-5 for linear molecule) partial derivatives are independent
-    !Although the transformation from Cartesian coordinate to internal coordinate is not necessarily linear,
+    !Although the transformation from Cartesian coordinate to internal coordinate is not necessarily linear
     !    for infinitesimal displacement it is linear, corresponding to a matrix form: dq = B . dr
-    !    where dq is internal coordinate differentiation, dr is Cartesian coordinate differentiation,
+    !    where dq is internal coordinate differentiation, dr is Cartesian coordinate differentiation
     !    B is Jacobian(q,r) (historically called Wilson B matrix)
     !r is a 3NAtoms order vector with r[3*i-2:3*i] corresponding to the coordinate of i-th atom
     !Nomenclature:
@@ -143,7 +144,7 @@ end subroutine StandardizeGeometry
     !    Two lines specify an internal coordinate
     !    1st line is the type
     !    2nd line consists the serial numbers of the involved atoms, separated by arbitrary blank space
-    !    Defining an internal coordinate by linear combination of different motions is not supported
+    !    Defining an internal coordinate by linear combination of different motions has not been supported yet
     !    See InvolvedMotion in Derived type section for available types and ordering of atoms
     subroutine DefineInternalCoordinate(Definition,intdim)
         character*32,intent(in)::Definition
@@ -162,8 +163,7 @@ end subroutine StandardizeGeometry
                 real*8::DbTemp
                 open(unit=99,file='intcfl',status='old')
                     !Get how many lines are the definition for internal coordinates & how many internal coordinates there are
-                        NLines=0
-                        intdim=0
+                        NLines=0; intdim=0
                         read(99,*)!First line is always 'TEXAS'
                         do
                             read(99,'(A24)')CharTemp24
@@ -205,9 +205,7 @@ end subroutine StandardizeGeometry
                                     case('torsion')
                                         allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
                                         read(99,'(A28,I5,1x,I9,1x,I9,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom
-                                    case default!Throw a warning
-                                        write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',MotionType(k)
-                                        stop
+                                    case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
                                 end select
                                 k=k+1
                             else
@@ -261,10 +259,7 @@ end subroutine StandardizeGeometry
                             case('stretching'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
                             case('bending'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
                             case('torsion'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
-                            case default!Throw a warning
-                                write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',&
-                                                          GeometryTransformation_IntCDef(i).motion(1).type
-                                stop
+                            case default; write(*,*)'Program abort: unsupported internal coordinate type '//GeometryTransformation_IntCDef(i).motion(1).type; stop
                         end select
                         read(99,*)GeometryTransformation_IntCDef(i).motion(1).atom
                     end do
@@ -301,26 +296,17 @@ end subroutine StandardizeGeometry
             real*8,dimension(intdim,cartdim),intent(out)::B
             real*8,dimension(intdim),intent(out)::q
             real*8,dimension(cartdim),intent(in)::r
-            integer::iIntC,iMotion
-            real*8::qMotion
-            real*8,dimension(cartdim)::BRowVector
-            B=0d0
-            q=0d0
+            integer::iIntC,iMotion; real*8::qMotion; real*8,dimension(cartdim)::BRowVector
+            B=0d0; q=0d0
             do iIntC=1,intdim
                 do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
                     select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
-                        case('stretching')
-                            call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                        case('bending')
-                            call bAndBending(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                        case('torsion')
-                            call bAndTorsion(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                        case default!Throw a warning
-                            write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',GeometryTransformation_IntCDef(iIntC).motion(iMotion).type
-                            stop
+                        case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
+                        case('bending'); call bAndBending(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
+                        case('torsion'); call bAndTorsion(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
                     end select
                     B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*BRowVector
-                    q(iIntC)=q(iIntC)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
+                    q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
                 end do
             end do
             contains
@@ -328,7 +314,7 @@ end subroutine StandardizeGeometry
                 !Transform from Cartesian coordinate r to a certain motion coordinate q
                 !Internal coordinate is the linear combination of several motions,
                 !so b contributes (but not necessarily equals) to one row of Wilson B matrix
-                ! ( i-th row vector of B ) . dr =  d( i-th internal coordinate )
+                ! d( i-th internal coordinate ) = ( i-th row vector of B ) . dr
                 !For stretching, q = bond length
                 subroutine bAndStretching(b,q,r,motion,cartdim)
                     integer,intent(in)::cartdim
@@ -411,59 +397,57 @@ end subroutine StandardizeGeometry
                 do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
                     select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
                         case('stretching')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
-                                GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                                *stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                         case('bending')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
-                                GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                                *bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                         case('torsion')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)+&
-                                GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case default!Throw a warning
-                            write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',GeometryTransformation_IntCDef(iIntC).motion(iMotion).type
-                            stop
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                                *torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     end select
                 end do
             end do
         end function InternalCoordinateq
         
-        !Transform from Cartesian coordinate r to a certain motion coordinate q, atomlist defines which atoms are involved
+        !Transform from Cartesian coordinate r to a certain motion coordinate q, atom defines which atoms are involved
         !For stretching, q = bond length atom1_atom2
-        real*8 function stretching(r,atomlist,cartdim)
+        real*8 function stretching(r,atom,cartdim)
             integer,intent(in)::cartdim
             real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(2),intent(in)::atomlist
+            integer,dimension(2),intent(in)::atom
             real*8,dimension(3)::r12
-            r12=r(3*atomlist(2)-2:3*atomlist(2))-r(3*atomlist(1)-2:3*atomlist(1))
+            r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
             stretching=Norm2(r12)
         end function stretching
         !For bending, q = bond angle atom1_atom2_atom3, range [0,pi]
-        real*8 function bending(r,atomlist,cartdim)
+        real*8 function bending(r,atom,cartdim)
             integer,intent(in)::cartdim
             real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(3),intent(in)::atomlist
+            integer,dimension(3),intent(in)::atom
             real*8,dimension(3)::runit21,runit23
-            runit21=r(3*atomlist(1)-2:3*atomlist(1))-r(3*atomlist(2)-2:3*atomlist(2))
+            runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
                 runit21=runit21/Norm2(runit21)
-            runit23=r(3*atomlist(3)-2:3*atomlist(3))-r(3*atomlist(2)-2:3*atomlist(2))
+            runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
                 runit23=runit23/Norm2(runit23)
             bending=acos(dot_product(runit21,runit23))
         end function bending
         !For torsion, q = dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
-        !    n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc,
+        !    n_abc (the normal vector of plane abc) is a unit vector along r_ba x r_bc
         !    Dihedral angle has same sign to n_123 x n_234 . r_23
-        real*8 function torsion(r,atomlist,cartdim)
+        real*8 function torsion(r,atom,cartdim)
             integer,intent(in)::cartdim
             real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(4),intent(in)::atomlist
+            integer,dimension(4),intent(in)::atom
             real*8,dimension(3)::r21,r23,r43
-            r21=r(3*atomlist(1)-2:3*atomlist(1))-r(3*atomlist(2)-2:3*atomlist(2))
-            r23=r(3*atomlist(3)-2:3*atomlist(3))-r(3*atomlist(2)-2:3*atomlist(2))
-            r43=r(3*atomlist(3)-2:3*atomlist(3))-r(3*atomlist(4)-2:3*atomlist(4))
-            r21=cross_product(r21,r23)!r21 = n123, temporarily
-                r21=r21/Norm2(r21)
-            r43=cross_product(r23,r43)!r43 = n234, temporarily
-                r43=r43/Norm2(r43)
+            r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+            r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+            r43=r(3*atom(3)-2:3*atom(3))-r(3*atom(4)-2:3*atom(4))
+            r21=cross_product(r21,r23); r21=r21/Norm2(r21)!r21 stores n123
+            r43=cross_product(r23,r43); r43=r43/Norm2(r43)!r43 stores n234
             torsion=acos(dot_product(r21,r43))
             if(triple_product(r21,r43,r23)<0d0) torsion=-torsion
         end function torsion
