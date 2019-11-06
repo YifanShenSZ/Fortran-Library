@@ -160,14 +160,14 @@ end subroutine StandardizeGeometry
                 character*24::CharTemp24
                 integer::i,j,k,NLines
                 integer,allocatable,dimension(:)::KLine
-                real*8::DbTemp
+                real*8::dbletemp
                 open(unit=99,file='intcfl',status='old')
                     !Get how many lines are the definition for internal coordinates & how many internal coordinates there are
                         NLines=0; intdim=0
                         read(99,*)!First line is always 'TEXAS'
                         do
                             read(99,'(A24)')CharTemp24
-                            if(index(CharTemp24,'STRE')==0.and.index(CharTemp24,'BEND')==0.and.index(CharTemp24,'TORS')==0) exit
+                            if(index(CharTemp24,'STRE')==0.and.index(CharTemp24,'BEND')==0.and.index(CharTemp24,'TORS')==0.and.index(CharTemp24,'OUT')==0) exit
                             NLines=NLines+1
                             if(scan(CharTemp24,'K')==1) intdim=intdim+1
                         end do
@@ -209,7 +209,7 @@ end subroutine StandardizeGeometry
                                 end select
                                 k=k+1
                             else
-                                DbTemp=0d0
+                                dbletemp=0d0
                                 do j=1,GeometryTransformation_IntCDef(i).NMotions
                                     GeometryTransformation_IntCDef(i).motion(j).type=MotionType(k)
                                     select case(MotionType(k))
@@ -230,11 +230,11 @@ end subroutine StandardizeGeometry
                                             stop
                                     end select
                                     k=k+1
-                                    DbTemp=DbTemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
+                                    dbletemp=dbletemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
                                 end do
-                                DbTemp=Sqrt(DbTemp)
+                                dbletemp=Sqrt(dbletemp)
                                 forall(j=1:GeometryTransformation_IntCDef(i).NMotions)
-                                    GeometryTransformation_IntCDef(i).motion(j).coeff=GeometryTransformation_IntCDef(i).motion(j).coeff/DbTemp
+                                    GeometryTransformation_IntCDef(i).motion(j).coeff=GeometryTransformation_IntCDef(i).motion(j).coeff/dbletemp
                                 end forall
                             end if
                         end do
@@ -245,10 +245,8 @@ end subroutine StandardizeGeometry
                 integer::i
                 open(unit=99,file='InternalCoordinateDefinition',status='old')
                     intdim=0!Get how many internal coordinates there are
-                    do
-                        read(99,*,iostat=i); if(i/=0) exit
-                        intdim=intdim+1
-                    end do; intdim=intdim/2; rewind 99
+                    do; read(99,*,iostat=i); if(i/=0) exit; intdim=intdim+1; end do
+                    intdim=intdim/2; rewind 99
                     allocate(GeometryTransformation_IntCDef(intdim))
                     do i=1,intdim
                         GeometryTransformation_IntCDef.NMotions=1
@@ -257,8 +255,9 @@ end subroutine StandardizeGeometry
                         GeometryTransformation_IntCDef(i).motion(1).coeff=1d0
                         select case(GeometryTransformation_IntCDef(i).motion(1).type)
                             case('stretching'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
-                            case('bending'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
-                            case('torsion'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                            case('bending')   ; allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
+                            case('torsion')   ; allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                            case('OutOfPlane'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
                             case default; write(*,*)'Program abort: unsupported internal coordinate type '//GeometryTransformation_IntCDef(i).motion(1).type; stop
                         end select
                         read(99,*)GeometryTransformation_IntCDef(i).motion(1).atom
@@ -310,77 +309,77 @@ end subroutine StandardizeGeometry
                 end do
             end do
             contains
-                !Generate the transformation vector b from dr to dq: b . dr = dq
-                !Transform from Cartesian coordinate r to a certain motion coordinate q
-                !Internal coordinate is the linear combination of several motions,
-                !so b contributes (but not necessarily equals) to one row of Wilson B matrix
-                ! d( i-th internal coordinate ) = ( i-th row vector of B ) . dr
-                !For stretching, q = bond length
-                subroutine bAndStretching(b,q,r,atom,cartdim)
-                    integer,intent(in)::cartdim
-                    real*8,dimension(cartdim),intent(out)::b
-                    real*8,intent(out)::q
-                    real*8,dimension(cartdim),intent(in)::r
-                    integer,dimension(2),intent(in)::atom
-                    real*8,dimension(3)::runit12
-                    b=0d0!Initialize
-                    runit12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
-                    q=Norm2(runit12)
-                    runit12=runit12/q
-                    b(3*atom(1)-2:3*atom(1))=-runit12
-                    b(3*atom(2)-2:3*atom(2))=runit12
-                end subroutine bAndStretching
-                !For bending, q = bond angle
-                subroutine bAndBending(b,q,r,atom,cartdim)
-                    integer,intent(in)::cartdim
-                    real*8,dimension(cartdim),intent(out)::b
-                    real*8,intent(out)::q
-                    real*8,dimension(cartdim),intent(in)::r
-                    integer,dimension(3),intent(in)::atom
-                    real*8::r21,r23,costheta,sintheta
-                    real*8,dimension(3)::runit21,runit23
-                    b=0d0!Initialize
-                    !Prepare
-                    runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                        r21=Norm2(runit21); runit21=runit21/r21
-                    runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                        r23=Norm2(runit23); runit23=runit23/r23
-                    costheta=dot_product(runit21,runit23); sintheta=dSqrt(1d0-costheta*costheta)
-                    !Output
-                    b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
-                    b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
-                    b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))
-                    q=acos(costheta)
-                end subroutine bAndBending
-                !For torsion, q = dihedral angle
-                subroutine bAndTorsion(b,q,r,atom,cartdim)
-                    integer,intent(in)::cartdim
-                    real*8,dimension(cartdim),intent(out)::b
-                    real*8,intent(out)::q
-                    real*8,dimension(cartdim),intent(in)::r
-                    integer,dimension(4),intent(in)::atom
-                    real*8::r21,r23,r43,costheta1,sintheta1,costheta2,sintheta2
-                    real*8,dimension(3)::runit23,n123,n234
-                    b=0d0!Initialize
-                    !Prepare
-                    n123=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                        r21=Norm2(n123); n123=n123/r21
-                    runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                        r23=Norm2(runit23); runit23=runit23/r23
-                    n234=r(3*atom(3)-2:3*atom(3))-r(3*atom(4)-2:3*atom(4))
-                        r43=Norm2(n234); n234=n234/r43
-                    costheta1=dot_product(n123,runit23); sintheta1=dSqrt(1d0-costheta1*costheta1)
-                    n123=cross_product(n123,runit23); n123=n123/sintheta1
-                    costheta2=dot_product(runit23,n234); sintheta2=dSqrt(1d0-costheta2*costheta2)
-                    n234=cross_product(runit23,n234); n234=n234/sintheta2
-                    !Output
-                    b(3*atom(1)-2:3*atom(1))=n123/(r21*sintheta1)
-                    b(3*atom(2)-2:3*atom(2))=(r21*costheta1-r23)/(r21*r23*sintheta1)*n123+costheta2/(r23*sintheta2)*n234
-                    b(3*atom(3)-2:3*atom(3))=(r23-r43*costheta2)/(r23*r43*sintheta2)*n234-costheta1/(r23*sintheta1)*n123
-                    b(3*atom(4)-2:3*atom(4))=-n234/(r43*sintheta2)
-                    q=acos(dot_product(n123,n234))
-                    if(triple_product(n123,n234,runit23)<0d0) q=-q
-                end subroutine bAndTorsion
+            !Generate the transformation vector b from dr to dq: b . dr = dq
+            !Transform from Cartesian coordinate r to a certain motion coordinate q
+            !Internal coordinate is the linear combination of several motions,
+            !so b contributes (but not necessarily equals) to one row of Wilson B matrix
+            ! d( i-th internal coordinate ) = ( i-th row vector of B ) . dr
+            !For stretching, q = bond length
+            subroutine bAndStretching(b,q,r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(out)::b
+                real*8,intent(out)::q
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(2),intent(in)::atom
+                real*8,dimension(3)::runit12
+                b=0d0!Initialize
+                runit12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                q=Norm2(runit12)
+                runit12=runit12/q
+                b(3*atom(1)-2:3*atom(1))=-runit12
+                b(3*atom(2)-2:3*atom(2))=runit12
+            end subroutine bAndStretching
+            !For bending, q = bond angle
+            subroutine bAndBending(b,q,r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(out)::b
+                real*8,intent(out)::q
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(3),intent(in)::atom
+                real*8::r21,r23,costheta,sintheta
+                real*8,dimension(3)::runit21,runit23
+                b=0d0!Initialize
+                !Prepare
+                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                    r21=Norm2(runit21); runit21=runit21/r21
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                    r23=Norm2(runit23); runit23=runit23/r23
+                costheta=dot_product(runit21,runit23); sintheta=dSqrt(1d0-costheta*costheta)
+                !Output
+                b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
+                b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
+                b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))
+                q=acos(costheta)
+            end subroutine bAndBending
+            !For torsion, q = dihedral angle
+            subroutine bAndTorsion(b,q,r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(out)::b
+                real*8,intent(out)::q
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*8::r21,r23,r43,costheta1,sintheta1,costheta2,sintheta2
+                real*8,dimension(3)::runit23,n123,n234
+                b=0d0!Initialize
+                !Prepare
+                n123=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                r21=Norm2(n123); n123=n123/r21
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r23=Norm2(runit23); runit23=runit23/r23
+                n234=r(3*atom(3)-2:3*atom(3))-r(3*atom(4)-2:3*atom(4))
+                r43=Norm2(n234); n234=n234/r43
+                costheta1=dot_product(n123,runit23); sintheta1=dSqrt(1d0-costheta1*costheta1)
+                n123=cross_product(n123,runit23); n123=n123/sintheta1
+                costheta2=dot_product(runit23,n234); sintheta2=dSqrt(1d0-costheta2*costheta2)
+                n234=cross_product(runit23,n234); n234=n234/sintheta2
+                !Output
+                b(3*atom(1)-2:3*atom(1))=n123/(r21*sintheta1)
+                b(3*atom(2)-2:3*atom(2))=(r21*costheta1-r23)/(r21*r23*sintheta1)*n123+costheta2/(r23*sintheta2)*n234
+                b(3*atom(3)-2:3*atom(3))=(r23-r43*costheta2)/(r23*r43*sintheta2)*n234-costheta1/(r23*sintheta1)*n123
+                b(3*atom(4)-2:3*atom(4))=-n234/(r43*sintheta2)
+                q=acos(dot_product(n123,n234))
+                if(triple_product(n123,n234,runit23)<0d0) q=-q
+            end subroutine bAndTorsion
         end subroutine WilsonBMatrixAndInternalCoordinateq
 
         !If you want internal coordinate only, you may adopt convenient functions below
