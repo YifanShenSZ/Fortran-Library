@@ -301,9 +301,9 @@ end subroutine StandardizeGeometry
             do iIntC=1,intdim
                 do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
                     select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
-                        case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                        case('bending'); call bAndBending(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
-                        case('torsion'); call bAndTorsion(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion),cartdim)
+                        case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     end select
                     B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*BRowVector
                     q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
@@ -316,68 +316,68 @@ end subroutine StandardizeGeometry
                 !so b contributes (but not necessarily equals) to one row of Wilson B matrix
                 ! d( i-th internal coordinate ) = ( i-th row vector of B ) . dr
                 !For stretching, q = bond length
-                subroutine bAndStretching(b,q,r,motion,cartdim)
+                subroutine bAndStretching(b,q,r,atom,cartdim)
                     integer,intent(in)::cartdim
                     real*8,dimension(cartdim),intent(out)::b
                     real*8,intent(out)::q
                     real*8,dimension(cartdim),intent(in)::r
-                    type(InvolvedMotion),intent(in)::motion
+                    integer,dimension(2),intent(in)::atom
                     real*8,dimension(3)::runit12
                     b=0d0!Initialize
-                    runit12=r(3*motion.atom(2)-2:3*motion.atom(2))-r(3*motion.atom(1)-2:3*motion.atom(1))
+                    runit12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
                     q=Norm2(runit12)
                     runit12=runit12/q
-                    b(3*motion.atom(1)-2:3*motion.atom(1))=-runit12
-                    b(3*motion.atom(2)-2:3*motion.atom(2))=runit12
+                    b(3*atom(1)-2:3*atom(1))=-runit12
+                    b(3*atom(2)-2:3*atom(2))=runit12
                 end subroutine bAndStretching
                 !For bending, q = bond angle
-                subroutine bAndBending(b,q,r,motion,cartdim)
+                subroutine bAndBending(b,q,r,atom,cartdim)
                     integer,intent(in)::cartdim
                     real*8,dimension(cartdim),intent(out)::b
                     real*8,intent(out)::q
                     real*8,dimension(cartdim),intent(in)::r
-                    type(InvolvedMotion),intent(in)::motion
+                    integer,dimension(3),intent(in)::atom
                     real*8::r21,r23,costheta,sintheta
                     real*8,dimension(3)::runit21,runit23
                     b=0d0!Initialize
                     !Prepare
-                    runit21=r(3*motion.atom(1)-2:3*motion.atom(1))-r(3*motion.atom(2)-2:3*motion.atom(2))
+                    runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
                         r21=Norm2(runit21); runit21=runit21/r21
-                    runit23=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(2)-2:3*motion.atom(2))
+                    runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
                         r23=Norm2(runit23); runit23=runit23/r23
                     costheta=dot_product(runit21,runit23); sintheta=dSqrt(1d0-costheta*costheta)
                     !Output
-                    b(3*motion.atom(1)-2:3*motion.atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
-                    b(3*motion.atom(3)-2:3*motion.atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
-                    b(3*motion.atom(2)-2:3*motion.atom(2))=-b(3*motion.atom(1)-2:3*motion.atom(1))-b(3*motion.atom(3)-2:3*motion.atom(3))
+                    b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
+                    b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
+                    b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))
                     q=acos(costheta)
                 end subroutine bAndBending
                 !For torsion, q = dihedral angle
-                subroutine bAndTorsion(b,q,r,motion,cartdim)
+                subroutine bAndTorsion(b,q,r,atom,cartdim)
                     integer,intent(in)::cartdim
                     real*8,dimension(cartdim),intent(out)::b
                     real*8,intent(out)::q
                     real*8,dimension(cartdim),intent(in)::r
-                    type(InvolvedMotion),intent(in)::motion
+                    integer,dimension(4),intent(in)::atom
                     real*8::r21,r23,r43,costheta1,sintheta1,costheta2,sintheta2
                     real*8,dimension(3)::runit23,n123,n234
                     b=0d0!Initialize
                     !Prepare
-                    n123=r(3*motion.atom(1)-2:3*motion.atom(1))-r(3*motion.atom(2)-2:3*motion.atom(2))
+                    n123=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
                         r21=Norm2(n123); n123=n123/r21
-                    runit23=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(2)-2:3*motion.atom(2))
+                    runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
                         r23=Norm2(runit23); runit23=runit23/r23
-                    n234=r(3*motion.atom(3)-2:3*motion.atom(3))-r(3*motion.atom(4)-2:3*motion.atom(4))
+                    n234=r(3*atom(3)-2:3*atom(3))-r(3*atom(4)-2:3*atom(4))
                         r43=Norm2(n234); n234=n234/r43
                     costheta1=dot_product(n123,runit23); sintheta1=dSqrt(1d0-costheta1*costheta1)
                     n123=cross_product(n123,runit23); n123=n123/sintheta1
                     costheta2=dot_product(runit23,n234); sintheta2=dSqrt(1d0-costheta2*costheta2)
                     n234=cross_product(runit23,n234); n234=n234/sintheta2
                     !Output
-                    b(3*motion.atom(1)-2:3*motion.atom(1))=n123/(r21*sintheta1)
-                    b(3*motion.atom(2)-2:3*motion.atom(2))=(r21*costheta1-r23)/(r21*r23*sintheta1)*n123+costheta2/(r23*sintheta2)*n234
-                    b(3*motion.atom(3)-2:3*motion.atom(3))=(r23-r43*costheta2)/(r23*r43*sintheta2)*n234-costheta1/(r23*sintheta1)*n123
-                    b(3*motion.atom(4)-2:3*motion.atom(4))=-n234/(r43*sintheta2)
+                    b(3*atom(1)-2:3*atom(1))=n123/(r21*sintheta1)
+                    b(3*atom(2)-2:3*atom(2))=(r21*costheta1-r23)/(r21*r23*sintheta1)*n123+costheta2/(r23*sintheta2)*n234
+                    b(3*atom(3)-2:3*atom(3))=(r23-r43*costheta2)/(r23*r43*sintheta2)*n234-costheta1/(r23*sintheta1)*n123
+                    b(3*atom(4)-2:3*atom(4))=-n234/(r43*sintheta2)
                     q=acos(dot_product(n123,n234))
                     if(triple_product(n123,n234,runit23)<0d0) q=-q
                 end subroutine bAndTorsion
