@@ -539,20 +539,25 @@ end subroutine StandardizeGeometry
             end if
             call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Warning=.false.)
             if(present(mass)) then
-                if(present(r0)) then
-                    call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
-                else
-                    call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1)
-                end if
+                if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
+                else; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1); end if
             end if
             contains
-                subroutine Residue(res,r,dim,cartdim)
-                    integer,intent(in)::dim,cartdim
-                    real*8,dimension(dim),intent(out)::res
-                    real*8,dimension(cartdim),intent(in)::r
-                    res(1:intdim)=InternalCoordinateq(r,intdim,cartdim)-q
-                    res(intdim+1:dim)=0d0
-                end subroutine Residue
+            subroutine Residue(res,r,dim,cartdim)
+                integer,intent(in)::dim,cartdim
+                real*8,dimension(dim),intent(out)::res
+                real*8,dimension(cartdim),intent(in)::r
+                res(1:intdim)=InternalCoordinateq(r,intdim,cartdim)-q
+                res(intdim+1:dim)=0d0
+            end subroutine Residue
+            subroutine Jacobian(Jacob,r,dim,cartdim)
+                integer,intent(in)::dim,cartdim
+                real*8,dimension(dim,cartdim),intent(out)::Jacob
+                real*8,dimension(cartdim),intent(in)::r
+                real*8,dimension(intdim)::qtemp
+                call WilsonBMatrixAndInternalCoordinateq(Jacob(1:intdim,:),qtemp,r,intdim,cartdim)
+                Jacob(intdim+1:dim,:)=0d0
+            end subroutine Jacobian
         end function CartesianCoordinater
 
         !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
@@ -572,10 +577,10 @@ end subroutine StandardizeGeometry
             integer::i,j; real*8,dimension(intdim)::qtemp; real*8,dimension(intdim,cartdim)::B
             if(present(mass)) then
                 if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,mass=mass,r0=r0)
-                    else; r=CartesianCoordinater(q,cartdim,intdim,mass=mass); end if
+                else; r=CartesianCoordinater(q,cartdim,intdim,mass=mass); end if
             else
                 if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,r0=r0)
-                    else; r=CartesianCoordinater(q,cartdim,intdim); end if
+                else; r=CartesianCoordinater(q,cartdim,intdim); end if
             end if
             call WilsonBMatrixAndInternalCoordinateq(B,qtemp,r,intdim,cartdim)
             if(present(intgrad).and.present(cartgrad)) then
