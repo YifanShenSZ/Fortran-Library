@@ -18,13 +18,15 @@ module GeometryTransformation
     type InvolvedMotion
         character*10::type!Currently only support stretching, bending, torsion
         real*8::coeff
-        !For stretching, the motion coordinate is the bond length atom1_atom2
+        !For stretching, the motion coordinate is bond length atom1_atom2
         !For bending,    the motion coordinate is bond angle atom1_atom2_atom3, range [0,pi]
         !                derivative encounters singularity at pi
         !For torsion,    the motion coordinate is dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
-        !                n_abc (the normal vector of plane abc) is a unit vector along r_ab x r_bc
+        !                specifically, angle between plane 123 and plane 234
         !                dihedral angle has same sign to n_123 x n_234 . r_23
-        !For OutOfPlane, 
+        !                where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
+        !For OutOfPlane, the motion coordinate is out of plane angle atom1_atom2_atom3_atom4, range [-pi/2,pi/2]
+        !                specifically, bond 12 out of plane 234
         integer,allocatable,dimension(:)::atom
     end type InvolvedMotion
     type InternalCoordinateDefinition
@@ -181,8 +183,9 @@ end subroutine StandardizeGeometry
                             read(99,'(A24)')CharTemp24
                             if(scan(CharTemp24,'K')==1) then; KLine(j)=i; j=j+1; end if
                             if(index(CharTemp24,'STRE')>0) then; MotionType(i)='stretching'
-                                else if(index(CharTemp24,'BEND')>0) then; MotionType(i)='bending'
-                                else if(index(CharTemp24,'TORS')>0) then; MotionType(i)='torsion'; end if
+                            else if(index(CharTemp24,'BEND')>0) then; MotionType(i)='bending'
+                            else if(index(CharTemp24,'TORS')>0) then; MotionType(i)='torsion'
+                            else if(index(CharTemp24,'OUT')>0) then; MotionType(i)='OutOfPlane'; end if
                         end do; rewind 99
                     !Finally read Columbus internal coordinate definition. Linear combinations are normalized
                         allocate(GeometryTransformation_IntCDef(intdim))
@@ -199,12 +202,21 @@ end subroutine StandardizeGeometry
                                         allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
                                         read(99,'(A28,I5,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom
                                     case('bending')
-                                            allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
-                                            read(99,'(A28,I5,1x,I9,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom(1),&
-                                                GeometryTransformation_IntCDef(i).motion(1).atom(3),GeometryTransformation_IntCDef(i).motion(1).atom(2)
+                                        allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
+                                        read(99,'(A28,I5,1x,I9,1x,I9)')CharTemp24,&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(1),&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(3),&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(2)
                                     case('torsion')
                                         allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
                                         read(99,'(A28,I5,1x,I9,1x,I9,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom
+                                    case('OutOfPlane')
+                                        allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                                        read(99,'(A28,I5,1x,I9,1x,I9,1x,I9)')CharTemp24,&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(1),&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(4),&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(2),&
+                                        GeometryTransformation_IntCDef(i).motion(1).atom(3)
                                     case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
                                 end select
                                 k=k+1
@@ -216,18 +228,29 @@ end subroutine StandardizeGeometry
                                         case('stretching')
                                             allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
                                             read(99,'(A10,F10.7,8x,I6,1x,I9)')CharTemp24,&
-                                                GeometryTransformation_IntCDef(i).motion(j).coeff,GeometryTransformation_IntCDef(i).motion(j).atom
+                                            GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom
                                         case('bending')
                                             allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
-                                            read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                                GeometryTransformation_IntCDef(i).motion(j).atom(1),GeometryTransformation_IntCDef(i).motion(j).atom(3),GeometryTransformation_IntCDef(i).motion(j).atom(2)
+                                            read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')CharTemp24,&
+                                            GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(1),&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(3),&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(2)
                                         case('torsion')
                                             allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
                                             read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')CharTemp24,&
-                                                GeometryTransformation_IntCDef(i).motion(j).coeff,GeometryTransformation_IntCDef(i).motion(j).atom
-                                        case default!Throw a warning
-                                            write(*,'(1x,A51,1x,A10)')'Program abort: unsupported internal coordinate type',MotionType(k)
-                                            stop
+                                            GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom
+                                        case('OutOfPlane')
+                                            allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                            read(99,'(A28,I5,1x,I9,1x,I9,1x,I9)')CharTemp24,&
+                                            GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(1),&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(4),&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(2),&
+                                            GeometryTransformation_IntCDef(i).motion(j).atom(3)
+                                        case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
                                     end select
                                     k=k+1
                                     dbletemp=dbletemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
@@ -303,6 +326,7 @@ end subroutine StandardizeGeometry
                         case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                         case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                         case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     end select
                     B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*BRowVector
                     q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
@@ -358,7 +382,7 @@ end subroutine StandardizeGeometry
                 real*8,intent(out)::q
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
-                real*8::r12,r23,r34,costheta2,sintheta2,costheta3,sintheta3
+                real*8::r12,r23,r34,sin123,cos123,sin234,cos234
                 real*8,dimension(3)::runit12,runit23,runit34,n123,n234
                 b=0d0!Initialize
                 !Prepare
@@ -368,18 +392,46 @@ end subroutine StandardizeGeometry
                 r23=Norm2(runit23); runit23=runit23/r23
                 runit34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
                 r34=Norm2(runit34); runit34=runit34/r34
-                costheta2=-dot_product(runit12,runit23); sintheta2=dSqrt(1d0-costheta2*costheta2)
-                n123=cross_product(runit12,runit23)/sintheta2
-                costheta3=-dot_product(runit23,runit34); sintheta3=dSqrt(1d0-costheta3*costheta3)
-                n234=cross_product(runit23,runit34)/sintheta3
+                cos123=-dot_product(runit12,runit23); sin123=dSqrt(1d0-cos123*cos123)
+                n123=cross_product(runit12,runit23)/sin123
+                cos234=-dot_product(runit23,runit34); sin234=dSqrt(1d0-cos234*cos234)
+                n234=cross_product(runit23,runit34)/sin234
                 !Output
-                b(3*atom(1)-2:3*atom(1))=-n123/(r12*sintheta2)
-                b(3*atom(2)-2:3*atom(2))=(r23-r12*costheta2)/(r12*r23*sintheta2)*n123-costheta3/(r23*sintheta3)*n234
-                b(3*atom(3)-2:3*atom(3))=(r34*costheta3-r23)/(r23*r34*sintheta3)*n234+costheta2/(r23*sintheta2)*n123
-                b(3*atom(4)-2:3*atom(4))= n234/(r34*sintheta3)
+                b(3*atom(1)-2:3*atom(1))=-n123/(r12*sin123)
+                b(3*atom(2)-2:3*atom(2))=(r23-r12*cos123)/(r12*r23*sin123)*n123-cos234/(r23*sin234)*n234
+                b(3*atom(3)-2:3*atom(3))=(r34*cos234-r23)/(r23*r34*sin234)*n234+cos123/(r23*sin123)*n123
+                b(3*atom(4)-2:3*atom(4))= n234/(r34*sin234)
                 q=acos(dot_product(n123,n234))
                 if(triple_product(n123,n234,runit23)<0d0) q=-q
             end subroutine bAndTorsion
+            !For out of plane, q = out of plane angle
+            subroutine bAndOutOfPlane(b,q,r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(out)::b
+                real*8,intent(out)::q
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*8::r21,r23,r24,sin324,cos324,sin324sq,sintheta,costheta,tantheta
+                real*8,dimension(3)::runit21,runit23,runit24
+                b=0d0!Initialize
+                !Prepare
+                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                r21=Norm2(runit21); runit21=runit21/r21
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r23=Norm2(runit23); runit23=runit23/r23
+                runit24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
+                r24=Norm2(runit24); runit24=runit24/r24
+                cos324=dot_product(runit23,runit24)
+                sin324=dSqrt(1d0-cos324*cos324); sin324sq=sin324*sin324
+                sintheta=triple_product(runit23,runit24,runit21)/sin324
+                costheta=dSqrt(1d0-sintheta*sintheta); tantheta=sintheta/costheta
+                !Output
+                b(3*atom(1)-2:3*atom(1))=(cross_product(runit23,runit24)/costheta/sin324-tantheta*runit21)/r21
+                b(3*atom(3)-2:3*atom(3))=(cross_product(runit24,runit21)/costheta/sin324-tantheta/sin324sq*(runit23-cos324*runit24))/r23
+                b(3*atom(4)-2:3*atom(4))=(cross_product(runit21,runit23)/costheta/sin324-tantheta/sin324sq*(runit24-cos324*runit23))/r24
+                b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))-b(3*atom(4)-2:3*atom(4))
+                q=asin(sintheta)
+            end subroutine bAndOutOfPlane
         end subroutine WilsonBMatrixAndInternalCoordinateq
 
         !If you want internal coordinate only, you may adopt convenient functions below
@@ -407,13 +459,17 @@ end subroutine StandardizeGeometry
                             InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
                                 +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
                                 *torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                        case('OutOfPlane')
+                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                                *OutOfPlane(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     end select
                 end do
             end do
         end function InternalCoordinateq
         
         !Transform from Cartesian coordinate r to a certain motion coordinate q, atom defines which atoms are involved
-        !For stretching, q = bond length atom1_atom2
+        !For stretching, q = bond length
         real*8 function stretching(r,atom,cartdim)
             integer,intent(in)::cartdim
             real*8,dimension(cartdim),intent(in)::r
@@ -422,7 +478,7 @@ end subroutine StandardizeGeometry
             r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
             stretching=Norm2(r12)
         end function stretching
-        !For bending, q = bond angle atom1_atom2_atom3, range [0,pi]
+        !For bending, q = bond angle
         real*8 function bending(r,atom,cartdim)
             integer,intent(in)::cartdim
             real*8,dimension(cartdim),intent(in)::r
@@ -434,9 +490,7 @@ end subroutine StandardizeGeometry
                 runit23=runit23/Norm2(runit23)
             bending=acos(dot_product(runit21,runit23))
         end function bending
-        !For torsion, q = dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
-        !    n_abc (the normal vector of plane abc) is a unit vector along r_ab x r_bc
-        !    Dihedral angle has same sign to n_123 x n_234 . r_23
+        !For torsion, q = dihedral angle
         real*8 function torsion(r,atom,cartdim)
             integer,intent(in)::cartdim
             real*8,dimension(cartdim),intent(in)::r
@@ -450,6 +504,18 @@ end subroutine StandardizeGeometry
             torsion=acos(dot_product(n123,n234))
             if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
         end function torsion
+        !For out of plane, q = out of plane angle
+        real*8 function OutOfPlane(r,atom,cartdim)
+            integer,intent(in)::cartdim
+            real*8,dimension(cartdim),intent(in)::r
+            integer,dimension(4),intent(in)::atom
+            real*8,dimension(3)::r21,r23,r24
+            r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+            r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+            r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
+            r23=cross_product(r23,r24)
+            OutOfPlane=asin(dot_product(r23/norm2(r23),r21/norm2(r21)))
+        end function OutOfPlane
     !=================== End ===================
 
     !========== Cartesian <- Internal ==========

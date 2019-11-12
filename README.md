@@ -2,32 +2,39 @@
 Nonlinear optimization, clustering, and more mathematics & chemistry
 
 ## Featured utilities
-1. Nonlinear optimization: (all parameters conveniently tunable)
+Nonlinear optimization: (all parameters conveniently tunable)
 * Unconstrained optimizer:
 Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak-Ribiere+), trust region
 * Constrained optimizer: augmented Lagrangian
-2. Clustering:
+
+Clustering:
 * K-means
 * Gaussian mixture model
-3. Mathematics:
+
+Mathematics:
 * Combinatorics and selected special functions
 * Ordinary differential equation
 * 1 dimensional integration
-4. Integral transform:
+
+Integral transform:
 * Fourier transform
 * Fast Fourier transform
-5. Linear algebra:
+
+Linear algebra:
 * All kinds of vector & matrix & tensor operation
 * LAPACK wrapper for linear solver, eigensystem, matrix norm
-6. Chemistry:
+
+Chemistry:
 * Gradient of eigenstates
 * Phase fixing
 * Conical intersection adapted coordinate
-7. Geometry transformation:
+
+Geometry transformation:
 * Standard geometry (also called standard orientaion)
 * Cartesian <-> internal coordinate
 * Normal mode and vibrational frequency
-8. General:
+
+General:
 * Random number
 * Sorting
 * Some other basic routines
