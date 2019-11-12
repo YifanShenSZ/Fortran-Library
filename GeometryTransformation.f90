@@ -532,11 +532,8 @@ end subroutine StandardizeGeometry
                 real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
             real*8,dimension(cartdim)::CartesianCoordinater
-            if(present(r0)) then!Initial guess
-                CartesianCoordinater=r0
-            else
-                call random_number(CartesianCoordinater)
-            end if
+            if(present(r0)) then; CartesianCoordinater=r0!Initial guess
+            else; call random_number(CartesianCoordinater); end if
             call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Warning=.false.)
             if(present(mass)) then
                 if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
