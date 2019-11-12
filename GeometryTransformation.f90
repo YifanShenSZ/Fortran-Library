@@ -534,7 +534,7 @@ end subroutine StandardizeGeometry
             real*8,dimension(cartdim)::CartesianCoordinater
             if(present(r0)) then; CartesianCoordinater=r0!Initial guess
             else; call random_number(CartesianCoordinater); end if
-            call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Warning=.false.)
+            call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Jacobian=Jacobian,Warning=.false.)
             if(present(mass)) then
                 if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
                 else; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1); end if
@@ -547,14 +547,15 @@ end subroutine StandardizeGeometry
                 res(1:intdim)=InternalCoordinateq(r,intdim,cartdim)-q
                 res(intdim+1:dim)=0d0
             end subroutine Residue
-            subroutine Jacobian(Jacob,r,dim,cartdim)
+            integer function Jacobian(Jacob,r,dim,cartdim)
                 integer,intent(in)::dim,cartdim
                 real*8,dimension(dim,cartdim),intent(out)::Jacob
                 real*8,dimension(cartdim),intent(in)::r
                 real*8,dimension(intdim)::qtemp
                 call WilsonBMatrixAndInternalCoordinateq(Jacob(1:intdim,:),qtemp,r,intdim,cartdim)
                 Jacob(intdim+1:dim,:)=0d0
-            end subroutine Jacobian
+                Jacobian=0!Return 0
+            end function Jacobian
         end function CartesianCoordinater
 
         !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
