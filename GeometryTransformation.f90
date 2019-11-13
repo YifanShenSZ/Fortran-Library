@@ -16,17 +16,19 @@ module GeometryTransformation
     !         IntCDef(iIntC).motion(iMotion).coeff is its normalized linear combination coefficient
     !         IntCDef(iIntC).motion(iMotion).atom(i) is its i-th involved atom
     type InvolvedMotion
-        character*10::type!Currently only support stretching, bending, torsion
+        !Currently only support stretching, bending, torsion, OutOfPlane
+        !stretching: the motion coordinate is bond length atom1_atom2
+        !bending   : the motion coordinate is bond angle atom1_atom2_atom3, range [0,pi]
+        !            derivative encounters singularity at pi
+        !torsion   : the motion coordinate is dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
+        !            specifically, angle between plane 123 and plane 234
+        !            dihedral angle has same sign to n_123 x n_234 . r_23
+        !            where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
+        !            dihedral angle value encounters discontinuity at pi
+        !OutOfPlane: the motion coordinate is out of plane angle atom1_atom2_atom3_atom4, range [-pi/2,pi/2]
+        !            specifically, bond 12 out of plane 234
+        character*10::type
         real*8::coeff
-        !For stretching, the motion coordinate is bond length atom1_atom2
-        !For bending,    the motion coordinate is bond angle atom1_atom2_atom3, range [0,pi]
-        !                derivative encounters singularity at pi
-        !For torsion,    the motion coordinate is dihedral angle atom1_atom2_atom3_atom4, range (-pi,pi]
-        !                specifically, angle between plane 123 and plane 234
-        !                dihedral angle has same sign to n_123 x n_234 . r_23
-        !                where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
-        !For OutOfPlane, the motion coordinate is out of plane angle atom1_atom2_atom3_atom4, range [-pi/2,pi/2]
-        !                specifically, bond 12 out of plane 234
         integer,allocatable,dimension(:)::atom
     end type InvolvedMotion
     type InternalCoordinateDefinition
@@ -45,9 +47,9 @@ contains
 !Note this definition does not determine geometry uniquely:
 !    axes may take different positive direction as long as forming right-hand system (4 possibilities)
 !Required argument: 3NAtoms order vector geom (geom[3i-2:3i] corresponds to [x,y,z] of i-th atom),
-!                   NAtoms order vector mass (mass[i] is the mass of i-th atom), NAtoms, NStates
+!                    NAtoms order vector mass (mass[i] is the mass of i-th atom), NAtoms, NStates
 !Optional argument:
-!    reference: uniquely define the standard geometry by the 1 with smallest difference to reference out of 4
+!    reference: uniquely define the standard geometry by the one with smallest difference to reference out of 4
 !    difference: harvest || output geom - reference ||_2^2
 !    grad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
 subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad)
@@ -142,12 +144,7 @@ end subroutine StandardizeGeometry
     !On exit, intdim harvests the number of internal coordinates
     !For Columbus7, the subroutine will look for Columbus7 internal coordinate file intcfl
     !    default  , the subroutine will look for file InternalCoordinateDefinition
-    !The default format is:
-    !    Two lines specify an internal coordinate
-    !    1st line is the type
-    !    2nd line consists the serial numbers of the involved atoms, separated by arbitrary blank space
-    !    Defining an internal coordinate by linear combination of different motions has not been supported yet
-    !    See InvolvedMotion in Derived type section for available types and ordering of atoms
+    !See InvolvedMotion in Derived type section for available types and ordering of atoms
     subroutine DefineInternalCoordinate(Definition,intdim)
         character*32,intent(in)::Definition
         integer,intent(out)::intdim
@@ -157,60 +154,68 @@ end subroutine StandardizeGeometry
             case default; call default()
         end select
         contains
+        !First line is always 'TEXAS'
+        !New internal coordinate line starts with 'K'
         subroutine Columbus7()
+            integer::NDef
+            integer,allocatable,dimension(:)::NewLine
             character*10,allocatable,dimension(:)::MotionType
-            character*24::CharTemp24
-            integer::i,j,k,NLines
-            integer,allocatable,dimension(:)::KLine
-            real*8::dbletemp
+            character*24::chartemp; integer::i,j,k; real*8::dbletemp
             open(unit=99,file='intcfl',status='old')
-                !Get how many lines are the definition for internal coordinates & how many internal coordinates there are
-                    NLines=0; intdim=0
-                    read(99,*)!First line is always 'TEXAS'
+                !The number of motion definition lines & internal coordinates
+                    NDef=0; intdim=0; read(99,*)
                     do
-                        read(99,'(A24)',iostat=i)CharTemp24
-                        if(i/=0&
-                        .or.(index(CharTemp24,'STRE')==0.and.index(CharTemp24,'BEND')==0&
-                        .and.index(CharTemp24,'TORS')==0.and.index(CharTemp24,'OUT' )==0)) exit
-                        NLines=NLines+1
-                        if(scan(CharTemp24,'K')==1) intdim=intdim+1
+                        read(99,'(A24)',iostat=i)chartemp
+                        if(i/=0&!End of file or no definition
+                        .or.(index(chartemp,'STRE')==0.and.index(chartemp,'BEND')==0&
+                        .and.index(chartemp,'TORS')==0.and.index(chartemp,'OUT' )==0)) exit
+                        NDef=NDef+1
+                        if(scan(chartemp,'K')==1) intdim=intdim+1
                     end do; rewind 99
-                !Get whether a line is the start of a new internal coordinate, and what type of motion a line stands for
-                    allocate(KLine(intdim+1)); KLine(intdim+1)=NLines+1
-                    allocate(MotionType(NLines))
-                    j=1
-                    read(99,*)!First line is always 'TEXAS'
-                    do i=1,NLines
-                        read(99,'(A24)')CharTemp24
-                        if(scan(CharTemp24,'K')==1) then; KLine(j)=i; j=j+1; end if
-                        if(index(CharTemp24,'STRE')>0) then; MotionType(i)='stretching'
-                        else if(index(CharTemp24,'BEND')>0) then; MotionType(i)='bending'
-                        else if(index(CharTemp24,'TORS')>0) then; MotionType(i)='torsion'
-                        else if(index(CharTemp24,'OUT')>0) then; MotionType(i)='OutOfPlane'; end if
+                !New internal coordinate lines & motions of line
+                    allocate(NewLine(intdim+1)); NewLine(intdim+1)=NDef+1
+                    allocate(MotionType(NDef))
+                    k=1; read(99,*)
+                    do i=1,NDef
+                        read(99,'(A24)')chartemp
+                        if(scan(chartemp,'K')==1) then; NewLine(k)=i; k=k+1; end if
+                        if(index(chartemp,'STRE')>0) then; MotionType(i)='stretching'
+                        else if(index(chartemp,'BEND')>0) then; MotionType(i)='bending'
+                        else if(index(chartemp,'TORS')>0) then; MotionType(i)='torsion'
+                        else if(index(chartemp,'OUT')>0) then; MotionType(i)='OutOfPlane'; end if
                     end do; rewind 99
-                !Finally read Columbus internal coordinate definition. Linear combinations are normalized
+                !Finally read internal coordinate definition. Linear combinations are normalized
                     allocate(GeometryTransformation_IntCDef(intdim))
-                    k=1!Counter for line
-                    read(99,*)!First line is always 'TEXAS'
+                    k=1; read(99,*)
                     do i=1,intdim
-                        GeometryTransformation_IntCDef(i).NMotions=KLine(i+1)-KLine(i)
+                        GeometryTransformation_IntCDef(i).NMotions=NewLine(i+1)-NewLine(i)
                         allocate(GeometryTransformation_IntCDef(i).motion(GeometryTransformation_IntCDef(i).NMotions))
                         if(GeometryTransformation_IntCDef(i).NMotions==1) then
                             GeometryTransformation_IntCDef(i).motion(1).type=MotionType(k)
-                            GeometryTransformation_IntCDef(i).motion(1).coeff=1d0!Only 1 motion
+                            GeometryTransformation_IntCDef(i).motion(1).coeff=1d0
                             select case(MotionType(k))
                                 case('stretching')
                                     allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
-                                    read(99,'(A28,I5,1x,I9)')CharTemp24,GeometryTransformation_IntCDef(i).motion(1).atom
+                                    read(99,'(A28,I5,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(1).atom
+                                case('bending')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
+                                    read(99,'(A28,I6,1x,I9,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(1).atom(1),&
+                                    GeometryTransformation_IntCDef(i).motion(1).atom(3),&
+                                    GeometryTransformation_IntCDef(i).motion(1).atom(2)
+                                case('torsion')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                                    read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(1).atom
                                 case('OutOfPlane')
                                     allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
-                                    read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')CharTemp24,&
+                                    read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
                                     GeometryTransformation_IntCDef(i).motion(1).atom(1),&
                                     GeometryTransformation_IntCDef(i).motion(1).atom(4),&
                                     GeometryTransformation_IntCDef(i).motion(1).atom(2),&
                                     GeometryTransformation_IntCDef(i).motion(1).atom(3)
-                                case default; write(*,*)'Program abort: unsupported internal coordinate type '&
-                                //MotionType(k)//', expecting stretching or OutOfPlane'; stop
+                                case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
                             end select
                             k=k+1
                         else
@@ -218,55 +223,122 @@ end subroutine StandardizeGeometry
                             do j=1,GeometryTransformation_IntCDef(i).NMotions
                                 GeometryTransformation_IntCDef(i).motion(j).type=MotionType(k)
                                 select case(MotionType(k))
+                                    case('stretching')
+                                        allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
+                                        read(99,'(A10,F10.7,8x,I5,1x,I9)')chartemp,&
+                                        GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                        GeometryTransformation_IntCDef(i).motion(j).atom
                                     case('bending')
                                         allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
-                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')CharTemp24,&
+                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')chartemp,&
                                         GeometryTransformation_IntCDef(i).motion(j).coeff,&
                                         GeometryTransformation_IntCDef(i).motion(j).atom(1),&
                                         GeometryTransformation_IntCDef(i).motion(j).atom(3),&
                                         GeometryTransformation_IntCDef(i).motion(j).atom(2)
                                     case('torsion')
                                         allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
-                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')CharTemp24,&
+                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
                                         GeometryTransformation_IntCDef(i).motion(j).coeff,&
                                         GeometryTransformation_IntCDef(i).motion(j).atom
-                                    case default; write(*,*)'Program abort: unsupported internal coordinate type '&
-                                    //MotionType(k)//', expecting bending or torsion'; stop
+                                    case('OutOfPlane')
+                                        allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
+                                        GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                        GeometryTransformation_IntCDef(i).motion(j).atom(1),&
+                                        GeometryTransformation_IntCDef(i).motion(j).atom(4),&
+                                        GeometryTransformation_IntCDef(i).motion(j).atom(2),&
+                                        GeometryTransformation_IntCDef(i).motion(j).atom(3)
+                                    case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
                                 end select
                                 k=k+1
                                 dbletemp=dbletemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
                             end do
                             dbletemp=Sqrt(dbletemp)
                             forall(j=1:GeometryTransformation_IntCDef(i).NMotions)
-                                GeometryTransformation_IntCDef(i).motion(j).coeff=GeometryTransformation_IntCDef(i).motion(j).coeff/dbletemp
+                                GeometryTransformation_IntCDef(i).motion(j).coeff=&
+                                GeometryTransformation_IntCDef(i).motion(j).coeff/dbletemp
                             end forall
                         end if
                     end do
             close(99)
-            deallocate(MotionType); deallocate(KLine)!Clean up
+            deallocate(NewLine); deallocate(MotionType)!Clean up
         end subroutine Columbus7
+        !First 8 spaces of a line are reserved to indicate the start of new internal coordinate
+        !Example:
+        ! coord  |  coefficient  |     type      |        atom
+        !--------------------------------------------------------
+        !       1    1.0000000000      stretching       1       2
+        !            1.0000000000      stretching       1       3
+        !       2    1.0000000000      stretching       1       2
+        !           -1.0000000000      stretching       1       3
+        !       3    1.0000000000         bending       2       1       3
         subroutine default()
-            integer::i
+            integer::NDef
+            integer,allocatable,dimension(:)::NewLine
+            character*10,allocatable,dimension(:)::MotionType
+            character*10::chartemp; integer::i,j,k,l; real*8::dbletemp
             open(unit=99,file='InternalCoordinateDefinition',status='old')
-                intdim=0!Get how many internal coordinates there are
-                do; read(99,*,iostat=i); if(i/=0) exit; intdim=intdim+1; end do
-                intdim=intdim/2; rewind 99
-                allocate(GeometryTransformation_IntCDef(intdim))
-                do i=1,intdim
-                    GeometryTransformation_IntCDef.NMotions=1
-                    allocate(GeometryTransformation_IntCDef(i).motion(1))
-                    read(99,*)GeometryTransformation_IntCDef(i).motion(1).type
-                    GeometryTransformation_IntCDef(i).motion(1).coeff=1d0
-                    select case(GeometryTransformation_IntCDef(i).motion(1).type)
-                        case('stretching'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
-                        case('bending')   ; allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
-                        case('torsion')   ; allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
-                        case('OutOfPlane'); allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
-                        case default; write(*,*)'Program abort: unsupported internal coordinate type '//GeometryTransformation_IntCDef(i).motion(1).type; stop
-                    end select
-                    read(99,*)GeometryTransformation_IntCDef(i).motion(1).atom
-                end do
+                !The number of motion definition lines & internal coordinates
+                    NDef=0
+                    do
+                        read(99,'(I8)',iostat=i)j
+                        if(i/=0) exit!End of file
+                        NDef=NDef+1
+                        if(j>0) intdim=j
+                    end do; rewind 99
+                !New internal coordinate lines & motions of line
+                    allocate(NewLine(intdim+1)); NewLine(intdim+1)=NDef+1
+                    allocate(MotionType(NDef))
+                    k=1
+                    do i=1,NDef
+                        read(99,'(I8)',advance='no')j
+                        if(j>0) then; NewLine(k)=i; k=k+1; end if
+                        read(99,*)dbletemp,MotionType(i)
+                    end do; rewind 99
+                !Finally read internal coordinate definition. Linear combinations are normalized
+                    allocate(GeometryTransformation_IntCDef(intdim))
+                    k=1
+                    do i=1,intdim
+                        GeometryTransformation_IntCDef(i).NMotions=NewLine(i+1)-NewLine(i)
+                        allocate(GeometryTransformation_IntCDef(i).motion(GeometryTransformation_IntCDef(i).NMotions))
+                        dbletemp=0d0
+                        do j=1,GeometryTransformation_IntCDef(i).NMotions
+                            read(99,'(I8)',advance='no')l
+                            GeometryTransformation_IntCDef(i).motion(j).type=MotionType(k)
+                            select case(MotionType(k))
+                                case('stretching')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
+                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom
+                                case('bending')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
+                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom
+                                case('torsion')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom
+                                case('OutOfPlane')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom
+                                case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
+                            end select
+                            k=k+1
+                            dbletemp=dbletemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
+                        end do
+                        dbletemp=Sqrt(dbletemp)
+                        forall(j=1:GeometryTransformation_IntCDef(i).NMotions)
+                            GeometryTransformation_IntCDef(i).motion(j).coeff=&
+                            GeometryTransformation_IntCDef(i).motion(j).coeff/dbletemp
+                        end forall
+                    end do
             close(99)
+            deallocate(NewLine); deallocate(MotionType)!Clean up
         end subroutine default
     end subroutine DefineInternalCoordinate
 
