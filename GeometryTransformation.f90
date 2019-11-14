@@ -263,15 +263,15 @@ end subroutine StandardizeGeometry
             close(99)
             deallocate(NewLine); deallocate(MotionType)!Clean up
         end subroutine Columbus7
-        !First 8 spaces of a line are reserved to indicate the start of new internal coordinate
+        !First 6 spaces of a line are reserved to indicate the start of new internal coordinate
         !Example:
-        ! coord  |  coefficient  |     type      |        atom
-        !--------------------------------------------------------
-        !       1    1.0000000000      stretching       1       2
-        !            1.0000000000      stretching       1       3
-        !       2    1.0000000000      stretching       1       2
-        !           -1.0000000000      stretching       1       3
-        !       3    1.0000000000         bending       2       1       3
+        ! coor |   coeff   |    type     |      atom
+        !--------------------------------------------------
+        !     1    1.000000    stretching     1     2          # Comment
+        !          1.000000    stretching     1     3
+        !     2    1.000000    stretching     1     2
+        !         -1.000000    stretching     1     3
+        !     3    1.000000       bending     2     1     3
         subroutine default()
             integer::NDef
             integer,allocatable,dimension(:)::NewLine
@@ -281,7 +281,7 @@ end subroutine StandardizeGeometry
                 !The number of motion definition lines & internal coordinates
                     NDef=0
                     do
-                        read(99,'(I8)',iostat=i)j
+                        read(99,'(I6)',iostat=i)j
                         if(i/=0) exit!End of file
                         NDef=NDef+1
                         if(j>0) intdim=j
@@ -291,7 +291,7 @@ end subroutine StandardizeGeometry
                     allocate(MotionType(NDef))
                     k=1
                     do i=1,NDef
-                        read(99,'(I8)',advance='no')j
+                        read(99,'(I6)',advance='no')j
                         if(j>0) then; NewLine(k)=i; k=k+1; end if
                         read(99,*)dbletemp,MotionType(i)
                     end do; rewind 99
@@ -303,7 +303,7 @@ end subroutine StandardizeGeometry
                         allocate(GeometryTransformation_IntCDef(i).motion(GeometryTransformation_IntCDef(i).NMotions))
                         dbletemp=0d0
                         do j=1,GeometryTransformation_IntCDef(i).NMotions
-                            read(99,'(I8)',advance='no')l
+                            read(99,'(I6)',advance='no')l
                             GeometryTransformation_IntCDef(i).motion(j).type=MotionType(k)
                             select case(MotionType(k))
                                 case('stretching')
