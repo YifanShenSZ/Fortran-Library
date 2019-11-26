@@ -92,11 +92,11 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
             r(3*i,2)=r(3*i,1)
             !Flip x and z positive directions
             r(3*i-2,3)=-r(3*i-2,1)
-            r(3*i,3)=-r(3*i,1)
-            r(3*i-1,3)=r(3*i-1,1)
+            r(3*i-1,3)= r(3*i-1,1)
+            r(3*i  ,3)=-r(3*i  ,1)
             !Flip y and z positive directions
-            r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
             r(3*i-2,4)=r(3*i-2,1)
+            r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
         end forall
         indicemin=1!Which one has smallest difference?
         temp=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
