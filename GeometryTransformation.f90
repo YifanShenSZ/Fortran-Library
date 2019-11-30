@@ -343,7 +343,7 @@ end subroutine StandardizeGeometry
     end subroutine DefineInternalCoordinate
 
     !========== Cartesian -> Internal ==========
-        !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
+        !Convert geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
         !Required: r, cartdim, q, intdim, NStates
         !Optional: cartgrad, intgrad
         !r & cartgrad are the input Cartesian space value, q & intgrad harvest corresponding internal space value
@@ -611,7 +611,7 @@ end subroutine StandardizeGeometry
             end function Jacobian
         end function CartesianCoordinater
 
-        !Transform geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
+        !Convert geometry (and optionally gradient) from internal coordinate to Cartesian coordinate
         !Required: q, intdim, r, cartdim, NStates
         !Optional: mass & r0 (same as above), cartgrad, intgrad
         !q & intgrad are the input internal space value, r & cartgrad harvest corresponding Cartesian space value
