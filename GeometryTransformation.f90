@@ -46,27 +46,30 @@ contains
 !    the rotational principle axes along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
 !Note this definition does not determine geometry uniquely:
 !    axes may take different positive direction as long as forming right-hand system (4 possibilities)
-!Required argument: 3NAtoms order vector geom (geom[3i-2:3i] corresponds to [x,y,z] of i-th atom),
-!                    NAtoms order vector mass (mass[i] is the mass of i-th atom), NAtoms, NStates
+!Required argument: 
+!    3NAtoms order vector geom (geom[3i-2:3i] corresponds to [x,y,z] of i-th atom)
+!    NAtoms order vector mass (mass[i] is the mass of i-th atom)
+!    NAtoms, NStates
 !Optional argument:
-!    reference: uniquely define the standard geometry by the one with smallest difference to reference out of 4
-!    difference: harvest || output geom - reference ||_2^2
+!    ref: uniquely define the standard geometry by the one with smallest difference to ref out of 4
+!    diff: harvest mass weighted || geom - ref ||_2^2
 !    grad: 3NAtoms x NStates x NStates 3-rd order tensor to transform to standard coordinate
-subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,grad)
+subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,ref,diff,grad)
     !Required argument
         integer,intent(in)::NAtoms,NStates
         real*8,dimension(3*NAtoms),intent(inout)::geom
         real*8,dimension(NAtoms),intent(in)::mass
     !Optional argument
-        real*8,dimension(3*NAtoms),intent(in),optional::reference
-        real*8,intent(out),optional::difference
+        real*8,dimension(3*NAtoms),intent(in),optional::ref
+        real*8,intent(out),optional::diff
         real*8,dimension(3*NAtoms,NStates,NStates),intent(inout),optional::grad
     integer::i,indicemin,istate,jstate
     real*8::SystemMass,temp
     real*8,dimension(3)::com!Short for Centre Of Mass
     real*8,dimension(3,3)::UT,moi!Short for Momentum Of Inertia
+    real*8,dimension(3*NAtoms)::vecdiff,mwdiff!To compute difference
     real*8,dimension(3*NAtoms,4)::r!To store 4 legal geometries
-    !Compute current centre of mass
+    !Compute initial centre of mass
         com=0d0; SystemMass=0d0
         do i=1,NAtoms
             com=com+mass(i)*geom(3*i-2:3*i); SystemMass=SystemMass+mass(i)
@@ -83,8 +86,8 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
         if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
         UT=transpose(moi)
     !Transform geometry (and optionally gradient) to principle axes frame
-    if(present(reference)) then
-        !The positive direction has 4 legal choices, determine it by comparing difference to the reference geometry
+    if(present(ref)) then
+        !The positive direction has 4 legal choices, determine it by comparing difference to the reference
         forall(i=1:NAtoms)
             r(3*i-2:3*i,1)=matmul(UT,geom(3*i-2:3*i))
             !Flip x and y positive directions
@@ -99,21 +102,25 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
             r(3*i-1:3*i,4)=-r(3*i-1:3*i,1)
         end forall
         indicemin=1!Which one has smallest difference?
-        temp=dot_product(r(:,1)-reference,r(:,1)-reference)!The smallest difference
-        do i=2,4
-            SystemMass=dot_product(r(:,i)-reference,r(:,i)-reference)
+        vecdiff=r(:,1)-ref
+        forall(i=1:NAtoms); mwdiff(3*i-2:3*i)=mass(i)*vecdiff(3*i-2:3*i); end forall
+        temp=dot_product(vecdiff,mwdiff)!The smallest difference
+        do istate=2,4
+            vecdiff=r(:,istate)-ref
+            forall(i=1:NAtoms); mwdiff(3*i-2:3*i)=mass(i)*vecdiff(3*i-2:3*i); end forall
+            SystemMass=dot_product(vecdiff,mwdiff)
             if(SystemMass<temp) then
-                temp=SystemMass; indicemin=i
+                temp=SystemMass; indicemin=istate
             end if
         end do
-        if(present(difference)) difference=temp!Harvest || output geom - reference ||_2^2
-        geom=r(:,indicemin)!Determine the geometry
+        if(present(diff)) diff=temp!Harvest mass weighted || geom - ref ||_2^2
+        geom=r(:,indicemin)!Determine the unique geometry
         select case(indicemin)!Determine the principle axes
             case(2); moi(:,1:2)=-moi(:,1:2)
             case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
             case(4); moi(:,2:3)=-moi(:,2:3)
         end select
-        if(present(grad)) UT=transpose(moi)!Update U^T
+        if(present(grad)) UT=transpose(moi)!Update U^T accordingly
     else
         forall(i=1:NAtoms); geom(3*i-2:3*i)=matmul(UT,geom(3*i-2:3*i)); end forall
     end if
@@ -123,6 +130,65 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,reference,difference,gra
         end forall
     end if
 end subroutine StandardizeGeometry
+
+!Assimilate a geometry to a reference
+!Required argument: 3NAtoms order vector geom, ref (geom[3i-2:3i] corresponds to [x,y,z] of i-th atom)
+!                   NAtoms order vector mass (mass[i] is the mass of i-th atom)
+!Optional argument: diff: harvest mass weighted || geom - ref ||_2^2
+subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff)
+    !Required argument
+        integer,intent(in)::NAtoms
+        real*8,dimension(3*NAtoms),intent(inout)::geom
+        real*8,dimension(3*NAtoms),intent(in)::ref
+        real*8,dimension(NAtoms),intent(in)::mass
+    !Optional argument
+        real*8,intent(out),optional::diff
+    integer::i
+    real*8::SystemMass
+    real*8,dimension(3)::comgeom,comref,qind
+    real*8,dimension(NAtoms)::sqrtmass
+    !Compute centres of mass of the input geometry and the reference
+        comgeom=0d0; comref=0d0; SystemMass=0d0
+        do i=1,NAtoms
+            comgeom=comgeom+mass(i)*geom(3*i-2:3*i)
+            comref =comref +mass(i)* ref(3*i-2:3*i)
+            SystemMass=SystemMass+mass(i)
+        end do
+        comgeom=comgeom/SystemMass; comref=comref/SystemMass
+    !Shift the centre of mass of the input geometry to the reference, prepare square root mass for rotation
+        comgeom=comref-comgeom
+        forall(i=1:NAtoms)
+            geom(3*i-2:3*i)=geom(3*i-2:3*i)+comgeom
+            sqrtmass(i)=dSqrt(mass(i))
+        end forall
+    !Rotate geometry to minimize mass weighted || geom - ref ||_2^2
+        qind=0d0!Initial value: rotate 0 along z axis
+        call TrustRegion(Residue,qind,3*NAtoms,3,Warning=.false.)
+    if(present(diff)) diff=dot_product(geom-ref,mass*(geom-ref))
+    contains
+    !Rotation is done by unit quaternion q=(cos(alpha/2),sin(alpha/2)*axis)
+    !Here we choose the independent elements be alpha/2, theta, phi
+    !where theta and phi determine axis
+    function rot(qind)!Rotate geom by qind
+        real*8,dimension(3*NAtoms)::rot
+        real*8,dimension(3),intent(in)::qind
+        integer::i; real*8::sintheta; real*8,dimension(4)::q,qstar,qtemp
+        q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+        q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+        qstar(1)=q(1); qstar(2:4)=-q(2:4)
+        do i=1,NAtoms
+            qtemp(1)= 0d0; qtemp(2:4)=geom(3*i-2:3*i)
+            qtemp=quamul(quamul(qstar,qtemp),q)
+            rot(3*i-2:3*i)=qtemp(2:4)
+        end do
+    end function rot
+    subroutine Residue(res,qind,cartdim,qdim)
+        integer,intent(in)::cartdim,qdim
+        real*8,dimension(cartdim),intent(out)::res
+        real*8,dimension(qdim),intent(in)::qind
+        res=sqrtmass*(rot(qind)-ref)
+    end subroutine Residue
+end subroutine AssimilateGeometry
 
 !---------- Cartesian <-> Internal ----------
     !An interal coordinate is the linear combination of several translationally and rotationally invariant displacements
@@ -589,7 +655,7 @@ end subroutine StandardizeGeometry
             else; call random_number(CartesianCoordinater); end if
             call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Jacobian=Jacobian,Warning=.false.)
             if(present(mass)) then
-                if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,reference=r0)
+                if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,ref=r0)
                 else; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1); end if
             end if
             contains

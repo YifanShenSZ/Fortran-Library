@@ -68,16 +68,14 @@ contains
         quamul(3)=a(3)*b(1)+a(1)*b(3)+a(2)*b(4)-a(4)*b(2)
         quamul(4)=a(4)*b(1)+a(1)*b(4)+a(3)*b(2)-a(2)*b(3)
     end function quamul
-    !Rotate 3 dimensional vector r by quaternion q, q=(cos(theta/2),sin(theta/2)*axis)
+    !Rotate 3 dimensional vector r by unit quaternion q, q=(cos(theta/2),sin(theta/2)*axis)
     function Rotate(q,r)
         real*8,dimension(4),intent(in)::q
         real*8,dimension(3),intent(in)::r
         real*8,dimension(3)::Rotate
         real*8,dimension(4)::qstar,qtemp
-        qstar=-q
-        qstar(1)=q(1)
-        qtemp(2:4)=r
-        qtemp(1)=0
+        qstar(1)=q(1); qstar(2:4)=-q(2:4)
+        qtemp(1)= 0d0; qtemp(2:4)=r
         qtemp=quamul(quamul(qstar,qtemp),q)
         Rotate=qtemp(2:4)
     end function Rotate
