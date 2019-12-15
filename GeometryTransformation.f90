@@ -143,10 +143,9 @@ subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff)
         real*8,dimension(NAtoms),intent(in)::mass
     !Optional argument
         real*8,intent(out),optional::diff
-    integer::i
-    real*8::SystemMass
-    real*8,dimension(3)::comgeom,comref,qind
+    integer::i; real*8::SystemMass; real*8,dimension(3)::comgeom,comref,qind
     real*8,dimension(NAtoms)::sqrtmass
+    real*8,dimension(3*NAtoms)::vecdiff,mwdiff
     !Compute centres of mass of the input geometry and the reference
         comgeom=0d0; comref=0d0; SystemMass=0d0
         do i=1,NAtoms
@@ -164,29 +163,29 @@ subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff)
     !Rotate geometry to minimize mass weighted || geom - ref ||_2^2
         qind=0d0!Initial value: rotate 0 along z axis
         call TrustRegion(Residue,qind,3*NAtoms,3,Warning=.false.)
-    if(present(diff)) diff=dot_product(geom-ref,mass*(geom-ref))
+    if(present(diff)) then
+        vecdiff=geom-ref
+        forall(i=1:NAtoms); mwdiff(3*i-2:3*i)=mass(i)*vecdiff(3*i-2:3*i); end forall
+        diff=dot_product(vecdiff,mwdiff)
+    end if
     contains
     !Rotation is done by unit quaternion q=(cos(alpha/2),sin(alpha/2)*axis)
     !Here we choose the independent elements be alpha/2, theta, phi
     !where theta and phi determine axis
-    function rot(qind)!Rotate geom by qind
+    subroutine Residue(res,qind,cartdim,qdim)
+        integer,intent(in)::cartdim,qdim
+        real*8,dimension(cartdim),intent(out)::res
+        real*8,dimension(qdim),intent(in)::qind
         real*8,dimension(3*NAtoms)::rot
-        real*8,dimension(3),intent(in)::qind
         integer::i; real*8::sintheta; real*8,dimension(4)::q,qstar,qtemp
         q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
         q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
         qstar(1)=q(1); qstar(2:4)=-q(2:4)
         do i=1,NAtoms
-            qtemp(1)= 0d0; qtemp(2:4)=geom(3*i-2:3*i)
+            qtemp(1)=0d0; qtemp(2:4)=geom(3*i-2:3*i)
             qtemp=quamul(quamul(qstar,qtemp),q)
-            rot(3*i-2:3*i)=qtemp(2:4)
+            res(3*i-2:3*i)=sqrtmass(i)*(qtemp(2:4)-ref(3*i-2:3*i))
         end do
-    end function rot
-    subroutine Residue(res,qind,cartdim,qdim)
-        integer,intent(in)::cartdim,qdim
-        real*8,dimension(cartdim),intent(out)::res
-        real*8,dimension(qdim),intent(in)::qind
-        res=sqrtmass*(rot(qind)-ref)
     end subroutine Residue
 end subroutine AssimilateGeometry
 
