@@ -235,35 +235,6 @@ contains
     end function asymatmulsy
 !----------------- End -----------------
 
-!------------- Quaternion --------------
-    !Here a quaternion is represented by a 4 dimensional vector
-
-    !Quaternion multiplication a * b
-    function quamul(a,b)
-        real*8,dimension(4),intent(in)::a,b
-        real*8,dimension(4)::quamul
-        quamul(1)=a(1)*b(1)-a(2)*b(2)-a(3)*b(3)-a(4)*b(4)
-        quamul(2)=a(2)*b(1)+a(1)*b(2)+a(4)*b(3)-a(3)*b(4)
-        quamul(3)=a(3)*b(1)+a(1)*b(3)+a(2)*b(4)-a(4)*b(2)
-        quamul(4)=a(4)*b(1)+a(1)*b(4)+a(3)*b(2)-a(2)*b(3)
-    end function quamul
-    
-    !Rotate each column of 3 x NAtoms matrix r by unit quaternion q
-    !q = [ cos(theta/2), sin(theta/2) * axis ]
-    subroutine Rotate(q,r,NAtoms)
-        real*8,dimension(4),intent(in)::q
-        integer,intent(in)::NAtoms
-        real*8,dimension(3,NAtoms),intent(inout)::r
-        integer::i; real*8,dimension(4)::qstar,qtemp,qresult
-        qstar(1)=q(1); qstar(2:4)=-q(2:4); qtemp(1)=0d0
-        do i=1,NAtoms
-            qtemp(2:4)=r(:,i)
-            qresult=quamul(quamul(qstar,qtemp),q)
-            r(:,i)=qresult(2:4)
-        end do
-    end subroutine Rotate
-!----------------- End -----------------
-
 !---------- High order tensor ----------
     !dim x N x N 3rd-order tensor A, Trace3(i) = Tr[A(i,:,:)]
     function Trace3(A,dim,N)

@@ -23,6 +23,302 @@ module Mathematics
             barInAU=3.39882737736419d-9!Pressure
 
 contains
+!----------------- Special function -----------------
+    real*8 function Gaussian(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma; Gaussian=exp(-temp*temp/2d0)/(sqrt2pi*sigma)
+    end function Gaussian
+    real*8 function dGaussiandmiu(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma
+        dGaussiandmiu=2d0/(sqrt2pi*sigma*sigma)*temp*exp(-temp*temp/2d0)
+    end function dGaussiandmiu
+    real*8 function dGaussiandsigma(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma; temp=temp*temp
+        dGaussiandsigma=2d0/(sqrt2pi*sigma*sigma)*(temp-1d0)*exp(-temp/2d0)
+    end function dGaussiandsigma
+
+    real*8 function Lorentzian(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp
+        temp=(x-miu)/sigma; Lorentzian=1d0/(pi*sigma)/(1d0+temp*temp)
+    end function Lorentzian
+    real*8 function dLorentziandmiu(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp,temp1
+        temp=(x-miu)/sigma; temp1=1d0+temp*temp
+        dLorentziandmiu=2d0/(pi*sigma*sigma)*temp/(temp1*temp1)
+    end function dLorentziandmiu
+    real*8 function dLorentziandsigma(x,miu,sigma)
+        real*8,intent(in)::x,miu,sigma
+        real*8::temp,temp1,temp2
+        temp=(x-miu)/sigma; temp=temp*temp
+        temp1=1d0+temp
+        temp2=pi*sigma*sigma
+        dLorentziandsigma=1d0/temp2/temp1*(2d0*temp/temp1-1d0)
+    end function dLorentziandsigma
+
+    real*8 function inverse_erfc(x)
+        real*8::x
+        logical::flag; real*8::temp
+        flag=.false.
+        if(x>1d0) then
+            x=2d0-x; flag=.true.
+        end if
+        if(x<0.1d0) then
+            temp=-0.4515827052894548d0-2d0*log(x)
+            inverse_erfc=Sqrt((temp-log(temp))/2d0)
+        else if(x<0.25d0) then
+            temp=4.995264535887506d0*(x-0.15)
+            inverse_erfc=1.0179024648320276d0-temp/2d0+temp**2*0.2544756162080069d0&
+                -temp**3*0.21435423798518619d0+temp**4*0.20605638309556853d0
+        else 
+            temp=(1d0-x)*1.7724538509055159d0
+            inverse_erfc=temp/2d0+temp**3/24d0+temp**5*7d0/960d0+temp**7*127d0/80640d0&
+                +temp**9*4369d0/11612160d0
+        end if
+        if(flag) then
+            x=2d0-x; inverse_erfc=-inverse_erfc
+        end if
+    end function inverse_erfc
+
+    !========== Gaussian integral ==========
+        !Integrate[ 1 / Sqrt(2pi) / sigma * Exp(-0.5 * (x / sigma)^2) * x^i, {x, -Infinity, Infinity}]
+        real*8 function GaussianIntegral(i,sigma)
+            integer,intent(in)::i
+            real*8,intent(in)::sigma
+            GaussianIntegral=0d0
+            if(.not.mod(i,2)) then
+                GaussianIntegral=dFactorial2(i-1)*sigma**i
+            end if
+        end function GaussianIntegral
+
+        !Divide sigma^i to make GaussianIntegral dimensionless
+        real*8 function GaussianIntegraldsig(i)
+            integer,intent(in)::i
+            GaussianIntegraldsig=0d0
+            if(.not.mod(i,2)) then
+                GaussianIntegraldsig=dFactorial2(i-1)
+            end if
+        end function GaussianIntegraldsig
+
+        !Extend to two variable x & p case x^i * p^j
+        real*8 function BinaryGaussianIntegral(i,j,sigmax,sigmap,rho)
+            integer,intent(in)::i,j
+            real*8,intent(in)::sigmax,sigmap,rho
+            integer::k,minimum,maximum
+            BinaryGaussianIntegral=0d0
+            if(mod(i+j,2)==0) then
+                minimum=min(i,j)
+                maximum=max(i,j)
+                do k=0,minimum/2
+                    BinaryGaussianIntegral=BinaryGaussianIntegral&
+                        +rho**(minimum-2*k)*dCombination(minimum,2*k)*dFactorial2(2*k-1)*dPermutation(maximum,minimum-2*k)*dFactorial2(maximum-minimum+2*k-1)
+                end do
+                BinaryGaussianIntegral=BinaryGaussianIntegral*sigmax**i*sigmap**j
+            end if
+        end function BinaryGaussianIntegral
+
+        real*8 function BinaryGaussianIntegraldsig(i,j,rho)
+            integer,intent(in)::i,j
+            real*8,intent(in)::rho
+            integer::k,minimum,maximum
+            BinaryGaussianIntegraldsig=0d0
+            if(mod(i+j,2)==0) then
+                minimum=min(i,j)
+                maximum=max(i,j)
+                do k=0,minimum/2
+                    BinaryGaussianIntegraldsig=BinaryGaussianIntegraldsig&
+                        +rho**(minimum-2*k)*dCombination(minimum,2*k)*dFactorial2(2*k-1)*dPermutation(maximum,minimum-2*k)*dFactorial2(maximum-minimum+2*k-1)
+                end do
+            end if
+        end function BinaryGaussianIntegraldsig
+    !================= End =================
+
+    !=========== Gamma function ============
+        real*8 function lnGamma(x)
+            real*8,intent(in)::x
+            real*8::x1,x2,y
+            real*8,dimension(5)::r4=[0.279195317918525d0,0.4917317610505968d0,&
+                0.0692910599291889d0,3.350343815022304d0,6.012459259764103d0]
+            real*8,dimension(9)::r1=[-2.66685511495d0,-24.4387534237d0,-21.9698958928d0, &
+                11.1667541262d0,3.13060547623d0,0.607771387771d0,&
+                11.9400905721d0,31.4690115749d0,15.2346874070d0],&
+                r2=[-78.3359299449d0,-142.046296688d0,137.519416416d0,&
+                78.6994924154d0,4.16438922228d0,47.0668766060d0,&
+                313.399215894d0,263.505074721d0,43.3400022514d0],&
+                r3=[-2.12159572323d5,2.30661510616d5,2.74647644705d4,&
+                -4.02621119975d4,-2.29660729780d3,-1.16328495004d5, &
+                -1.46025937511d5,-2.42357409629d4,-5.70691009324d2]
+            lngamma=0d0
+            if (x<1.5d0) then
+                if (x<0.5d0) then
+                    lngamma=-log(x)
+                    y=x+1d0
+                else
+                    y=x
+                    x1=x-1d0
+                end if
+                lngamma=lngamma+x1*((((r1(5)*y+r1(4))*y+r1(3))*y+r1(2))*y+r1(1))/((((y+r1(9))*y+r1(8))*y+r1(7))*y+r1(6))
+            else if(x<4d0) then
+                y=x-2d0
+                lngamma=y*((((r2(5)*x+r2(4))*x+r2(3))*x+r2(2))*x+r2(1))/((((x+r2(9))*x+r2(8))*x+r2(7))*x+r2(6))
+            else if(x<12d0) then
+                lngamma = ((((r3(5)*x+r3(4))*x+r3(3))*x+r3(2))*x+r3(1))/((((x+r3(9))*x+r3(8))*x+r3(7))*x+r3(6))
+            else
+                y=log(x)
+                lngamma=x*(y-1d0)-0.5d0*y+9.18938533204673d-1
+                if (x<5.1d5) then
+                    x1=1.0d0/x
+                    x2=x1**2
+                    lngamma=lngamma+x1*((r4(3)*x2+r4(2))*x2+r4(1))/((x2+r4(5))*x2+r4(4))
+                end if
+            end if
+        end function lnGamma
+    
+        !Regularized incomplete gamma function
+        real*8 function gamma_regularized_inc_lower(p,x)
+            real*8,intent(in)::p,x
+            integer::i
+            real*8::a,an,arg,b,dif,factor,g,gin,rn,term
+            real*8,dimension(6)::pn
+            g=lngamma(p)
+            arg=p*log(x)-x-g
+            factor=exp(arg)
+            if(x<1d0.or.x<p) then
+                gin=1d0
+                term=1d0
+                rn=p
+                do while(term>1d-15)
+                    rn=rn+1d0
+                    term=term*x/rn
+                    gin=gin+term
+                end do
+                gamma_regularized_inc_lower=gin*factor/p
+            else
+                a=1d0-p
+                b=a+x+1d0
+                term=0d0
+                pn(1)=1d0
+                pn(2)=x
+                pn(3)=x+1d0
+                pn(4)=x*b
+                gin=pn(3)/pn(4)
+                do
+                    a=a+1d0
+                    b=b+2d0
+                    term=term+1d0
+                    an=a*term
+                    forall(i=1:2)
+                        pn(i+4)=b*pn(i+2)-an*pn(i)
+                    end forall
+                    if(pn(6)/=0d0) then
+                        rn=pn(5)/pn(6)
+                        dif=abs(gin-rn)
+                        if(dif<1d-15.and.dif<1d-15*rn) then
+                            gamma_regularized_inc_lower = 1.0d0 - factor * gin
+                            exit
+                        end if
+                        gin=rn
+                    end if
+                    do i=1,4
+                        pn(i)=pn(i+2)
+                    end do
+                    if (1d37<abs(pn(5))) then
+                        forall(i=1:4)
+                            pn(i)=pn(i)/1d37
+                        end forall
+                    end if
+                end do
+            end if
+        end function gamma_regularized_inc_lower
+
+        !Incomplete gamma function
+        real*8 function gamma_inc(p,x)
+            real*8 ,intent(in)::p,x
+            real*8::temp,temp2,temp3,temp6
+            if(p<1d-15) then!10 significant figures
+                if(x>18.78741462316355d0) then
+                    gamma_inc=0d0
+                else if(x>13.29d0) then
+                    temp=x-15.99d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +3.3491791984585926d0+temp*0.06253907982075221d0-temp2*(0.0019555649204058842d0+temp2*3.823889781974916d-6)&
+                        +temp3*(8.153164493904012d-5+temp2*1.9125482223137583d-7)&
+                        +temp6*(-9.95754526846618d-9+temp*5.323631012903137d-10-temp2*2.8955510452797626d-11&
+                        +temp3*1.5900561610283544d-12-temp*temp3*8.753766072858468d-14)
+                else if(x>9.29d0) then
+                    temp=x-11.26d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +2.998473344163554d0+temp*0.08880880303082772d0-temp2*(0.003942980690850256d0+temp2*1.548920196156643d-5)&
+                        +temp3*(0.00023325998949853596d0+temp2*1.0909454673108656d-6)&
+                        +temp6*(-7.915055845502563d-8+temp*5.798241768265512d-9-temp2*4.222086908296498d-10&
+                        +temp3*3.01783879825018d-11-temp*temp3*2.096958494268975d-12)
+                else if(x>6.24d0) then
+                    temp=x-7.74d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +2.623667685122219d0+temp*0.12914275561045493d0-temp2*(0.008314449873086318+temp2*6.614403525922297d-5)&
+                        +temp3*(7.067770869351106d-4+temp2*6.368169476536038d-6)&
+                        +temp6*(-6.075635427151326d-7+temp*5.6129848279670643d-8-temp2*4.951311575317511d-9&
+                        +temp3*4.1372418821110844d-10-temp*temp3*3.2617274753582414d-11)
+                else if(x>3.82d0) then
+                    temp=x-5.01d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +2.1897864802195994d0+temp*0.19826928077719455d0-temp2*(0.01912159455797797d0+temp2*0.00029220534183235477d0)&
+                        +temp3*(0.002322537422676534d0+temp2*3.5563555405274084d-5)&
+                        +temp6*(-4.066098341347632d-6+temp*4.3146411654336176d-7-temp2*4.2331758731517724d-8&
+                        +temp3*3.841319120017832d-9-temp*temp3*3.231267642291151d-10)
+                else if(x>1.85d0) then
+                    temp=x-2.81d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +1.6270397285101232d0+temp*0.33444662192442226d0-temp2*(0.048797442977232874d0+temp2*0.0012441706978081175)&
+                        +temp3*(0.008006214680697388d0+temp2*0.00017566843000357574d0)&
+                        +temp6*(-2.233890154694154d-5+temp*2.5630586828795826d-6-temp2*2.667249013198523d-7&
+                        +temp3*2.533095435935187d-8-temp*temp3*2.2088886053649257d-9)
+                else if(x>0.723d0) then
+                    temp=x-1.25d0
+                    temp2=temp*temp
+                    temp3=temp*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +0.9467725887416528d0+temp*0.570796162511848d0-temp2*(0.11371654626066321d0+temp2*0.003918751159257355d0)&
+                        +temp3*(0.022448185090995054d0+temp2*0.000597968762856782d0)&
+                        +temp6*(-8.030717872653526d-5+temp*9.590827815628838d-6-temp2*1.0289604856217327d-6&
+                        +temp3*1.0008090251673041d-7-temp*temp3*8.895816642345844d-9)
+                else
+                    temp2=x*x
+                    temp3=x*temp2
+                    temp6=temp3*temp3
+                    gamma_inc=-eulergamma-log(x)&
+                        +x-temp2*(0.25d0+temp2/96d0)+temp3*(0.05555555555555555d0+temp2/600d0)&
+                        +temp6*(-2.314814814814815d-4+x/35280d0-temp2/322560d0+temp3/3265920d0-x*temp3/36288d3)
+                end if
+            else
+                gamma_inc=(1d0-gamma_regularized_inc_lower(p,x))*gamma(p)
+            end if
+        end function gamma_inc
+    !================= End =================
+!----------------------- End ------------------------
+
 !------------------ Combinatorics -------------------
     !Exact factorial for 0 <= N <= 20, double precision for 21 <= N <= 40, 8 significant figures for N >= 41
     !Optional: Warning: (default = true) if true, throw a warning when using 8 significant figures approximation
@@ -482,300 +778,33 @@ contains
     end function iCombination
 !----------------------- End ------------------------
 
-!----------------- Special function -----------------
-    real*8 function Gaussian(x,miu,sigma)
-        real*8,intent(in)::x,miu,sigma
-        real*8::temp
-        temp=(x-miu)/sigma; Gaussian=exp(-temp*temp/2d0)/(sqrt2pi*sigma)
-    end function Gaussian
-    real*8 function dGaussiandmiu(x,miu,sigma)
-        real*8,intent(in)::x,miu,sigma
-        real*8::temp
-        temp=(x-miu)/sigma
-        dGaussiandmiu=2d0/(sqrt2pi*sigma*sigma)*temp*exp(-temp*temp/2d0)
-    end function dGaussiandmiu
-    real*8 function dGaussiandsigma(x,miu,sigma)
-        real*8,intent(in)::x,miu,sigma
-        real*8::temp
-        temp=(x-miu)/sigma; temp=temp*temp
-        dGaussiandsigma=2d0/(sqrt2pi*sigma*sigma)*(temp-1d0)*exp(-temp/2d0)
-    end function dGaussiandsigma
+!-------------------- Quaternion --------------------
+    !Here a quaternion is represented by a 4 dimensional vector
 
-    real*8 function Lorentzian(x,miu,sigma)
-        real*8,intent(in)::x,miu,sigma
-        real*8::temp
-        temp=(x-miu)/sigma; Lorentzian=1d0/(pi*sigma)/(1d0+temp*temp)
-    end function Lorentzian
-    real*8 function dLorentziandmiu(x,miu,sigma)
-        real*8,intent(in)::x,miu,sigma
-        real*8::temp,temp1
-        temp=(x-miu)/sigma; temp1=1d0+temp*temp
-        dLorentziandmiu=2d0/(pi*sigma*sigma)*temp/(temp1*temp1)
-    end function dLorentziandmiu
-    real*8 function dLorentziandsigma(x,miu,sigma)
-        real*8,intent(in)::x,miu,sigma
-        real*8::temp,temp1,temp2
-        temp=(x-miu)/sigma; temp=temp*temp
-        temp1=1d0+temp
-        temp2=pi*sigma*sigma
-        dLorentziandsigma=1d0/temp2/temp1*(2d0*temp/temp1-1d0)
-    end function dLorentziandsigma
-
-    real*8 function inverse_erfc(x)
-        real*8::x
-        logical::flag; real*8::temp
-        flag=.false.
-        if(x>1d0) then
-            x=2d0-x; flag=.true.
-        end if
-        if(x<0.1d0) then
-            temp=-0.4515827052894548d0-2d0*log(x)
-            inverse_erfc=Sqrt((temp-log(temp))/2d0)
-        else if(x<0.25d0) then
-            temp=4.995264535887506d0*(x-0.15)
-            inverse_erfc=1.0179024648320276d0-temp/2d0+temp**2*0.2544756162080069d0&
-                -temp**3*0.21435423798518619d0+temp**4*0.20605638309556853d0
-        else 
-            temp=(1d0-x)*1.7724538509055159d0
-            inverse_erfc=temp/2d0+temp**3/24d0+temp**5*7d0/960d0+temp**7*127d0/80640d0&
-                +temp**9*4369d0/11612160d0
-        end if
-        if(flag) then
-            x=2d0-x; inverse_erfc=-inverse_erfc
-        end if
-    end function inverse_erfc
-
-    !========== Gaussian integral ==========
-        !Integrate[ 1 / Sqrt(2pi) / sigma * Exp(-0.5 * (x / sigma)^2) * x^i, {x, -Infinity, Infinity}]
-        real*8 function GaussianIntegral(i,sigma)
-            integer,intent(in)::i
-            real*8,intent(in)::sigma
-            GaussianIntegral=0d0
-            if(.not.mod(i,2)) then
-                GaussianIntegral=dFactorial2(i-1)*sigma**i
-            end if
-        end function GaussianIntegral
-
-        !Divide sigma^i to make GaussianIntegral dimensionless
-        real*8 function GaussianIntegraldsig(i)
-            integer,intent(in)::i
-            GaussianIntegraldsig=0d0
-            if(.not.mod(i,2)) then
-                GaussianIntegraldsig=dFactorial2(i-1)
-            end if
-        end function GaussianIntegraldsig
-
-        !Extend to two variable x & p case x^i * p^j
-        real*8 function BinaryGaussianIntegral(i,j,sigmax,sigmap,rho)
-            integer,intent(in)::i,j
-            real*8,intent(in)::sigmax,sigmap,rho
-            integer::k,minimum,maximum
-            BinaryGaussianIntegral=0d0
-            if(mod(i+j,2)==0) then
-                minimum=min(i,j)
-                maximum=max(i,j)
-                do k=0,minimum/2
-                    BinaryGaussianIntegral=BinaryGaussianIntegral&
-                        +rho**(minimum-2*k)*dCombination(minimum,2*k)*dFactorial2(2*k-1)*dPermutation(maximum,minimum-2*k)*dFactorial2(maximum-minimum+2*k-1)
-                end do
-                BinaryGaussianIntegral=BinaryGaussianIntegral*sigmax**i*sigmap**j
-            end if
-        end function BinaryGaussianIntegral
-
-        real*8 function BinaryGaussianIntegraldsig(i,j,rho)
-            integer,intent(in)::i,j
-            real*8,intent(in)::rho
-            integer::k,minimum,maximum
-            BinaryGaussianIntegraldsig=0d0
-            if(mod(i+j,2)==0) then
-                minimum=min(i,j)
-                maximum=max(i,j)
-                do k=0,minimum/2
-                    BinaryGaussianIntegraldsig=BinaryGaussianIntegraldsig&
-                        +rho**(minimum-2*k)*dCombination(minimum,2*k)*dFactorial2(2*k-1)*dPermutation(maximum,minimum-2*k)*dFactorial2(maximum-minimum+2*k-1)
-                end do
-            end if
-        end function BinaryGaussianIntegraldsig
-    !================= End =================
-
-    !=========== Gamma function ============
-        real*8 function lnGamma(x)
-            real*8,intent(in)::x
-            real*8::x1,x2,y
-            real*8,dimension(5)::r4=[0.279195317918525d0,0.4917317610505968d0,&
-                0.0692910599291889d0,3.350343815022304d0,6.012459259764103d0]
-            real*8,dimension(9)::r1=[-2.66685511495d0,-24.4387534237d0,-21.9698958928d0, &
-                11.1667541262d0,3.13060547623d0,0.607771387771d0,&
-                11.9400905721d0,31.4690115749d0,15.2346874070d0],&
-                r2=[-78.3359299449d0,-142.046296688d0,137.519416416d0,&
-                78.6994924154d0,4.16438922228d0,47.0668766060d0,&
-                313.399215894d0,263.505074721d0,43.3400022514d0],&
-                r3=[-2.12159572323d5,2.30661510616d5,2.74647644705d4,&
-                -4.02621119975d4,-2.29660729780d3,-1.16328495004d5, &
-                -1.46025937511d5,-2.42357409629d4,-5.70691009324d2]
-            lngamma=0d0
-            if (x<1.5d0) then
-                if (x<0.5d0) then
-                    lngamma=-log(x)
-                    y=x+1d0
-                else
-                    y=x
-                    x1=x-1d0
-                end if
-                lngamma=lngamma+x1*((((r1(5)*y+r1(4))*y+r1(3))*y+r1(2))*y+r1(1))/((((y+r1(9))*y+r1(8))*y+r1(7))*y+r1(6))
-            else if(x<4d0) then
-                y=x-2d0
-                lngamma=y*((((r2(5)*x+r2(4))*x+r2(3))*x+r2(2))*x+r2(1))/((((x+r2(9))*x+r2(8))*x+r2(7))*x+r2(6))
-            else if(x<12d0) then
-                lngamma = ((((r3(5)*x+r3(4))*x+r3(3))*x+r3(2))*x+r3(1))/((((x+r3(9))*x+r3(8))*x+r3(7))*x+r3(6))
-            else
-                y=log(x)
-                lngamma=x*(y-1d0)-0.5d0*y+9.18938533204673d-1
-                if (x<5.1d5) then
-                    x1=1.0d0/x
-                    x2=x1**2
-                    lngamma=lngamma+x1*((r4(3)*x2+r4(2))*x2+r4(1))/((x2+r4(5))*x2+r4(4))
-                end if
-            end if
-        end function lnGamma
+    !Quaternion multiplication a * b
+    function quamul(a,b)
+        real*8,dimension(4),intent(in)::a,b
+        real*8,dimension(4)::quamul
+        quamul(1)=a(1)*b(1)-a(2)*b(2)-a(3)*b(3)-a(4)*b(4)
+        quamul(2)=a(2)*b(1)+a(1)*b(2)+a(4)*b(3)-a(3)*b(4)
+        quamul(3)=a(3)*b(1)+a(1)*b(3)+a(2)*b(4)-a(4)*b(2)
+        quamul(4)=a(4)*b(1)+a(1)*b(4)+a(3)*b(2)-a(2)*b(3)
+    end function quamul
     
-        !Regularized incomplete gamma function
-        real*8 function gamma_regularized_inc_lower(p,x)
-            real*8,intent(in)::p,x
-            integer::i
-            real*8::a,an,arg,b,dif,factor,g,gin,rn,term
-            real*8,dimension(6)::pn
-            g=lngamma(p)
-            arg=p*log(x)-x-g
-            factor=exp(arg)
-            if(x<1d0.or.x<p) then
-                gin=1d0
-                term=1d0
-                rn=p
-                do while(term>1d-15)
-                    rn=rn+1d0
-                    term=term*x/rn
-                    gin=gin+term
-                end do
-                gamma_regularized_inc_lower=gin*factor/p
-            else
-                a=1d0-p
-                b=a+x+1d0
-                term=0d0
-                pn(1)=1d0
-                pn(2)=x
-                pn(3)=x+1d0
-                pn(4)=x*b
-                gin=pn(3)/pn(4)
-                do
-                    a=a+1d0
-                    b=b+2d0
-                    term=term+1d0
-                    an=a*term
-                    forall(i=1:2)
-                        pn(i+4)=b*pn(i+2)-an*pn(i)
-                    end forall
-                    if(pn(6)/=0d0) then
-                        rn=pn(5)/pn(6)
-                        dif=abs(gin-rn)
-                        if(dif<1d-15.and.dif<1d-15*rn) then
-                            gamma_regularized_inc_lower = 1.0d0 - factor * gin
-                            exit
-                        end if
-                        gin=rn
-                    end if
-                    do i=1,4
-                        pn(i)=pn(i+2)
-                    end do
-                    if (1d37<abs(pn(5))) then
-                        forall(i=1:4)
-                            pn(i)=pn(i)/1d37
-                        end forall
-                    end if
-                end do
-            end if
-        end function gamma_regularized_inc_lower
-
-        !Incomplete gamma function
-        real*8 function gamma_inc(p,x)
-            real*8 ,intent(in)::p,x
-            real*8::temp,temp2,temp3,temp6
-            if(p<1d-15) then!10 significant figures
-                if(x>18.78741462316355d0) then
-                    gamma_inc=0d0
-                else if(x>13.29d0) then
-                    temp=x-15.99d0
-                    temp2=temp*temp
-                    temp3=temp*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +3.3491791984585926d0+temp*0.06253907982075221d0-temp2*(0.0019555649204058842d0+temp2*3.823889781974916d-6)&
-                        +temp3*(8.153164493904012d-5+temp2*1.9125482223137583d-7)&
-                        +temp6*(-9.95754526846618d-9+temp*5.323631012903137d-10-temp2*2.8955510452797626d-11&
-                        +temp3*1.5900561610283544d-12-temp*temp3*8.753766072858468d-14)
-                else if(x>9.29d0) then
-                    temp=x-11.26d0
-                    temp2=temp*temp
-                    temp3=temp*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +2.998473344163554d0+temp*0.08880880303082772d0-temp2*(0.003942980690850256d0+temp2*1.548920196156643d-5)&
-                        +temp3*(0.00023325998949853596d0+temp2*1.0909454673108656d-6)&
-                        +temp6*(-7.915055845502563d-8+temp*5.798241768265512d-9-temp2*4.222086908296498d-10&
-                        +temp3*3.01783879825018d-11-temp*temp3*2.096958494268975d-12)
-                else if(x>6.24d0) then
-                    temp=x-7.74d0
-                    temp2=temp*temp
-                    temp3=temp*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +2.623667685122219d0+temp*0.12914275561045493d0-temp2*(0.008314449873086318+temp2*6.614403525922297d-5)&
-                        +temp3*(7.067770869351106d-4+temp2*6.368169476536038d-6)&
-                        +temp6*(-6.075635427151326d-7+temp*5.6129848279670643d-8-temp2*4.951311575317511d-9&
-                        +temp3*4.1372418821110844d-10-temp*temp3*3.2617274753582414d-11)
-                else if(x>3.82d0) then
-                    temp=x-5.01d0
-                    temp2=temp*temp
-                    temp3=temp*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +2.1897864802195994d0+temp*0.19826928077719455d0-temp2*(0.01912159455797797d0+temp2*0.00029220534183235477d0)&
-                        +temp3*(0.002322537422676534d0+temp2*3.5563555405274084d-5)&
-                        +temp6*(-4.066098341347632d-6+temp*4.3146411654336176d-7-temp2*4.2331758731517724d-8&
-                        +temp3*3.841319120017832d-9-temp*temp3*3.231267642291151d-10)
-                else if(x>1.85d0) then
-                    temp=x-2.81d0
-                    temp2=temp*temp
-                    temp3=temp*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +1.6270397285101232d0+temp*0.33444662192442226d0-temp2*(0.048797442977232874d0+temp2*0.0012441706978081175)&
-                        +temp3*(0.008006214680697388d0+temp2*0.00017566843000357574d0)&
-                        +temp6*(-2.233890154694154d-5+temp*2.5630586828795826d-6-temp2*2.667249013198523d-7&
-                        +temp3*2.533095435935187d-8-temp*temp3*2.2088886053649257d-9)
-                else if(x>0.723d0) then
-                    temp=x-1.25d0
-                    temp2=temp*temp
-                    temp3=temp*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +0.9467725887416528d0+temp*0.570796162511848d0-temp2*(0.11371654626066321d0+temp2*0.003918751159257355d0)&
-                        +temp3*(0.022448185090995054d0+temp2*0.000597968762856782d0)&
-                        +temp6*(-8.030717872653526d-5+temp*9.590827815628838d-6-temp2*1.0289604856217327d-6&
-                        +temp3*1.0008090251673041d-7-temp*temp3*8.895816642345844d-9)
-                else
-                    temp2=x*x
-                    temp3=x*temp2
-                    temp6=temp3*temp3
-                    gamma_inc=-eulergamma-log(x)&
-                        +x-temp2*(0.25d0+temp2/96d0)+temp3*(0.05555555555555555d0+temp2/600d0)&
-                        +temp6*(-2.314814814814815d-4+x/35280d0-temp2/322560d0+temp3/3265920d0-x*temp3/36288d3)
-                end if
-            else
-                gamma_inc=(1d0-gamma_regularized_inc_lower(p,x))*gamma(p)
-            end if
-        end function gamma_inc
-    !================= End =================
+    !Rotate each column of 3 x NAtoms matrix r by unit quaternion q
+    !q = [ cos(theta/2), sin(theta/2) * axis ]
+    subroutine Rotate(q,r,NAtoms)
+        real*8,dimension(4),intent(in)::q
+        integer,intent(in)::NAtoms
+        real*8,dimension(3,NAtoms),intent(inout)::r
+        integer::i; real*8,dimension(4)::qstar,qtemp,qresult
+        qstar(1)=q(1); qstar(2:4)=-q(2:4); qtemp(1)=0d0
+        do i=1,NAtoms
+            qtemp(2:4)=r(:,i)
+            qresult=quamul(quamul(qstar,qtemp),q)
+            r(:,i)=qresult(2:4)
+        end do
+    end subroutine Rotate
 !----------------------- End ------------------------
 
 !---------- Ordinary differential equation ----------
