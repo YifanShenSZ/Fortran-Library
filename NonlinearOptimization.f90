@@ -1089,18 +1089,13 @@ contains
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 info=f_fd(fnew,fdnew,x,dim)
             else
-                call f(fnew,x,dim)
-                call fd(fdnew,x,dim)
+                call f(fnew,x,dim); call fd(fdnew,x,dim)
             end if
             !Initial direction & step length
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<tol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
+            if(fnew==0d0) then; a=1d0
+            else; a=-fnew/phidnew; end if
         select case(type)
             case('DY')!Require Wolfe condition
                 if(present(Increment)) then
@@ -1116,9 +1111,7 @@ contains
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call DY()!After search
                                 if(terminate) return
@@ -1127,18 +1120,14 @@ contains
                     else
                         if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call DY()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call DY()!After search
                                 if(terminate) return
@@ -1149,18 +1138,14 @@ contains
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call DY()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call DY()!After search
                                 if(terminate) return
@@ -1169,18 +1154,14 @@ contains
                     else
                         if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call DY()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call DY()!After search
                                 if(terminate) return
@@ -1192,18 +1173,14 @@ contains
                 if(present(Increment)) then
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                             call PR()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                             call PR()!After search
                             if(terminate) return
@@ -1212,18 +1189,14 @@ contains
                 else
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call PR()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            fold=fnew!Prepare
-                            fdold=fdnew
-                            phidold=phidnew
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call PR()!After search
                             if(terminate) return
@@ -1239,56 +1212,52 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine DY()!Check convergence, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.
-                    return
+        subroutine DY()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A106)')'Dai-Yun conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A106)')'Dai-Yun conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.
-                    return
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
+            phidnew=dot_product(fdnew,p)
+            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                p=-fdnew
+                phidnew=-dot_product(fdnew,fdnew)
+            end if
+            a=a*phidold/phidnew
+        end subroutine DY
+        subroutine PR()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
-                !Determine new direction
-                p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
-                phidnew=dot_product(fdnew,p)
-                if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                    p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
-                end if
-                a=a*phidold/phidnew
-            end subroutine DY
-            subroutine PR()!Check convergence, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.
-                    return
-                end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.
-                    return
-                end if
-                !Determine new direction
-                p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
-                phidnew=dot_product(fdnew,p)
-                if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                    p=-fdnew
-                    phidnew=-dot_product(fdnew,fdnew)
-                end if
-                a=a*phidold/phidnew
-            end subroutine PR
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
+            phidnew=dot_product(fdnew,p)
+            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                p=-fdnew
+                phidnew=-dot_product(fdnew,fdnew)
+            end if
+            a=a*phidold/phidnew
+        end subroutine PR
     end subroutine ConjugateGradient
 
     !=========== Line searcher ============
@@ -1320,34 +1289,23 @@ contains
             real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidx
             real*8,dimension(dim)::x0
             !Initialize
-                if(present(Increment)) then
-                    incrmt=max(1d0+1d-15,Increment)!Fail safe
-                else
-                    incrmt=1.05d0
-                end if
-                x0=x
-                fx0=fx
-                c2_m_abs_phid0=c2*dAbs(phid0)
+            if(present(Increment)) then; incrmt=max(1d0+1d-15,Increment)!Fail safe
+            else; incrmt=1.05d0; end if
+            x0=x; fx0=fx; c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
-            x=x0+a*p
-            call f(fx,x,dim)
+            x=x0+a*p; call f(fx,x,dim)
             if(fx<=fx0+c1*a*phid0) then!Satisfied, search for larger a
                 do
-                    aold=a
-                    fold=fx
-                    a=aold*incrmt
-                    x=x0+a*p
-                    call f(fx,x,dim)
+                    aold=a; fold=fx
+                    a=aold*incrmt; x=x0+a*p; call f(fx,x,dim)
                     if(fx>fx0+c1*a*phid0) then
                         x=x0+aold*p
                         call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
                         if(phidx>c2_m_abs_phid0) then
-                            a=aold
-                            fx=fold
+                            a=aold; fx=fold
                         else
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(aold,atemp,fold,ftemp,phidx)
                         end if
                         return
@@ -1355,61 +1313,51 @@ contains
                 end do
             else!Violated, search for smaller a
                 do
-                    aold=a
-                    fold=fx
-                    a=aold/incrmt
-                    x=x0+a*p
-                    call f(fx,x,dim)
+                    aold=a; fold=fx
+                    a=aold/incrmt; x=x0+a*p; call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then
                         call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
                         if(phidx<c2_m_abs_phid0) then
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(atemp,aold,ftemp,fold,phidx)
                         end if
                         return
                     end if
                     if(a<1d-15) then
-                        call fd(fdx,x,dim)
-                        return
+                        call fd(fdx,x,dim); return
                     end if
                 end do
             end if
             contains
-                !low & up must satisfy:
-                !    low < up
-                !    low satisfies sufficient decrease condition, but up violates
-                !    phi'(low) < 0
-                subroutine zoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
-                    real*8,intent(inout)::low,up,flow,fup,phidlow
-                    real*8::phidnew,phidlow_m_a
-                    phidlow_m_a=phidlow*a!Initialize
-                    do
-                        !Updata a by quadratic interpolation
-                            a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
-                            if(.not.(a>low.and.a<up)) a=(low+up)/2d0!Fail safe
-                        x=x0+a*p
-                        call f(fx,x,dim)
-                        if(fx>fx0+c1*a*phid0) then
-                            up=a
-                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) then
-                                call fd(fdx,x,dim)
-                                return
-                            end if
-                            fup=fx
-                        else
-                            call fd(fdx,x,dim)
-                            phidnew=dot_product(fdx,p)
-                            if(phidnew>c2_m_abs_phid0) return
-                            low=a
-                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
-                            flow=fx
-                            phidlow=phidnew
-                            phidlow_m_a=phidlow*a
+            !low & up must satisfy:
+            !    low < up
+            !    low satisfies sufficient decrease condition, but up violates
+            !    phi'(low) < 0
+            subroutine zoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
+                real*8,intent(inout)::low,up,flow,fup,phidlow
+                real*8::phidnew,phidlow_m_a
+                phidlow_m_a=phidlow*a!Initialize
+                do
+                    !Updata a by quadratic interpolation
+                        a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
+                        if(.not.(a>low.and.a<up)) a=(low+up)/2d0!Fail safe
+                    x=x0+a*p; call f(fx,x,dim)
+                    if(fx>fx0+c1*a*phid0) then
+                        up=a
+                        if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) then
+                            call fd(fdx,x,dim); return
                         end if
-                    end do
-                end subroutine zoom
+                        fup=fx
+                    else
+                        call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
+                        if(phidnew>c2_m_abs_phid0) return
+                        low=a
+                        if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
+                        flow=fx; phidlow=phidnew; phidlow_m_a=phidlow*a
+                    end if
+                end do
+            end subroutine zoom
         end subroutine Wolfe
         !When it is cheaper to evaluate f' along with f
         subroutine Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)!CURRENTLY NO BETTER THAN Wolfe
@@ -1429,34 +1377,23 @@ contains
             real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidx
             real*8,dimension(dim)::x0
             !Initialize
-                if(present(Increment)) then
-                    incrmt=max(1d0+1d-15,Increment)!Fail safe
-                else
-                    incrmt=1.05d0
-                end if
-                x0=x
-                fx0=fx
-                c2_m_abs_phid0=c2*dAbs(phid0)
+            if(present(Increment)) then; incrmt=max(1d0+1d-15,Increment)!Fail safe
+            else; incrmt=1.05d0; end if
+            x0=x; fx0=fx; c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
-            x=x0+a*p
-            call f(fx,x,dim)
+            x=x0+a*p; call f(fx,x,dim)
             if(fx<=fx0+c1*a*phid0) then!Satisfied, search for larger a
                 do
-                    aold=a
-                    fold=fx
-                    a=aold*incrmt
-                    x=x0+a*p
+                    aold=a; fold=fx
+                    a=aold*incrmt; x=x0+a*p
                     call f(fx,x,dim)
                     if(fx>fx0+c1*a*phid0) then
-                        x=x0+aold*p
-                        call fd(fdx,x,dim)
+                        x=x0+aold*p; call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
                         if(phidx>c2_m_abs_phid0) then
-                            a=aold
-                            fx=fold
+                            a=aold; fx=fold
                         else
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(aold,atemp,fold,ftemp,phidx)
                         end if
                         return
@@ -1464,61 +1401,51 @@ contains
                 end do
             else!Violated, search for smaller a
                 do
-                    aold=a
-                    fold=fx
-                    a=aold/incrmt
-                    x=x0+a*p
-                    call f(fx,x,dim)
+                    aold=a; fold=fx
+                    a=aold/incrmt; x=x0+a*p; call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then
                         call fd(fdx,x,dim)
                         phidx=dot_product(fdx,p)
                         if(phidx<c2_m_abs_phid0) then
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(atemp,aold,ftemp,fold,phidx)
                         end if
                         return
                     end if
                     if(a<1d-15) then
-                        call fd(fdx,x,dim)
-                        return
+                        call fd(fdx,x,dim); return
                     end if
                 end do
             end if
             contains
-                !low & up must satisfy:
-                !    low < up
-                !    low satisfies sufficient decrease condition, but up violates
-                !    phi'(low) < 0
-                subroutine zoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
-                    real*8,intent(inout)::low,up,flow,fup,phidlow
-                    real*8::phidnew,phidlow_m_a
-                    phidlow_m_a=phidlow*a!Initialize
-                    do
-                        !Updata a by quadratic interpolation
-                            a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
-                            if(.not.(a>low.and.a<up)) a=(low+up)/2d0!Fail safe
-                        x=x0+a*p
-                        call f(fx,x,dim)
-                        if(fx>fx0+c1*a*phid0) then
-                            up=a
-                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) then
-                                call fd(fdx,x,dim)
-                                return
-                            end if
-                            fup=fx
-                        else
-                            call fd(fdx,x,dim)
-                            phidnew=dot_product(fdx,p)
-                            if(phidnew>c2_m_abs_phid0) return
-                            low=a
-                            if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
-                            flow=fx
-                            phidlow=phidnew
-                            phidlow_m_a=phidlow*a
+            !low & up must satisfy:
+            !    low < up
+            !    low satisfies sufficient decrease condition, but up violates
+            !    phi'(low) < 0
+            subroutine zoom(low,up,flow,fup,phidlow)!Restore x and fx to input status before calling zoom
+                real*8,intent(inout)::low,up,flow,fup,phidlow
+                real*8::phidnew,phidlow_m_a
+                phidlow_m_a=phidlow*a!Initialize
+                do
+                    !Updata a by quadratic interpolation
+                        a=phidlow_m_a*a/2d0/(flow+phidlow_m_a-fup)
+                        if(.not.(a>low.and.a<up)) a=(low+up)/2d0!Fail safe
+                    x=x0+a*p; call f(fx,x,dim)
+                    if(fx>fx0+c1*a*phid0) then
+                        up=a
+                        if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) then
+                            call fd(fdx,x,dim); return
                         end if
-                    end do
-                end subroutine zoom
+                        fup=fx
+                    else
+                        call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
+                        if(phidnew>c2_m_abs_phid0) return
+                        low=a
+                        if(up-low<1d-15.or.(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
+                        flow=fx; phidlow=phidnew; phidlow_m_a=phidlow*a
+                    end if
+                end do
+            end subroutine zoom
         end subroutine Wolfe_fdwithf
         
         !Line search for a step length satisfying strong Wolfe condition
@@ -1538,34 +1465,21 @@ contains
             real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidnew,phidold
             real*8,dimension(dim)::x0
             !Initialize
-                if(present(Increment)) then
-                    incrmt=max(1d0+1d-15,Increment)!Fail safe
-                else
-                    incrmt=1.05d0
-                end if
-                x0=x
-                fx0=fx
-                c2_m_abs_phid0=c2*dAbs(phid0)
+            if(present(Increment)) then; incrmt=max(1d0+1d-15,Increment)!Fail safe
+            else; incrmt=1.05d0; end if
+            x0=x; fx0=fx; c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
-            x=x0+a*p
-            call f(fx,x,dim)
+            x=x0+a*p; call f(fx,x,dim)
             if(fx<=fx0+c1*a*phid0) then!Satisfied, try to search for larger a
                 call fd(fdx,x,dim)
                 phidnew=dot_product(fdx,p)
                 if(phidnew>0d0) then!Curve is heading up
                     if(dAbs(phidnew)<=c2_m_abs_phid0) return
                     do!Else have to search for smaller a that phi(a) < phi(aold) & phid(a) > 0 is false
-                        aold=a
-                        fold=fx
-                        phidold=phidnew
-                        a=aold/incrmt
-                        x=x0+a*p
-                        call f(fx,x,dim)
-                        call fd(fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
+                        aold=a; fold=fx; phidold=phidnew
+                        a=aold/incrmt; x=x0+a*p; call f(fx,x,dim); call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
                         if(fx>=fold.or.phidnew<=0d0) then
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
@@ -1573,26 +1487,17 @@ contains
                     end do
                 else!Search for larger a
                     do
-                        aold=a
-                        fold=fx
-                        phidold=phidnew
-                        a=aold*incrmt
-                        x=x0+a*p
-                        call f(fx,x,dim)
-                        call fd(fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
+                        aold=a; fold=fx; phidold=phidnew
+                        a=aold*incrmt; x=x0+a*p; call f(fx,x,dim); call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(phidnew>0d0) then
-                            if(dAbs(phidnew)<=c2_m_abs_phid0) then
-                                return
+                            if(dAbs(phidnew)<=c2_m_abs_phid0) then; return
                             else
-                                atemp=a
-                                ftemp=fx
+                                atemp=a; ftemp=fx
                                 call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                                 fx=fx0
                             end if
@@ -1601,36 +1506,23 @@ contains
                 end if
             else!Violated, 1st search for smaller a satisfying sufficient decrease condition
                 do
-                    aold=a
-                    fold=fx
-                    a=aold/incrmt
-                    x=x0+a*p
-                    call f(fx,x,dim)
+                    aold=a; fold=fx
+                    a=aold/incrmt; x=x0+a*p; call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then!Found, then look at slope
                         call fd(fdx,x,dim)
                         phidnew=dot_product(fdx,p)
                         if(dAbs(phidnew)<=c2_m_abs_phid0) return
                         if(phidnew<0d0) then!Within [a, aold]
-                            x=x0+aold*p
-                            call fd(fdx,x,dim)
-                            phidold=dot_product(fdx,p)
-                            atemp=a
-                            ftemp=fx
+                            x=x0+aold*p; call fd(fdx,x,dim); phidold=dot_product(fdx,p)
+                            atemp=a; ftemp=fx
                             call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         else!Search for such an a that phi(a) < phi(aold) & phid(a) > 0 is false
                             do
-                                aold=a
-                                fold=fx
-                                phidold=phidnew
-                                a=aold/incrmt
-                                x=x0+a*p
-                                call f(fx,x,dim)
-                                call fd(fdx,x,dim)
-                                phidnew=dot_product(fdx,p)
+                                aold=a; fold=fx; phidold=phidnew
+                                a=aold/incrmt; x=x0+a*p; call f(fx,x,dim); call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
                                 if(fx>=fold.or.phidnew<=0d0) then
-                                    atemp=a
-                                    ftemp=fx
+                                    atemp=a; ftemp=fx
                                     call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                                     return
                                 end if
@@ -1639,56 +1531,42 @@ contains
                         end if
                     end if
                     if(a<1d-15) then
-                        call fd(fdx,x,dim)
-                        return
+                        call fd(fdx,x,dim); return
                     end if
                 end do
             end if
             contains
-                !low & up must satisfy:
-                !    low satisfies sufficient decrease condition
-                !    ( up - low ) * phi'(low) < 0
-                !    [ low, up ] (or [ up, low ]) contains a step length satisfying strong Wolfe condition
-                !        This means at least 1 of 3 following statements is true:
-                !            up violates the sufficient decrease condition
-                !            phi(up) >= phi(low)
-                !            up < low & phi'(up) <= 0
-                subroutine zoom(low,up,flow,fup,phidlow,phidup)
-                    real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
-                    real*8::phidnew,d1,d2
-                    do
-                        !Updata a by cubic interpolation
-                            d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
-                            d2=up-low
-                            if(d2>0d0) then
-                                d2=dSqrt(d1*d1-phidlow*phidup)
-                            else
-                                d2=-dSqrt(d1*d1-phidlow*phidup)
-                            end if
-                            a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
-                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0!Fail safe
-                        x=x0+a*p
-                        call f(fx,x,dim)
-                        call fd(fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
-                        if(fx>fx0+c1*a*phid0.or.fx>=flow) then
-                            up=a
-                            fup=fx
-                            phidup=phidnew
-                        else
-                            if(dAbs(phidnew)<=c2_m_abs_phid0) return
-                            if(phidnew*(up-low)>=0d0) then
-                                up=low
-                                fup=flow
-                                phidup=phidlow
-                            end if
-                            low=a
-                            flow=fx
-                            phidlow=phidnew
+            !low & up must satisfy:
+            !    low satisfies sufficient decrease condition
+            !    ( up - low ) * phi'(low) < 0
+            !    [ low, up ] (or [ up, low ]) contains a step length satisfying strong Wolfe condition
+            !        This means at least 1 of 3 following statements is true:
+            !            up violates the sufficient decrease condition
+            !            phi(up) >= phi(low)
+            !            up < low & phi'(up) <= 0
+            subroutine zoom(low,up,flow,fup,phidlow,phidup)
+                real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
+                real*8::phidnew,d1,d2
+                do
+                    !Updata a by cubic interpolation
+                        d1=phidlow+phidup-3d0*(flow-fup)/(low-up); d2=up-low
+                        if(d2>0d0) then; d2=dSqrt(d1*d1-phidlow*phidup)
+                        else; d2=-dSqrt(d1*d1-phidlow*phidup); end if
+                        a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
+                        if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0!Fail safe
+                    x=x0+a*p; call f(fx,x,dim); call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
+                    if(fx>fx0+c1*a*phid0.or.fx>=flow) then
+                        up=a; fup=fx; phidup=phidnew
+                    else
+                        if(dAbs(phidnew)<=c2_m_abs_phid0) return
+                        if(phidnew*(up-low)>=0d0) then
+                            up=low; fup=flow; phidup=phidlow
                         end if
-                        if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
-                    end do
-                end subroutine zoom
+                        low=a; flow=fx; phidlow=phidnew
+                    end if
+                    if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
+                end do
+            end subroutine zoom
         end subroutine StrongWolfe
         !When it is cheaper to evaluate f' along with f
         subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)
@@ -1709,32 +1587,20 @@ contains
             real*8::incrmt,c2_m_abs_phid0,fx0,ftemp,atemp,aold,fold,phidnew,phidold
             real*8,dimension(dim)::x0
             !Initialize
-                if(present(Increment)) then
-                    incrmt=max(1d0+1d-15,Increment)!Fail safe
-                else
-                    incrmt=1.05d0
-                end if
-                x0=x
-                fx0=fx
-                c2_m_abs_phid0=c2*dAbs(phid0)
+                if(present(Increment)) then; incrmt=max(1d0+1d-15,Increment)!Fail safe
+                else; incrmt=1.05d0; end if
+                x0=x; fx0=fx; c2_m_abs_phid0=c2*dAbs(phid0)
             !Check whether initial guess satisfies sufficient decrease condition
-            x=x0+a*p
-            info=f_fd(fx,fdx,x,dim)
+            x=x0+a*p; info=f_fd(fx,fdx,x,dim)
             if(fx<=fx0+c1*a*phid0) then!Satisfied, try to search for larger a
                 phidnew=dot_product(fdx,p)
                 if(phidnew>0d0) then!Curve is heading up
                     if(dAbs(phidnew)<=c2_m_abs_phid0) return
                     do!Else have to search for smaller a that phi(a) < phi(aold) & phid(a) > 0 is false
-                        aold=a
-                        fold=fx
-                        phidold=phidnew
-                        a=aold/incrmt
-                        x=x0+a*p
-                        info=f_fd(fx,fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
+                        aold=a; fold=fx; phidold=phidnew
+                        a=aold/incrmt; x=x0+a*p; info=f_fd(fx,fdx,x,dim); phidnew=dot_product(fdx,p)
                         if(fx>=fold.or.phidnew<=0d0) then
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
@@ -1742,23 +1608,16 @@ contains
                     end do
                 else!Search for larger a
                     do
-                        aold=a
-                        fold=fx
-                        phidold=phidnew
-                        a=aold*incrmt
-                        x=x0+a*p
-                        info=f_fd(fx,fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
+                        aold=a; fold=fx; phidold=phidnew
+                        a=aold*incrmt; x=x0+a*p; info=f_fd(fx,fdx,x,dim); phidnew=dot_product(fdx,p)
                         if(fx>fx0+c1*a*phid0.or.fx>=fold) then
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                             return
                         end if
                         if(phidnew>0d0) then
                             if(dAbs(phidnew)<=c2_m_abs_phid0) return
-                            atemp=a
-                            ftemp=fx
+                            atemp=a; ftemp=fx
                             call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         end if
@@ -1766,35 +1625,22 @@ contains
                 end if
             else!Violated, 1st search for smaller a satisfying sufficient decrease condition
 				do
-                    aold=a
-                    fold=fx
-                    a=aold/incrmt
-                    x=x0+a*p
-                    call f(fx,x,dim)
+                    aold=a; fold=fx
+                    a=aold/incrmt; x=x0+a*p; call f(fx,x,dim)
                     if(fx<=fx0+c1*a*phid0) then!Found, then look at slope
-                        call fd(fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
+                        call fd(fdx,x,dim); phidnew=dot_product(fdx,p)
                         if(dAbs(phidnew)<=c2_m_abs_phid0) return
                         if(phidnew<0d0) then!Within [a, aold]
-                            x=x0+aold*p
-                            call fd(fdx,x,dim)
-                            phidold=dot_product(fdx,p)
-                            atemp=a
-                            ftemp=fx
+                            x=x0+aold*p; call fd(fdx,x,dim); phidold=dot_product(fdx,p)
+                            atemp=a; ftemp=fx
                             call zoom(atemp,aold,ftemp,fold,phidnew,phidold)
                             return
                         else!Search for such an a that phi(a) < phi(aold) & phid(a) > 0 is false
                             do
-                                aold=a
-                                fold=fx
-                                phidold=phidnew
-                                a=aold/incrmt
-                                x=x0+a*p
-                                info=f_fd(fx,fdx,x,dim)
-                                phidnew=dot_product(fdx,p)
+                                aold=a; fold=fx; phidold=phidnew
+                                a=aold/incrmt; x=x0+a*p; info=f_fd(fx,fdx,x,dim); phidnew=dot_product(fdx,p)
                                 if(fx>=fold.or.phidnew<=0d0) then
-                                    atemp=a
-                                    ftemp=fx
+                                    atemp=a; ftemp=fx
                                     call zoom(aold,atemp,fold,ftemp,phidold,phidnew)
                                     return
                                 end if
@@ -1803,47 +1649,42 @@ contains
                         end if
                     end if
                     if(a<1d-15) then
-                        call fd(fdx,x,dim)
-                        return
+                        call fd(fdx,x,dim); return
                     end if
                 end do
             end if
             contains
-                subroutine zoom(low,up,flow,fup,phidlow,phidup)
-                    real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
-                    real*8::phidnew,d1,d2
-					do
-                        !Updata a by cubic interpolation
-                            d1=phidlow+phidup-3d0*(flow-fup)/(low-up)
-                            d2=up-low
-                            if(d2>0d0) then
-                                d2=dSqrt(d1*d1-phidlow*phidup)
-                            else
-                                d2=-dSqrt(d1*d1-phidlow*phidup)
-                            end if
-                            a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
-                            if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0!Fail safe
-                        x=x0+a*p
-                        info=f_fd(fx,fdx,x,dim)
-                        phidnew=dot_product(fdx,p)
-                        if(fx>fx0+c1*a*phid0.or.fx>=flow) then
-                            up=a
-                            fup=fx
-                            phidup=phidnew
-                        else
-                            if(dAbs(phidnew)<=c2_m_abs_phid0) return
-                            if(phidnew*(up-low)>=0d0) then
-                                up=low
-                                fup=flow
-                                phidup=phidlow
-                            end if
-                            low=a
-                            flow=fx
-                            phidlow=phidnew
+            !low & up must satisfy:
+            !    low satisfies sufficient decrease condition
+            !    ( up - low ) * phi'(low) < 0
+            !    [ low, up ] (or [ up, low ]) contains a step length satisfying strong Wolfe condition
+            !        This means at least 1 of 3 following statements is true:
+            !            up violates the sufficient decrease condition
+            !            phi(up) >= phi(low)
+            !            up < low & phi'(up) <= 0
+            subroutine zoom(low,up,flow,fup,phidlow,phidup)
+                real*8,intent(inout)::low,up,flow,fup,phidlow,phidup
+                real*8::phidnew,d1,d2
+				do
+                    !Updata a by cubic interpolation
+                        d1=phidlow+phidup-3d0*(flow-fup)/(low-up); d2=up-low
+                        if(d2>0d0) then; d2=dSqrt(d1*d1-phidlow*phidup)
+                        else; d2=-dSqrt(d1*d1-phidlow*phidup); end if
+                        a=up-(up-low)*(phidup+d2-d1)/(phidup-phidlow+2d0*d2)
+                        if(.not.(a>min(low,up).and.a<max(low,up))) a=(low+up)/2d0!Fail safe
+                    x=x0+a*p; info=f_fd(fx,fdx,x,dim); phidnew=dot_product(fdx,p)
+                    if(fx>fx0+c1*a*phid0.or.fx>=flow) then
+                        up=a; fup=fx; phidup=phidnew
+                    else
+                        if(dAbs(phidnew)<=c2_m_abs_phid0) return
+                        if(phidnew*(up-low)>=0d0) then
+                            up=low; fup=flow; phidup=phidlow
                         end if
-                        if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
-                    end do
-                end subroutine zoom
+                        low=a; flow=fx; phidlow=phidnew
+                    end if
+                    if(dAbs(up-low)<1d-15.or.dAbs(up-low)/max(dAbs(low),dAbs(up))<1d-15) return
+                end do
+            end subroutine zoom
         end subroutine StrongWolfe_fdwithf
     !================ End =================
 !------------------ End ------------------
@@ -2090,7 +1931,7 @@ contains
     !Textbook is wrong: it claims Lagrangian multiplier method transforms constrained optimization into unconstrained one
     !However, L has no lower bound, since lamda . c can approach infinity when c != 0 and lamda diverges
     !Lagrangian multiplier method actually turns a minimization problem into a saddle point problem,
-    !which cannot necessarily be solved through decreasing f(x), deteriorating all unconstrained minimizers
+    !which cannot necessarily be solved through decreasing L, deteriorating all unconstrained minimizers
     !Lagrangian multiplier method is numerically feasible only when at least 1 of the following statements is true:
     !    L has unique saddle point
     !    The initial guess is sufficiently close to the exact solution
@@ -2098,6 +1939,7 @@ contains
     !In general case, we have to turn to the augmented Lagrangian method:
     !    Augmented Lagrangian = f - lamda . c + miu / 2 * c . c
     !where miu is constraint violation penalty strength
+    !    miu should >= 1 because c ~ ( lamda - lamda_true ) / miu
     !Suggestion:
     !    Augmented Lagrangian has ill conditioned Hessian when miu is too large, deteriorating performance of line searchers
     !    so do not take too much interations nor push accuracy to double precision limit
@@ -2170,7 +2012,7 @@ contains
 
     !Augmented Lagrangian method for equality constraint
     !Optional argument:
-    !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line seaercher is available
+    !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line searcher is available
     !    lamda0: (default = 0) initial guess of lamda
     !    miu0: (default = 1) initial miu (must >= 1)
     !    All line search optional arguments are also optional here and will be passed to line searchers,
@@ -2418,7 +2260,8 @@ contains
 !------------------ End ------------------
 
 !--------------- Heuristic ---------------
-    !Not implemented
+    !Not implemented, because I cannot figure out a way
+    !to implement these algorithms as black box
 !------------------ End ------------------
 
 end module NonlinearOptimization
