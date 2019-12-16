@@ -814,7 +814,8 @@ contains
     !Input:  old = u(0), f, dt, dim
     !Output: new harvests u(dt)
 
-    subroutine dRK4(old,new,f,dt,dim)!Runge Kutta 4 order 
+    !Runge Kutta 4 order
+    subroutine dRK4(old,new,f,dt,dim)
         integer,intent(in)::dim
         real*8,dimension(dim),intent(in)::old
         real*8,dimension(dim),intent(out)::new
@@ -830,7 +831,8 @@ contains
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine dRK4
 
-    subroutine zRK4(old,new,f,dt,dim)!Runge Kutta 4 order 
+    !Runge Kutta 4 order
+    subroutine zRK4(old,new,f,dt,dim)
         integer,intent(in)::dim
         complex*16,dimension(dim),intent(in)::old
         complex*16,dimension(dim),intent(out)::new
@@ -846,7 +848,8 @@ contains
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine zRK4
 
-    subroutine dPredictCorrect2(old,new,f,dt,dim,Warning,MaxIteration,Precision)!Perdiction-correction 2 order, predictor = Euler, corrector = backward Euler
+    !Perdiction-correction 2 order, predictor = Euler, corrector = backward Euler
+    subroutine dPredictCorrect2(old,new,f,dt,dim,Warning,MaxIteration,Precision)
         !Required argument
             integer,intent(in)::dim
             real*8,dimension(dim),intent(in)::old
@@ -902,7 +905,8 @@ contains
     !Integrate[f(x),{x,low,up}]
     !Optional argument:
     !    MinIteration: (default = 4) numerical integration may fraudulently converge with too few grids
-    !                  at least 2^MinIteration grid points will be used (must >= 4)
+    !                  at least 2^MinIteration grids will be used
+    !                  MinIteration >= 4, because Romberg series require at least 16 grids
     !    MaxIteration (default = 25), AbsolutePrecision (default = 1d-15), RelativePrecision (default = 1d-15)
     real*8 function dRomberg(f,low,up,Warning,MinIteration,MaxIteration,AbsolutePrecision,RelativePrecision)
         !Required argument
@@ -915,86 +919,44 @@ contains
         integer::minit,maxit,i,j,grids
         real*8::abstol,reltol,absdev,reldev,t,told,s,sold,c,cold,rold,dx,dxm,temp,start
         !Set parameter according to optional argument
-            if(present(MinIteration)) then
-                minit=max(4,MinIteration)
-            else
-                minit=4
-            end if
-            if(present(MaxIteration)) then
-                maxit=max(5,MaxIteration)
-            else
-                maxit=25
-            end if
-            if(present(AbsolutePrecision)) then
-                abstol=dAbs(AbsolutePrecision)
-            else
-                abstol=1d-15
-            end if
-            if(present(RelativePrecision)) then
-                reltol=dAbs(RelativePrecision)
-            else
-                reltol=1d-15
-            end if
+            if(present(MinIteration)) then; minit=max(4,MinIteration)
+                else; minit=4; end if
+            if(present(MaxIteration)) then; maxit=MaxIteration
+                else; maxit=25; end if
+            if(present(AbsolutePrecision)) then; abstol=dAbs(AbsolutePrecision)
+                else; abstol=1d-15; end if
+            if(present(RelativePrecision)) then; reltol=dAbs(RelativePrecision)
+                else; reltol=1d-15; end if
         dx=(up-low)/2d0!t_0
         t=(f(low)+f(up))*dx
         told=t!s_0
-        t=told/2d0+dx*f(low+dx)
-        s=(4d0*t-told)/3d0
+        t=told/2d0+dx*f(low+dx); s=(4d0*t-told)/3d0
         dx=dx/2d0
-        told=t!c_0
-        sold=s
-        t=told/2d0+dx*(f(low+dx)+f(up-dx))
-        s=(4d0*t-told)/3d0
-        c=(16d0*s-sold)/15d0
+        told=t; sold=s!c_0
+        t=told/2d0+dx*(f(low+dx)+f(up-dx)); s=(4d0*t-told)/3d0; c=(16d0*s-sold)/15d0
         dx=dx/2d0
-        told=t!s_0
-        sold=s
-        cold=c
+        told=t; sold=s; cold=c!r_0
         temp=dx*3d0
-        t=told/2d0+dx*(f(low+dx)+f(low+temp)+f(up-temp)+f(up-dx))
-        s=(4d0*t-told)/3d0
-        c=(16d0*s-sold)/15d0
-        dromberg=(64d0*c-cold)/63d0
+        t=told/2d0+dx*(f(low+dx)+f(low+temp)+f(up-temp)+f(up-dx)); s=(4d0*t-told)/3d0; c=(16d0*s-sold)/15d0; dromberg=(64d0*c-cold)/63d0
         grids=8!Preiteration
         do i=4,minit
-            temp=0d0
-            dxm=dx
-            dx=dx/2d0
-            grids=grids*2
-            told=t
-            sold=s
-            cold=c
-            rold=dromberg
+            temp=0d0; dxm=dx; dx=dx/2d0; grids=grids*2
+            told=t; sold=s; cold=c; rold=dromberg
             start=low-dx
             do j=1,grids-1,2
-                start=start+dxm
-                temp=temp+f(start)
+                start=start+dxm; temp=temp+f(start)
             end do
-            t=told/2d0+dx*temp
-            s=(4d0*t-told)/3d0
-            c=(16d0*s-sold)/15d0
-            dromberg=(64d0*c-cold)/63d0
+            t=told/2d0+dx*temp; s=(4d0*t-told)/3d0; c=(16d0*s-sold)/15d0; dromberg=(64d0*c-cold)/63d0
         end do
         do i=minit+1,maxit!Main loop
-            temp=0d0
-            dxm=dx
-            dx=dx/2d0
-            grids=grids*2
-            told=t
-            sold=s
-            cold=c
-            rold=dromberg
+            temp=0d0; dxm=dx; dx=dx/2d0; grids=grids*2
+            told=t; sold=s; cold=c; rold=dromberg
             start=low-dx
             do j=1,grids-1,2
-                start=start+dxm
-                temp=temp+f(start)
+                start=start+dxm; temp=temp+f(start)
             end do
-            t=told/2d0+dx*temp
-            s=(4d0*t-told)/3d0
-            c=(16d0*s-sold)/15d0
-            dromberg=(64d0*c-cold)/63d0
-            absdev=abs(dromberg-rold)
-            reldev=absdev/abs(dromberg)
+            t=told/2d0+dx*temp; s=(4d0*t-told)/3d0; c=(16d0*s-sold)/15d0; dromberg=(64d0*c-cold)/63d0
+            absdev=abs(dromberg-rold); reldev=absdev/abs(dromberg)
             if(absdev<abstol.or.reldev<reltol) exit
         end do
         if(i>maxit.and.((.not.present(Warning)).or.Warning)) then
