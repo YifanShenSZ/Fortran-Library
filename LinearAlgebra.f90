@@ -68,17 +68,19 @@ contains
         quamul(3)=a(3)*b(1)+a(1)*b(3)+a(2)*b(4)-a(4)*b(2)
         quamul(4)=a(4)*b(1)+a(1)*b(4)+a(3)*b(2)-a(2)*b(3)
     end function quamul
-    !Rotate 3 dimensional vector r by unit quaternion q, q=(cos(theta/2),sin(theta/2)*axis)
-    function Rotate(q,r)
+    !Rotate each column of 3 x NAtoms matrix r by unit quaternion q, q=[cos(theta/2),sin(theta/2)*axis]
+    subroutine Rotate(q,r,NAtoms)
         real*8,dimension(4),intent(in)::q
-        real*8,dimension(3),intent(in)::r
-        real*8,dimension(3)::Rotate
-        real*8,dimension(4)::qstar,qtemp
-        qstar(1)=q(1); qstar(2:4)=-q(2:4)
-        qtemp(1)= 0d0; qtemp(2:4)=r
-        qtemp=quamul(quamul(qstar,qtemp),q)
-        Rotate=qtemp(2:4)
-    end function Rotate
+        integer,intent(in)::NAtoms
+        real*8,dimension(3,NAtoms),intent(inout)::r
+        integer::i; real*8,dimension(4)::qstar,qtemp,qresult
+        qstar(1)=q(1); qstar(2:4)=-q(2:4); qtemp(1)=0d0
+        do i=1,NAtoms
+            qtemp(2:4)=r(:,i)
+            qresult=quamul(quamul(qstar,qtemp),q)
+            r(:,i)=qresult(2:4)
+        end do
+    end subroutine Rotate
 !----------------- End -----------------
 
 !--------------- Matrix ----------------
@@ -86,20 +88,15 @@ contains
     !A harvests the Doolittle LU decomposition
     real*8 function determinant(A,N)
         integer,intent(in)::N
-        real*8,dimension(N,N),intent(in)::A
-        integer::i
-        integer,dimension(N)::ipiv
-        real*8::sign
+        real*8,dimension(N,N),intent(inout)::A
+        integer::i; integer,dimension(N)::ipiv; real*8::sign
         call dgetrf(N,N,A,N,ipiv,i)
+        if(ipiv(1)==1) then; sign=1d0
+        else; sign=-1d0; end if
         determinant=A(1,1)
-        if(ipiv(1)==1) then
-            sign=1d0
-        else
-            sign=-1d0
-        end if
         do i=2,N
-            determinant=determinant*A(i,i)
             if(ipiv(i)/=i) sign=-sign
+            determinant=determinant*A(i,i)
         end do
         determinant=determinant*sign
     end function determinant
@@ -110,9 +107,7 @@ contains
         real*8,dimension(N,N),intent(in)::A
         integer::i
         Trace=0d0
-        do i=1,N
-            Trace=Trace+A(i,i)
-        end do
+        do i=1,N; Trace=Trace+A(i,i); end do
     end function Trace
 
     !N order matrix A, return the main diagonal vector of A
