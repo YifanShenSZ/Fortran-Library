@@ -4,7 +4,8 @@ module Mathematics
 
 !Constant
     !Mathematical constant
-        real*8,parameter::pi=3.141592653589793d0,enature=2.718281828459045d0,EulerGamma=5.7721566490153286060651209d-1
+        real*8,parameter::pi=3.141592653589793d0,enature=2.718281828459045d0,&
+            GoldenRatio=0.6180339887498949d0,EulerGamma=0.57721566490153286060651209d0
         complex*16,parameter::ci=(0d0,1d0)
         !Frequently used form (m = multiply, d = divide, inv = inverse)
         real*8,parameter::Sqrt2=1.4142135623730951d0,Sqrt3=1.7320508075688772d0,invSqrt2=0.7071067811865475d0,&
