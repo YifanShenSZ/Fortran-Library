@@ -84,29 +84,19 @@ contains
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 info=f_fd(fnew,fdnew,x,dim)
             else
-                call f(fnew,x,dim)
-                call fd(fdnew,x,dim)
+                call f(fnew,x,dim); call fd(fdnew,x,dim)
             end if
             !Initial direction & step length
-            if(present(fdd)) then
-                info=fdd(Hessian,x,dim)
-            else
-                info=djacobi(fd_j,dim,dim,Hessian,x,1d-8)
-            end if
-            p=-fdnew
-            call My_dposv(Hessian,p,dim,info)
+            if(present(fdd)) then; info=fdd(Hessian,x,dim)
+            else; info=djacobi(fd_j,dim,dim,Hessian,x,1d-8); end if
+            p=-fdnew; call My_dposv(Hessian,p,dim,info)
             if(info==0) then
-                phidnew=dot_product(fdnew,p)
-                a=1d0
+                phidnew=dot_product(fdnew,p); a=1d0
             else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
                 if(-phidnew<tol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
+                if(fnew==0d0) then; a=1d0
+                else; a=-fnew/phidnew; end if
             end if
         if(present(Increment)) then
             if(present(fdd)) then!Analytical Hessian available
@@ -254,70 +244,56 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine After()!Check convergence, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.
-                    return
+        subroutine After()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.
-                    return
+                terminate=.true.; return
+            end if
+            !Determine new direction and step length
+            p=-fdnew; info=fdd(Hessian,x,dim); call My_dposv(Hessian,p,dim,info)
+            if(info==0) then
+                phidnew=dot_product(fdnew,p); a=1d0
+            else!Hessian is not positive definite, use steepest descent direction
+                p=-fdnew; phidnew=-phidnew; a=a*phidold/phidnew
+            end if
+        end subroutine After
+        subroutine After_NumericalHessian()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
-                !Determine new direction and step length
-                p=-fdnew
-                info=fdd(Hessian,x,dim)
-                call My_dposv(Hessian,p,dim,info)
-                if(info==0) then
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                else!Hessian is not positive definite, use steepest descent direction
-                    p=-fdnew
-                    phidnew=-phidnew
-                    a=a*phidold/phidnew
-                end if
-            end subroutine After
-            subroutine After_NumericalHessian()!Check convergence, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.
-                    return
-                end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.
-                    return
-                end if
-                !Determine new direction and step length
-                p=-fdnew
-                info=djacobi(fd_j,dim,dim,Hessian,x,1d-8)
-                call My_dposv(Hessian,p,dim,info)
-                if(info==0) then
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
-                else!Hessian is not positive definite, use steepest descent direction
-                    p=-fdnew
-                    phidnew=-phidnew
-                    a=a*phidold/phidnew
-                end if
-            end subroutine After_NumericalHessian
-            subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
-                integer,intent(in)::M,N
-                real*8,dimension(N),intent(in)::x
-                real*8,dimension(M),intent(out)::fdx
-                call fd(fdx,x,N)
-            end subroutine fd_j
+                terminate=.true.; return
+            end if
+            !Determine new direction and step length
+            p=-fdnew; info=djacobi(fd_j,dim,dim,Hessian,x,1d-8); call My_dposv(Hessian,p,dim,info)
+            if(info==0) then
+                phidnew=dot_product(fdnew,p); a=1d0
+            else!Hessian is not positive definite, use steepest descent direction
+                p=-fdnew; phidnew=-phidnew; a=a*phidold/phidnew
+            end if
+        end subroutine After_NumericalHessian
+        subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
+            integer,intent(in)::M,N
+            real*8,dimension(N),intent(in)::x
+            real*8,dimension(M),intent(out)::fdx
+            call fd(fdx,x,N)
+        end subroutine fd_j
     end subroutine NewtonRaphson
 
     !Broyden–Fletcher–Goldfarb–Shanno (BFGS) quasi-Newton method, requiring Wolfe condition
@@ -362,36 +338,24 @@ contains
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 i=f_fd(fnew,fdnew,x,dim)
             else
-                call f(fnew,x,dim)
-                call fd(fdnew,x,dim)
+                call f(fnew,x,dim); call fd(fdnew,x,dim)
             end if
             !Initial approximate inverse Hessian & direction & step length
             if(freq>0) then
-                if(present(fdd)) then
-                    i=fdd(H,x,dim)
-                else
-                    i=djacobi(fd_j,dim,dim,H,x,1d-8)
-                end if
-                p=-fdnew
-                call My_dpotri(H,dim,i)
+                if(present(fdd)) then; i=fdd(H,x,dim)
+                else; i=djacobi(fd_j,dim,dim,H,x,1d-8); end if
+                p=-fdnew; call My_dpotri(H,dim,i)
                 if(i==0) then
                     call syL2U(H,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
+                    p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
                 end if
             end if
             if(freq<=0.or.i/=0) then!Hessian is either uncomputed or not positive definite, initial approximate inverse Hessian = a
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
                 if(-phidnew<tol) return
-                if(fnew==0d0) then
-                    a=1d0
-                else
-                    a=-fnew/phidnew
-                end if
-                s=x
-                y=fdnew
+                if(fnew==0d0) then; a=1d0
+                else; a=-fnew/phidnew; end if
+                s=x; y=fdnew
                 if(present(Increment)) then
                     if(sw) then
                         call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
@@ -415,17 +379,11 @@ contains
                     end if
                     return
                 end if
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
+                s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
                 U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
+                forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
                 H=matmul(transpose(U),a*U)+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
+                p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
             end if
         if(present(Increment)) then
             if(freq>0) then!Exact Hessian will be computed
@@ -433,16 +391,14 @@ contains
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After()!After search
                                 if(terminate) return
@@ -451,16 +407,14 @@ contains
                     else
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After()!After search
                                 if(terminate) return
@@ -471,16 +425,14 @@ contains
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
@@ -489,16 +441,14 @@ contains
                     else
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
@@ -510,16 +460,14 @@ contains
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
@@ -528,16 +476,14 @@ contains
                 else
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
@@ -551,16 +497,14 @@ contains
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After()!After search
                                 if(terminate) return
@@ -569,16 +513,14 @@ contains
                     else
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After()!After search
                                 if(terminate) return
@@ -589,16 +531,14 @@ contains
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
@@ -607,16 +547,14 @@ contains
                     else
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
                             end do
                         else
                             do iIteration=1,maxit!Main loop
-                                s=x!Prepare
-                                y=fdnew
+                                s=x; y=fdnew!Prepare
                                 call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                                 call After_NumericalHessian()!After search
                                 if(terminate) return
@@ -628,16 +566,14 @@ contains
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
@@ -646,16 +582,14 @@ contains
                 else
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            s=x!Prepare
-                            y=fdnew
+                            s=x; y=fdnew!Prepare
                             call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
                             call After_NoHessian()!After search
                             if(terminate) return
@@ -673,8 +607,7 @@ contains
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
@@ -682,42 +615,30 @@ contains
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 !Determine new direction and step length, update approximate inverse Hessian
                 i=mod(iIteration,freq)
                 if(i==0) then!Every freq steps compute exact Hessian
-                    i=fdd(U,x,dim)
-                    call My_dpotri(U,dim,i)
+                    i=fdd(U,x,dim); call My_dpotri(U,dim,i)
                     if(i==0) then!Use exact Hessian if positive definite
-                        call sycp(H,U,dim)
-                        call syL2U(H,dim)
-                        p=-matmul(H,fdnew)
-                        phidnew=dot_product(fdnew,p)
-                        a=1d0
+                        call sycp(H,U,dim); call syL2U(H,dim)
+                        p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
                     end if
                 end if
                 if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
-                    s=x-s
-                    y=fdnew-y
-                    rho=1d0/dot_product(y,s)
+                    s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
                     U=-rho*vector_direct_product(y,s,dim,dim)
-                    forall(i=1:dim)
-                        U(i,i)=U(i,i)+1d0
-                    end forall
+                    forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
                     H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
+                    p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
                 end if
             end subroutine After
             subroutine After_NumericalHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
@@ -725,8 +646,7 @@ contains
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 !Determine new direction and step length, update approximate inverse Hessian
                 i=mod(iIteration,freq)
@@ -734,33 +654,23 @@ contains
                     i=djacobi(fd_j,dim,dim,U,x,1d-8)
                     call My_dpotri(U,dim,i)
                     if(i==0) then!Use exact Hessian if positive definite
-                        call sycp(H,U,dim)
-                        call syL2U(H,dim)
-                        p=-matmul(H,fdnew)
-                        phidnew=dot_product(fdnew,p)
-                        a=1d0
+                        call sycp(H,U,dim); call syL2U(H,dim)
+                        p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
                     end if
                 end if
                 if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
-                    s=x-s
-                    y=fdnew-y
-                    rho=1d0/dot_product(y,s)
+                    s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
                     U=-rho*vector_direct_product(y,s,dim,dim)
-                    forall(i=1:dim)
-                        U(i,i)=U(i,i)+1d0
-                    end forall
+                    forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
                     H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-                    p=-matmul(H,fdnew)
-                    phidnew=dot_product(fdnew,p)
-                    a=1d0
+                    p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
                 end if
             end subroutine After_NumericalHessian
             subroutine After_NoHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
@@ -768,21 +678,14 @@ contains
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 !Determine new direction and step length, update approximate inverse Hessian
-                s=x-s
-                y=fdnew-y
-                rho=1d0/dot_product(y,s)
+                s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
                 U=-rho*vector_direct_product(y,s,dim,dim)
-                forall(i=1:dim)
-                    U(i,i)=U(i,i)+1d0
-                end forall
+                forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
                 H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-                p=-matmul(H,fdnew)
-                phidnew=dot_product(fdnew,p)
-                a=1d0
+                p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
             end subroutine After_NoHessian
             subroutine fd_j(M,N,x,fdx)!Reformat for djacobi
                 integer,intent(in)::M,N
@@ -833,20 +736,14 @@ contains
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 i=f_fd(fnew,fdnew,x,dim)
             else
-                call f(fnew,x,dim)
-                call fd(fdnew,x,dim)
+                call f(fnew,x,dim); call fd(fdnew,x,dim)
             end if
             !Initial iteration history
-            p=-fdnew
-            phidnew=-dot_product(fdnew,fdnew)
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<tol) return
-            if(fnew==0d0) then
-                a=1d0
-            else
-                a=-fnew/phidnew
-            end if
-            xold=x
-            fdold=fdnew
+            if(fnew==0d0) then; a=1d0
+            else; a=-fnew/phidnew; end if
+            xold=x; fdold=fdnew
             !Initial approximate inverse Hessian = a
             if(present(Increment)) then
                 if(sw) then
@@ -872,12 +769,9 @@ contains
                 return
             end if
             recent=0
-            s(:,0)=x-xold
-            y(:,0)=fdnew-fdold
-            rho(0)=1d0/dot_product(y(:,0),s(:,0))
+            s(:,0)=x-xold; y(:,0)=fdnew-fdold; rho(0)=1d0/dot_product(y(:,0),s(:,0))
             do iIteration=1,mem-1!Preiterate to get enough history
-                xold=x!Prepare
-                fdold=fdnew
+                xold=x; fdold=fdnew!Prepare
                 !Determine new direction
                 p=fdnew
                 do i=recent,0,-1
@@ -889,9 +783,7 @@ contains
                     phidnew=rho(i)*dot_product(y(:,i),p)
                     p=p+(alpha(i)-phidnew)*s(:,i)
                 end do
-                p=-p
-                phidnew=dot_product(fdnew,p)
-                a=1d0
+                p=-p; phidnew=dot_product(fdnew,p); a=1d0
                 if(present(Increment)) then!Line search
                     if(sw) then
                         call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
@@ -916,9 +808,7 @@ contains
                     return
                 end if
                 recent=recent+1
-                s(:,recent)=x-xold
-                y(:,recent)=fdnew-fdold
-                rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
+                s(:,recent)=x-xold; y(:,recent)=fdnew-fdold; rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
             end do
         if(present(Increment)) then
             if(present(f_fd)) then!Cheaper to evaluate f' along with f
@@ -993,15 +883,10 @@ contains
             write(*,'(1x,A38)')'Failed L-BFGS: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
-        !Clean up
-            deallocate(rho)
-            deallocate(alpha)
-            deallocate(s)
-            deallocate(y)
+        deallocate(rho); deallocate(alpha); deallocate(s); deallocate(y)!Clean up
         contains
             subroutine Before()!Prepare, determine new direction & step length
-                xold=x!Prepare
-                fdold=fdnew
+                xold=x; fdold=fdnew!Prepare
                 !Determine new direction
                 p=fdnew
                 do i=recent,0,-1
@@ -1021,16 +906,13 @@ contains
                     phidnew=rho(i)*dot_product(y(:,i),p)
                     p=p+(alpha(i)-phidnew)*s(:,i)
                 end do
-                p=-p
-                phidnew=dot_product(fdnew,p)
-                a=1d0
+                p=-p; phidnew=dot_product(fdnew,p); a=1d0
             end subroutine Before
             subroutine After()!Check convergence, replace earliest iteration history with latest
                 !Check convergence
                 phidnew=dot_product(fdnew,fdnew)
                 if(phidnew<tol) then
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
@@ -1038,13 +920,10 @@ contains
                         write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
-                    terminate=.true.
-                    return
+                    terminate=.true.; return
                 end if
                 recent=mod(recent+1,mem)
-                s(:,recent)=x-xold
-                y(:,recent)=fdnew-fdold
-                rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
+                s(:,recent)=x-xold; y(:,recent)=fdnew-fdold; rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
             end subroutine After
     end subroutine LBFGS
 
@@ -1102,9 +981,7 @@ contains
                     if(present(f_fd)) then!Cheaper to evaluate f' along with f
                         if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                             do iIteration=1,maxit!Main loop
-                                fold=fnew!Prepare
-                                fdold=fdnew
-                                phidold=phidnew
+                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                                 call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
                                 call DY()!After search
                                 if(terminate) return
@@ -1230,8 +1107,7 @@ contains
             p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
             phidnew=dot_product(fdnew,p)
             if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             end if
             a=a*phidold/phidnew
         end subroutine DY
@@ -1253,8 +1129,7 @@ contains
             p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
             phidnew=dot_product(fdnew,p)
             if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew
-                phidnew=-dot_product(fdnew,fdnew)
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             end if
             a=a*phidold/phidnew
         end subroutine PR
@@ -1767,63 +1642,50 @@ contains
         if(present(low).and.present(up)) then
             if(dtrnlspbc_init(handle,N,M,x,low,up,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
                 write(*,*)'Trust region abort: invalid initialization'
-                call mkl_free_buffers
-                return
+                call mkl_free_buffers; return
             end if
             if(dtrnlspbc_check(handle,N,M,J,fdx,low,up,tol,info)/=TR_SUCCESS) then
                 write(*,*)'Trust region abort: check failed'
-                call mkl_free_buffers
-                return
+                call mkl_free_buffers; return
             else
                 if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0.or.info(5)/=0.or.info(6)/=0) then
                     write(*,*)'Trust region abort: check was not passed, the information is:'
                     write(*,*)info
-                    call mkl_free_buffers
-                    return
+                    call mkl_free_buffers; return
                 end if
             end if
             if(present(Jacobian)) then
                 do!Main loop
                     if (dtrnlspbc_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                        call mkl_free_buffers
-                        return
+                        call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6)
-                            exit
-                        case (1)
-                            call fd(fdx,x,M,N)
-                        case (2)
-                            i=Jacobian(J,x,M,N)
+                        case (-1,-2,-3,-4,-5,-6); exit
+                        case (1); call fd(fdx,x,M,N)
+                        case (2); i=Jacobian(J,x,M,N)
                     end select
                 end do
             else
                 do!Main loop
                     if (dtrnlspbc_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                        call mkl_free_buffers
-                        return
+                        call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6)
-                            exit
-                        case (1)
-                            call fd(fdx,x,M,N)
+                        case (-1,-2,-3,-4,-5,-6); exit
+                        case (1); call fd(fdx,x,M,N)
                         case (2)
                             if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
-                                call mkl_free_buffers
-                                return
+                                call mkl_free_buffers; return
                             end if
                     end select
                 end do
             end if
             !Clean up
                 if (dtrnlspbc_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
-                    call mkl_free_buffers
-                    return
+                    call mkl_free_buffers; return
                 end if
                 if (dtrnlspbc_delete(handle)/=TR_SUCCESS) then
-                    call mkl_free_buffers
-                    return
+                    call mkl_free_buffers; return
                 end if
             do i=1,N
                 if((x(i)<low(i).or.x(i)>up(i)).and.warn) then
@@ -1834,63 +1696,50 @@ contains
         else
             if(dtrnlsp_init(handle,N,M,x,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
                 write(*,*)'Trust region abort: invalid initialization'
-                call mkl_free_buffers
-                return
+                call mkl_free_buffers; return
             end if
             if(dtrnlsp_check(handle,N,M,J,fdx,tol,info)/=TR_SUCCESS) then
                 write(*,*)'Trust region abort: check failed'
-                call mkl_free_buffers
-                return
+                call mkl_free_buffers; return
             else
                 if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
                     write(*,*)'Trust region abort: check was not passed, the information is:'
                     write(*,*)info
-                    call mkl_free_buffers
-                    return
+                    call mkl_free_buffers; return
                 end if
             end if
             if(present(Jacobian)) then
                 do!Main loop
                     if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                        call mkl_free_buffers
-                        return
+                        call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6)
-                            exit
-                        case (1)
-                            call fd(fdx,x,M,N)
-                        case (2)
-                            i=Jacobian(J,x,M,N)
+                        case (-1,-2,-3,-4,-5,-6); exit
+                        case (1); call fd(fdx,x,M,N)
+                        case (2); i=Jacobian(J,x,M,N)
                     end select
                 end do
             else
                 do!Main loop
                     if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
-                        call mkl_free_buffers
-                        return
+                        call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6)
-                            exit
-                        case (1)
-                            call fd(fdx,x,M,N)
+                        case (-1,-2,-3,-4,-5,-6); exit
+                        case (1); call fd(fdx,x,M,N)
                         case (2)
                             if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
-                                call mkl_free_buffers
-                                return
+                                call mkl_free_buffers; return
                             end if
                     end select
                 end do
             end if
             !Clean up
                 if (dtrnlsp_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
-                    call mkl_free_buffers
-                    return
+                    call mkl_free_buffers; return
                 end if
                 if (dtrnlsp_delete(handle)/=TR_SUCCESS) then
-                    call mkl_free_buffers
-                    return
+                    call mkl_free_buffers; return
                 end if
         end if
         call mkl_free_buffers
@@ -2260,8 +2109,7 @@ contains
 !------------------ End ------------------
 
 !--------------- Heuristic ---------------
-    !Not implemented, because I cannot figure out a way
-    !to implement these algorithms as black box
+    !Not implemented, because I cannot figure out a way to implement these algorithms as black box
 !------------------ End ------------------
 
 end module NonlinearOptimization
