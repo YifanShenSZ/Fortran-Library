@@ -537,11 +537,8 @@ write(*,*)'!!!!!!!!!! Testing all geometry transformation routines... !!!!!!!!!!
         H2Ogeom1=H2Ogeom
         call StandardizeGeometry(H2Ogeom1,mass,3,1)
         quaternion=BetterRandomUnitQuaternion()
-        H2Ogeom2=H2Ogeom
-        do i=1,3
-            H2Ogeom2(3*i-2:3*i)=Rotate(quaternion,H2Ogeom2(3*i-2:3*i))
-        end do
-        call StandardizeGeometry(H2Ogeom2,mass,3,1,reference=H2Ogeom1,difference=difference)
+        H2Ogeom2=H2Ogeom; call Rotate(quaternion,H2Ogeom2,3)
+        call StandardizeGeometry(H2Ogeom2,mass,3,1,ref=H2Ogeom1,diff=difference)
         write(*,*)difference
     write(*,*)
 write(*,*)'---------- Geometry transformation routines test passed ----------'
