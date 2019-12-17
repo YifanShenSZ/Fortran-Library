@@ -12,7 +12,8 @@ Clustering:
 * Gaussian mixture model
 
 Mathematics:
-* Combinatorics and selected special functions
+* Selected special functions and combinatorics
+* Quaternion operation
 * Ordinary differential equation
 * 1 dimensional integration
 
@@ -31,6 +32,7 @@ Chemistry:
 
 Geometry transformation:
 * Standard geometry (also called standard orientaion)
+* Assimilate a geometry to a reference
 * Cartesian <-> internal coordinate
 * Normal mode and vibrational frequency
 
