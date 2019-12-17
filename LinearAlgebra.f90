@@ -62,18 +62,17 @@ contains
 
 !--------------- Matrix ----------------
     !N order matrix A, return det(A)
-    !A harvests the Doolittle LU decomposition
     real*8 function determinant(A,N)
         integer,intent(in)::N
-        real*8,dimension(N,N),intent(inout)::A
+        real*8,dimension(N,N),intent(in)::A
         integer::i; integer,dimension(N)::ipiv; real*8::sign
-        call dgetrf(N,N,A,N,ipiv,i)
-        if(ipiv(1)==1) then; sign=1d0
-        else; sign=-1d0; end if
-        determinant=A(1,1)
+        real*8,dimension(N,N)::Acopy
+        Acopy=A; call dgetrf(N,N,Acopy,N,ipiv,i)
+        if(ipiv(1)==1) then; sign=1d0; else; sign=-1d0; end if
+        determinant=Acopy(1,1)
         do i=2,N
             if(ipiv(i)/=i) sign=-sign
-            determinant=determinant*A(i,i)
+            determinant=determinant*Acopy(i,i)
         end do
         determinant=determinant*sign
     end function determinant
