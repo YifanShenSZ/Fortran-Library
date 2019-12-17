@@ -1,5 +1,6 @@
 !Common geometry transformation applied in molecule computation:
 !    Standard geometry
+!    Assimilate geometry
 !    Cartesian <-> internal coodinate
 !    Normal mode and vibrational frequency
 module GeometryTransformation
