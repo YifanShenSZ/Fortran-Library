@@ -106,9 +106,9 @@ subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,ref,diff,grad)
         if(present(diff)) diff=mindiff!Harvest mass^2 weighted || geom - ref ||_2^2
         geom=r(:,:,indicemin)!Determine the unique geometry
         select case(indicemin)!Determine the principle axes
-            case(2); moi(:,1:2)=-moi(:,1:2)
-            case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
-            case(4); moi(:,2:3)=-moi(:,2:3)
+        case(2); moi(:,1:2)=-moi(:,1:2)
+        case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
+        case(4); moi(:,2:3)=-moi(:,2:3)
         end select
         if(present(grad)) UT=transpose(moi)!Update U^T accordingly
     else
@@ -136,7 +136,7 @@ end subroutine StandardizeGeometry
 !    NAtoms order vector mass, mass(i) is the mass of i-th atom
 !    NAtoms
 !Optional argument:
-!    diff: harvest || geom - ref ||_2^2
+!    diff: harvest mass^2 weighted || geom - ref ||_F^2
 !    init: initial value of rotation, see rotation section
 subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff,init)
     !Required argument
@@ -156,7 +156,7 @@ subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff,init)
     !Shift the centre of mass of the input geometry to the reference
         qind=matmul(ref-geom,mass)/sum(mass)
         forall(i=1:NAtoms); geom(:,i)=geom(:,i)+qind; end forall
-    !Rotate geometry to minimize mass weighted || geom - ref ||_2^2
+    !Rotate geometry to minimize mass^2 weighted || geom - ref ||_F^2
         !Rotation is done by unit quaternion q=[cos(alpha/2),sin(alpha/2)*axis]
         !Here we let the independent variables be alpha/2, theta, phi
         !    where axis=[sin(theta)cos(phi),sin(theta)sin(phi),cos(theta)]
@@ -230,8 +230,8 @@ end subroutine AssimilateGeometry
         integer,intent(out)::intdim
         if(allocated(GeometryTransformation_IntCDef)) deallocate(GeometryTransformation_IntCDef)
         select case(Definition)
-            case('Columbus7'); call Columbus7()
-            case default; call default()
+        case('Columbus7'); call Columbus7()
+        case default; call default()
         end select
         contains
         !First line is always 'TEXAS'
@@ -274,28 +274,28 @@ end subroutine AssimilateGeometry
                             GeometryTransformation_IntCDef(i).motion(1).type=MotionType(k)
                             GeometryTransformation_IntCDef(i).motion(1).coeff=1d0
                             select case(MotionType(k))
-                                case('stretching')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
-                                    read(99,'(A28,I5,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom
-                                case('bending')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
-                                    read(99,'(A28,I6,1x,I9,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(1),&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(3),&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(2)
-                                case('torsion')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
-                                    read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom
-                                case('OutOfPlane')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
-                                    read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(1),&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(4),&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(2),&
-                                    GeometryTransformation_IntCDef(i).motion(1).atom(3)
-                                case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
+                            case('stretching')
+                                allocate(GeometryTransformation_IntCDef(i).motion(1).atom(2))
+                                read(99,'(A28,I5,1x,I9)')chartemp,&
+                                GeometryTransformation_IntCDef(i).motion(1).atom
+                            case('bending')
+                                allocate(GeometryTransformation_IntCDef(i).motion(1).atom(3))
+                                read(99,'(A28,I6,1x,I9,1x,I9)')chartemp,&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(1),&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(3),&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(2)
+                            case('torsion')
+                                allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                                read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
+                                GeometryTransformation_IntCDef(i).motion(1).atom
+                            case('OutOfPlane')
+                                allocate(GeometryTransformation_IntCDef(i).motion(1).atom(4))
+                                read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(1),&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(4),&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(2),&
+                                GeometryTransformation_IntCDef(i).motion(1).atom(3)
+                            case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                             end select
                             k=k+1
                         else
@@ -303,32 +303,32 @@ end subroutine AssimilateGeometry
                             do j=1,GeometryTransformation_IntCDef(i).NMotions
                                 GeometryTransformation_IntCDef(i).motion(j).type=MotionType(k)
                                 select case(MotionType(k))
-                                    case('stretching')
-                                        allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
-                                        read(99,'(A10,F10.7,8x,I5,1x,I9)')chartemp,&
-                                        GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom
-                                    case('bending')
-                                        allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
-                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')chartemp,&
-                                        GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(1),&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(3),&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(2)
-                                    case('torsion')
-                                        allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
-                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                        GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom
-                                    case('OutOfPlane')
-                                        allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
-                                        read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                        GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(1),&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(4),&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(2),&
-                                        GeometryTransformation_IntCDef(i).motion(j).atom(3)
-                                    case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
+                                case('stretching')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
+                                    read(99,'(A10,F10.7,8x,I5,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom
+                                case('bending')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
+                                    read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(1),&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(3),&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(2)
+                                case('torsion')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                    read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom
+                                case('OutOfPlane')
+                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                    read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
+                                    GeometryTransformation_IntCDef(i).motion(j).coeff,&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(1),&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(4),&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(2),&
+                                    GeometryTransformation_IntCDef(i).motion(j).atom(3)
+                                case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                                 end select
                                 k=k+1
                                 dbletemp=dbletemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
@@ -386,27 +386,23 @@ end subroutine AssimilateGeometry
                             read(99,'(I6)',advance='no')l
                             GeometryTransformation_IntCDef(i).motion(j).type=MotionType(k)
                             select case(MotionType(k))
-                                case('stretching')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
-                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                    chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(j).atom
-                                case('bending')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
-                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                    chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(j).atom
-                                case('torsion')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
-                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                    chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(j).atom
-                                case('OutOfPlane')
-                                    allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
-                                    read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,&
-                                    chartemp,&
-                                    GeometryTransformation_IntCDef(i).motion(j).atom
-                                case default; write(*,*)'Program abort: unsupported internal coordinate type '//MotionType(k); stop
+                            case('stretching')
+                                allocate(GeometryTransformation_IntCDef(i).motion(j).atom(2))
+                                read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,chartemp,&
+                                          GeometryTransformation_IntCDef(i).motion(j).atom
+                            case('bending')
+                                allocate(GeometryTransformation_IntCDef(i).motion(j).atom(3))
+                                read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,chartemp,&
+                                          GeometryTransformation_IntCDef(i).motion(j).atom
+                            case('torsion')
+                                allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,chartemp,&
+                                          GeometryTransformation_IntCDef(i).motion(j).atom
+                            case('OutOfPlane')
+                                allocate(GeometryTransformation_IntCDef(i).motion(j).atom(4))
+                                read(99,*)GeometryTransformation_IntCDef(i).motion(j).coeff,chartemp,&
+                                          GeometryTransformation_IntCDef(i).motion(j).atom
+                            case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                             end select
                             k=k+1
                             dbletemp=dbletemp+GeometryTransformation_IntCDef(i).motion(j).coeff*GeometryTransformation_IntCDef(i).motion(j).coeff
@@ -423,24 +419,100 @@ end subroutine AssimilateGeometry
     end subroutine DefineInternalCoordinate
 
     !========== Cartesian -> Internal ==========
-        !Convert geometry (and optionally gradient) from Cartesian coordinate to internal coordinate
-        !Required: r, cartdim, q, intdim, NStates
-        !Optional: cartgrad, intgrad
-        !r & cartgrad are the input Cartesian space value, q & intgrad harvest corresponding internal space value
-        subroutine Cartesian2Internal(r,cartdim,q,intdim,NStates,cartgrad,intgrad)
-            !Required argument
-                integer,intent(in)::cartdim,intdim,NStates
+        !Generate internal coordinate q from Cartesian coordinate r and internal coordinate definition
+        !The definition is a global variable, so only take r as input
+        function InternalCoordinateq(r,intdim,cartdim)
+            integer,intent(in)::intdim,cartdim
+            real*8,dimension(cartdim),intent(in)::r
+            real*8,dimension(intdim)::InternalCoordinateq
+            integer::iIntC,iMotion
+            InternalCoordinateq=0d0
+            do iIntC=1,intdim
+                do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
+                    select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
+                    case('stretching')
+                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                            +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                            *stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('bending')
+                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                            +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                            *bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('torsion')
+                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                            +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                            *torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('OutOfPlane')
+                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                            +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
+                            *OutOfPlane(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    end select
+                end do
+            end do
+            contains
+            !Transform from Cartesian coordinate r to a certain motion coordinate q, atom defines which atoms are involved
+            !For stretching, q = bond length
+            real*8 function stretching(r,atom,cartdim)
+                integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(in)::r
-                real*8,dimension(intdim),intent(out)::q
-            !Optional argument
-                real*8,dimension(cartdim,NStates,NStates),intent(in),optional::cartgrad
-                real*8,dimension(intdim,NStates,NStates),intent(out),optional::intgrad
+                integer,dimension(2),intent(in)::atom
+                real*8,dimension(3)::r12
+                r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                stretching=Norm2(r12)
+            end function stretching
+            !For bending, q = bond angle
+            real*8 function bending(r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(3),intent(in)::atom
+                real*8,dimension(3)::runit21,runit23
+                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                    runit21=runit21/Norm2(runit21)
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                    runit23=runit23/Norm2(runit23)
+                bending=acos(dot_product(runit21,runit23))
+            end function bending
+            !For torsion, q = dihedral angle
+            real*8 function torsion(r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*8,dimension(3)::r12,r23,r34,n123,n234
+                r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
+                n123=cross_product(r12,r23); n123=n123/Norm2(n123)
+                n234=cross_product(r23,r34); n234=n234/Norm2(n234)
+                torsion=acos(dot_product(n123,n234))
+                if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
+            end function torsion
+            !For out of plane, q = out of plane angle
+            real*8 function OutOfPlane(r,atom,cartdim)
+                integer,intent(in)::cartdim
+                real*8,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*8,dimension(3)::r21,r23,r24
+                r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
+                r23=cross_product(r23,r24)
+                OutOfPlane=asin(dot_product(r23/norm2(r23),r21/norm2(r21)))
+            end function OutOfPlane
+        end function InternalCoordinateq
+
+        !Convert geometry and gradient from Cartesian coordinate to internal coordinate
+        !Required: r, cartgrad, q, intgrad, cartdim, intdim, NStates
+        !r & cartgrad are the input Cartesian space value, q & intgrad harvest corresponding internal space value
+        subroutine Cartesian2Internal(r,cartgrad,q,intgrad,cartdim,intdim,NStates)
+            integer,intent(in)::cartdim,intdim,NStates
+            real*8,dimension(cartdim),intent(in)::r
+            real*8,dimension(cartdim,NStates,NStates),intent(in),optional::cartgrad
+            real*8,dimension(intdim),intent(out)::q
+            real*8,dimension(intdim,NStates,NStates),intent(out),optional::intgrad
             integer::i,j; real*8,dimension(intdim,cartdim)::B
             call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-            if(present(cartgrad).and.present(intgrad)) then
-                call dGeneralizedInverseTranspose(B,intdim,cartdim)
-                forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
-            end if
+            call dGeneralizedInverseTranspose(B,intdim,cartdim)
+            forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
         end subroutine Cartesian2Internal
         
         !Generate Wilson B matrix and internal coordinate q from Cartesian coordinate r and internal coordinate definition
@@ -456,10 +528,10 @@ end subroutine AssimilateGeometry
             do iIntC=1,intdim
                 do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
                     select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
-                        case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
+                    case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     end select
                     B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*BRowVector
                     q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff*qMotion
@@ -566,111 +638,49 @@ end subroutine AssimilateGeometry
                 q=asin(sintheta)
             end subroutine bAndOutOfPlane
         end subroutine WilsonBMatrixAndInternalCoordinateq
-
-        !If you want internal coordinate only, you may adopt convenient functions below
-
-        !Generate internal coordinate q from Cartesian coordinate r and internal coordinate definition
-        !The definition is a global variable, so only take r as input
-        function InternalCoordinateq(r,intdim,cartdim)
-            integer,intent(in)::intdim,cartdim
-            real*8,dimension(cartdim),intent(in)::r
-            real*8,dimension(intdim)::InternalCoordinateq
-            integer::iIntC,iMotion
-            InternalCoordinateq=0d0
-            do iIntC=1,intdim
-                do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
-                    select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
-                        case('stretching')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
-                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
-                                *stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case('bending')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
-                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
-                                *bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case('torsion')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
-                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
-                                *torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                        case('OutOfPlane')
-                            InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
-                                +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
-                                *OutOfPlane(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
-                    end select
-                end do
-            end do
-        end function InternalCoordinateq
-        
-        !Transform from Cartesian coordinate r to a certain motion coordinate q, atom defines which atoms are involved
-        !For stretching, q = bond length
-        real*8 function stretching(r,atom,cartdim)
-            integer,intent(in)::cartdim
-            real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(2),intent(in)::atom
-            real*8,dimension(3)::r12
-            r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
-            stretching=Norm2(r12)
-        end function stretching
-        !For bending, q = bond angle
-        real*8 function bending(r,atom,cartdim)
-            integer,intent(in)::cartdim
-            real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(3),intent(in)::atom
-            real*8,dimension(3)::runit21,runit23
-            runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                runit21=runit21/Norm2(runit21)
-            runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                runit23=runit23/Norm2(runit23)
-            bending=acos(dot_product(runit21,runit23))
-        end function bending
-        !For torsion, q = dihedral angle
-        real*8 function torsion(r,atom,cartdim)
-            integer,intent(in)::cartdim
-            real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(4),intent(in)::atom
-            real*8,dimension(3)::r12,r23,r34,n123,n234
-            r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
-            r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-            r34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
-            n123=cross_product(r12,r23); n123=n123/Norm2(n123)
-            n234=cross_product(r23,r34); n234=n234/Norm2(n234)
-            torsion=acos(dot_product(n123,n234))
-            if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
-        end function torsion
-        !For out of plane, q = out of plane angle
-        real*8 function OutOfPlane(r,atom,cartdim)
-            integer,intent(in)::cartdim
-            real*8,dimension(cartdim),intent(in)::r
-            integer,dimension(4),intent(in)::atom
-            real*8,dimension(3)::r21,r23,r24
-            r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-            r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-            r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
-            r23=cross_product(r23,r24)
-            OutOfPlane=asin(dot_product(r23/norm2(r23),r21/norm2(r21)))
-        end function OutOfPlane
     !=================== End ===================
 
     !========== Cartesian <- Internal ==========
         !Generate Cartesian coordinate r from internal coordinate q and internal coordinate definition
         !The definition is a global variable, so only take r as input
         !Optional argument:
-        !    mass: if present, will standardize r (otherwise r varies by arbitrary translation & rotation)
-        !    r0: initial guess of r; if mass is also present, will standardize with r0 as reference
-        function CartesianCoordinater(q,cartdim,intdim,mass,r0)
+        !    uniquify: (default = none) r varies by arbitrary translation & rotation, you may uniquify it by
+        !              none: do nothing, let r vary
+        !              standardize: standardize r
+        !              assimilate: assimilate r to r0
+        !    mass: no use in this function
+        !          required when uniquify = standardize or assimilate
+        !    r0: initial guess of r
+        !        optional when uniquify = standardize
+        !        required when uniquify = assimilate
+        function CartesianCoordinater(q,cartdim,intdim,uniquify,mass,r0)
             !Required argument
                 integer,intent(in)::cartdim,intdim
                 real*8,dimension(intdim)::q
             !Optional argument
+                character*32,intent(in),optional::uniquify
                 real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
             real*8,dimension(cartdim)::CartesianCoordinater
             if(present(r0)) then; CartesianCoordinater=r0!Initial guess
             else; call random_number(CartesianCoordinater); end if
             call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Jacobian=Jacobian,Warning=.false.)
-            if(present(mass)) then
-                if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,ref=r0)
-                else; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1); end if
+            if(present(uniquify)) then
+                select case(uniquify)
+                case('standardize')
+                    if(.not.present(mass)) then
+                        write(*,*)'mass is required when uniquify = assimilate. A nonunique Cartesian coordinate is returned'
+                        return
+                    end if
+                    if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,ref=r0)
+                    else; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1); end if
+                case('assimilate')
+                    if(.not.(present(mass).and.present(r0))) then
+                        write(*,*)'mass and r0 are required when uniquify = assimilate. A nonunique Cartesian coordinate is returned'
+                        return
+                    end if
+                    call AssimilateGeometry(CartesianCoordinater,r0,mass,cartdim/3)
+                end select
             end if
             contains
             subroutine Residue(res,r,dim,cartdim)
@@ -691,32 +701,41 @@ end subroutine AssimilateGeometry
             end function Jacobian
         end function CartesianCoordinater
 
-        !Convert geometry (and optionally gradient) from internal coordinate to Cartesian coordinate
-        !Required: q, intdim, r, cartdim, NStates
-        !Optional: mass & r0 (same as above), cartgrad, intgrad
+        !Convert geometry and gradient from internal coordinate to Cartesian coordinate
+        !Required: q, intgrad, r, cartgrad, intdim, cartdim, NStates
+        !Optional: uniquify & mass & r0 (same as above)
         !q & intgrad are the input internal space value, r & cartgrad harvest corresponding Cartesian space value
-        subroutine Internal2Cartesian(q,intdim,r,cartdim,NStates,mass,r0,intgrad,cartgrad)
+        subroutine Internal2Cartesian(q,intgrad,r,cartgrad,intdim,cartdim,NStates,uniquify,mass,r0)
             !Required argument
                 integer,intent(in)::intdim,cartdim,NStates
                 real*8,dimension(intdim),intent(in)::q
+                real*8,dimension(intdim,NStates,NStates),intent(in)::intgrad
                 real*8,dimension(cartdim),intent(out)::r
+                real*8,dimension(cartdim,NStates,NStates),intent(out)::cartgrad
             !Optional argument
+                character*32,intent(in),optional::uniquify
                 real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
-                real*8,dimension(intdim,NStates,NStates),intent(in),optional::intgrad
-                real*8,dimension(cartdim,NStates,NStates),intent(out),optional::cartgrad
             integer::i,j; real*8,dimension(intdim)::qtemp; real*8,dimension(intdim,cartdim)::B
-            if(present(mass)) then
-                if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,mass=mass,r0=r0)
-                else; r=CartesianCoordinater(q,cartdim,intdim,mass=mass); end if
+            if(present(uniquify)) then
+                if(present(mass)) then
+                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify,mass=mass,r0=r0)
+                    else; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify,mass=mass); end if
+                else
+                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify,r0=r0)
+                    else; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify); end if
+                end if
             else
-                if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,r0=r0)
-                else; r=CartesianCoordinater(q,cartdim,intdim); end if
+                if(present(mass)) then
+                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,mass=mass,r0=r0)
+                    else; r=CartesianCoordinater(q,cartdim,intdim,mass=mass); end if
+                else
+                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,r0=r0)
+                    else; r=CartesianCoordinater(q,cartdim,intdim); end if
+                end if
             end if
             call WilsonBMatrixAndInternalCoordinateq(B,qtemp,r,intdim,cartdim)
-            if(present(intgrad).and.present(cartgrad)) then
-                forall(i=1:NStates,j=1:NStates); cartgrad(:,i,j)=matmul(transpose(B),intgrad(:,i,j)); end forall
-            end if
+            forall(i=1:NStates,j=1:NStates); cartgrad(:,i,j)=matmul(transpose(B),intgrad(:,i,j)); end forall
         end subroutine Internal2Cartesian
     !=================== End ===================
 !------------------- End --------------------

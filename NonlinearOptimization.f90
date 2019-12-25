@@ -976,113 +976,111 @@ contains
             if(fnew==0d0) then; a=1d0
             else; a=-fnew/phidnew; end if
         select case(type)
-            case('DY')!Require Wolfe condition
-                if(present(Increment)) then
-                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        else
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        end if
-                    else
-                        if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        else
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        end if
-                    end if
-                else
-                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                        if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        else
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        end if
-                    else
-                        if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        else
-                            do iIteration=1,maxit!Main loop
-                                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                                call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                                call DY()!After search
-                                if(terminate) return
-                            end do
-                        end if
-                    end if
-                end if
-            case('PR')!Require strong Wolfe condition
-                if(present(Increment)) then
-                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+        case('DY')!Require Wolfe condition
+            if(present(Increment)) then
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
                             fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call PR()!After search
+                            call DY()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
                             fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call PR()!After search
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
                             if(terminate) return
                         end do
                     end if
                 else
-                    if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
                         do iIteration=1,maxit!Main loop
                             fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call PR()!After search
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
                             fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call PR()!After search
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
                             if(terminate) return
                         end do
                     end if
                 end if
-            case default!Throw a warning
-                write(*,'(1x,A52,1x,A2)')'Program abort: unsupported conjugate gradient method',type
-                stop
+            else
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                else
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                end if
+            end if
+        case('PR')!Require strong Wolfe condition
+            if(present(Increment)) then
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                end if
+            else
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                end if
+            end if
+        case default; write(*,*)'Program abort: unsupported conjugate gradient method '//trim(adjustl(type)); stop
         end select
         if(iIteration>maxit.and.warn) then
             write(*,'(1x,A50)')'Failed conjugate gradient: max iteration exceeded!'
@@ -1660,9 +1658,9 @@ contains
                         call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6); exit
-                        case (1); call fd(fdx,x,M,N)
-                        case (2); i=Jacobian(J,x,M,N)
+                    case (-1,-2,-3,-4,-5,-6); exit
+                    case (1); call fd(fdx,x,M,N)
+                    case (2); i=Jacobian(J,x,M,N)
                     end select
                 end do
             else
@@ -1671,12 +1669,12 @@ contains
                         call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6); exit
-                        case (1); call fd(fdx,x,M,N)
-                        case (2)
-                            if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
-                                call mkl_free_buffers; return
-                            end if
+                    case (-1,-2,-3,-4,-5,-6); exit
+                    case (1); call fd(fdx,x,M,N)
+                    case (2)
+                        if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
+                            call mkl_free_buffers; return
+                        end if
                     end select
                 end do
             end if
@@ -1714,9 +1712,9 @@ contains
                         call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6); exit
-                        case (1); call fd(fdx,x,M,N)
-                        case (2); i=Jacobian(J,x,M,N)
+                    case (-1,-2,-3,-4,-5,-6); exit
+                    case (1); call fd(fdx,x,M,N)
+                    case (2); i=Jacobian(J,x,M,N)
                     end select
                 end do
             else
@@ -1725,12 +1723,12 @@ contains
                         call mkl_free_buffers; return
                     end if
                     select case (RCI_request)
-                        case (-1,-2,-3,-4,-5,-6); exit
-                        case (1); call fd(fdx,x,M,N)
-                        case (2)
-                            if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
-                                call mkl_free_buffers; return
-                            end if
+                    case (-1,-2,-3,-4,-5,-6); exit
+                    case (1); call fd(fdx,x,M,N)
+                    case (2)
+                        if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
+                            call mkl_free_buffers; return
+                        end if
                     end select
                 end do
             end if
@@ -1745,22 +1743,22 @@ contains
         call mkl_free_buffers
         if(StopReason/=3) then
             select case(StopReason)
-                case(1)
-                    if(warn) then
-                        write(*,*)'Failed trust region: max iteration exceeded!'
-                        write(*,*)'Final residual =',FinalResidual
-                    end if
-                case(4)
-                    if(warn) then
-                        write(*,*)'Failed trust region: singular Jacobian encountered!'
-                        write(*,*)'Final residual =',FinalResidual
-                    end if
-                case default
-                    if(warn) then
-                        write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
-                        write(*,*)'Final residual =',FinalResidual
-                    end if
+            case(1)
+                if(warn) then
+                    write(*,*)'Failed trust region: max iteration exceeded!'
+                    write(*,*)'Final residual =',FinalResidual
+                end if
+            case(4)
+                if(warn) then
+                    write(*,*)'Failed trust region: singular Jacobian encountered!'
+                    write(*,*)'Final residual =',FinalResidual
+                end if
+            case default
+                if(warn) then
+                    write(*,*)'Trust region warning: step length has converged, but residual has not met accuracy goal'
+                    write(*,*)'A best estimation rather than exact solution is returned'
+                    write(*,*)'Final residual =',FinalResidual
+                end if
             end select
         end if
         contains
@@ -1936,86 +1934,11 @@ contains
                     else; type='DY'; end if
 		tolsq=tol*tol!To save sqrt cost, precision is squared
         select case(solver)
-            case('NewtonRaphson')
-                if(present(fdd).and.present(cdd)) then
-                    if(present(f_fd)) then
-                        do iIteration=1,maxit
-                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    else
-                        do iIteration=1,maxit
-                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    end if
-                else
-                    if(present(f_fd)) then
-                        do iIteration=1,maxit
-                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    else
-						do iIteration=1,maxit
-                            call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    end if
-                end if
-            case('BFGS')
-                if(present(fdd).and.present(cdd)) then
-                    if(present(f_fd)) then
-                        do iIteration=1,maxit
-                            call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,ExactStep=freq,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    else
-                        do iIteration=1,maxit
-                            call BFGS(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,ExactStep=freq,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    end if
-                else
-                    if(present(f_fd)) then
-                        do iIteration=1,maxit
-                            call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,ExactStep=freq,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    else
-                        do iIteration=1,maxit
-                            call BFGS(L,Ld,x,N,f_fd=L_Ld,ExactStep=freq,&
-                            Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
-                            call c(cx,x,M,N)
-                            if(dot_product(cx,cx)<tolsq) exit
-                            lamda=lamda-miu*cx; miu=miu*incrmt
-                        end do
-                    end if
-                end if
-            case('LBFGS')
+        case('NewtonRaphson')
+            if(present(fdd).and.present(cdd)) then
                 if(present(f_fd)) then
                     do iIteration=1,maxit
-                        call LBFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,Memory=mem,&
+                        call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
@@ -2023,17 +1946,37 @@ contains
                     end do
                 else
                     do iIteration=1,maxit
-                        call LBFGS(L,Ld,x,N,f_fd=L_Ld,Memory=mem,&
+                        call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
                         lamda=lamda-miu*cx; miu=miu*incrmt
                     end do
                 end if
-            case('ConjugateGradient')
+            else
                 if(present(f_fd)) then
                     do iIteration=1,maxit
-                        call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld_fdwithf,Method=type,&
+                        call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld_fdwithf,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tolsq) exit
+                        lamda=lamda-miu*cx; miu=miu*incrmt
+                    end do
+                else
+					do iIteration=1,maxit
+                        call NewtonRaphson(L,Ld,x,N,f_fd=L_Ld,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tolsq) exit
+                        lamda=lamda-miu*cx; miu=miu*incrmt
+                    end do
+                end if
+            end if
+        case('BFGS')
+            if(present(fdd).and.present(cdd)) then
+                if(present(f_fd)) then
+                    do iIteration=1,maxit
+                        call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,fdd=Ldd,ExactStep=freq,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
@@ -2041,19 +1984,72 @@ contains
                     end do
                 else
                     do iIteration=1,maxit
-                        call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld,Method=type,&
+                        call BFGS(L,Ld,x,N,f_fd=L_Ld,fdd=Ldd,ExactStep=freq,&
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
                         lamda=lamda-miu*cx; miu=miu*incrmt
                     end do
                 end if
-            case default!Throw a warning
-                write(*,'(1x,A47,1x,A2)')'Program abort: unsupported unconstrained solver',solver
-                stop
+            else
+                if(present(f_fd)) then
+                    do iIteration=1,maxit
+                        call BFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,ExactStep=freq,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tolsq) exit
+                        lamda=lamda-miu*cx; miu=miu*incrmt
+                    end do
+                else
+                    do iIteration=1,maxit
+                        call BFGS(L,Ld,x,N,f_fd=L_Ld,ExactStep=freq,&
+                        Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                        call c(cx,x,M,N)
+                        if(dot_product(cx,cx)<tolsq) exit
+                        lamda=lamda-miu*cx; miu=miu*incrmt
+                    end do
+                end if
+            end if
+        case('LBFGS')
+            if(present(f_fd)) then
+                do iIteration=1,maxit
+                    call LBFGS(L,Ld,x,N,f_fd=L_Ld_fdwithf,Memory=mem,&
+                    Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                    call c(cx,x,M,N)
+                    if(dot_product(cx,cx)<tolsq) exit
+                    lamda=lamda-miu*cx; miu=miu*incrmt
+                end do
+            else
+                do iIteration=1,maxit
+                    call LBFGS(L,Ld,x,N,f_fd=L_Ld,Memory=mem,&
+                    Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                    call c(cx,x,M,N)
+                    if(dot_product(cx,cx)<tolsq) exit
+                    lamda=lamda-miu*cx; miu=miu*incrmt
+                end do
+            end if
+        case('ConjugateGradient')
+            if(present(f_fd)) then
+                do iIteration=1,maxit
+                    call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld_fdwithf,Method=type,&
+                    Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                    call c(cx,x,M,N)
+                    if(dot_product(cx,cx)<tolsq) exit
+                    lamda=lamda-miu*cx; miu=miu*incrmt
+                end do
+            else
+                do iIteration=1,maxit
+                    call ConjugateGradient(L,Ld,x,N,f_fd=L_Ld,Method=type,&
+                    Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
+                    call c(cx,x,M,N)
+                    if(dot_product(cx,cx)<tolsq) exit
+                    lamda=lamda-miu*cx; miu=miu*incrmt
+                end do
+            end if
+        case default; write(*,*)'Program abort: unsupported unconstrained solver '//trim(adjustl(solver)); stop
         end select
         if(iIteration>maxit.and.warn) then
-            write(*,'(1x,A52)')'Failed augmented Lagrangian: max iteration exceeded!'
+            write(*,*)'Failed augmented Lagrangian: max iteration exceeded!'
             write(*,*)'Euclidean norm of constraint violation =',Norm2(cx)
         end if
         contains
