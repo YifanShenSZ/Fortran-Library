@@ -161,19 +161,66 @@ subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff,init)
         !Here we let the independent variables be alpha/2, theta, phi
         !    where axis=[sin(theta)cos(phi),sin(theta)sin(phi),cos(theta)]
         if(present(init)) then; qind=init!Initial value = user input
-        else!or randomly sample 1000000 orientations
-            qmin=RandomUnitQuaternion()
-            geommin=geom; call Rotate(qmin,geommin,NAtoms); diffmin=difference(geommin)
-            do i=2,1000000
+        else!or random value
+            !No rotation
+            qmin=[1d0,0d0,0d0,0d0]
+            diffmin=difference(geom)
+            !Randomly sample 1000000 orientations
+            do i=1,1000000
                 q=RandomUnitQuaternion()
                 geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
                 if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
             end do
-            qind(1)=dACos(qmin(1))
-            q(1:3)=qmin(2:4)/dSqrt(1d0-qmin(1)*qmin(1))!Save axis
-            qind(2)=dACos(q(3))
-            q(1:2)=q(1:2)/dSqrt(1d0-q(3)*q(3))
-            qind(3)=dACos(q(1)); if(q(2)<0d0) qind(3)=-qind(3)
+            !Try [0,360) degree with step length = 1 degree along x, y, z
+                !0 degree along x
+                    qind=[0d0,pid2,0d0]
+                    q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                    q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                    geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                    if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                    do i=1,359
+                        qind(1)=qind(1)+DegInRad/2d0
+                        q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                        q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                        geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                        if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                    end do
+                !0 degree along y
+                    qind=[0d0,pid2,pid2]
+                    q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                    q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                    geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                    if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                    do i=1,359
+                        qind(1)=qind(1)+DegInRad/2d0
+                        q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                        q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                        geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                        if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                    end do
+                !0 degree along z
+                    qind=0d0
+                    q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                    q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                    geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                    if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                    do i=1,359
+                        qind(1)=qind(1)+DegInRad/2d0
+                        q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                        q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                        geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                        if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                    end do
+            !Use the one with smallest difference
+            if(qmin(1)==1d0) then!No rotation, axis is arbitrary
+                qind=[0d0,pid2,pid2]!Arbitrarily let axis = y
+            else
+                qind(1)=dACos(qmin(1))
+                q(1:3)=qmin(2:4)/dSqrt(1d0-qmin(1)*qmin(1))!Save axis
+                qind(2)=dACos(q(3))
+                q(1:2)=q(1:2)/dSqrt(1d0-q(3)*q(3))
+                qind(3)=dACos(q(1)); if(q(2)<0d0) qind(3)=-qind(3)
+            end if
         end if
         !Search for an optimal rotation
         call TrustRegion(Residue,qind,3*NAtoms,3,Warning=.false.)
