@@ -4,18 +4,23 @@
 #                                            #
 ##############################################
 
-compiler = ifort
+prefix = .
+f90 = ifort
+cpp = icpc
 flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -mkl -O3 -no-prec-div -fp-model fast=2
-prefix = /usr/local
-src = General.f90 Mathematics.f90 LinearAlgebra.f90 \
+src = $(addprefix source/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
 Clustering.f90 Statistics.f90 Chemistry.f90 \
-GeometryTransformation.f90
+GeometryTransformation.f90 \
+FortranLibrary.f90 )
+RealPrefix = $(realpath $(prefix))
+incdir = $(RealPrefix)/include
+libdir = $(RealPrefix)/lib
 
 libFL.a libFL.so: $(src)
-ifeq ($(compiler),ifort)
+ifeq ($(f90),ifort)
 	ifort $(flag) -c $^
-	xiar rc libFL.a *.o
+	xiar cr libFL.a *.o
 	ifort $(flag) -shared -fpic $^ -o libFL.so
 else
 	gfortran $(flag) -c $^
@@ -25,22 +30,37 @@ endif
 	rm *.o
 
 .PHONY: install
-install:
-	mv *.mod $(prefix)/include
-	mv *.a   $(prefix)/lib
-	mv *.so  $(prefix)/lib
+install: | $(incdir) $(libdir)
+ifneq ($(realpath include),$(incdir))
+	cp include/*.h $(incdir)
+endif
+	mv *.mod $(incdir)
+	mv *.a   $(libdir)
+	mv *.so  $(libdir)
+
+$(incdir):
+	mkdir $(incdir)
+
+$(libdir):
+	mkdir $(libdir)
 
 .PHONY: test
 test:
-	$(compiler) $(flag) -I$(prefix)/include -ipo test.f90 $(prefix)/lib/libFL.a -o test_static.exe
-	./test_static.exe > log_static
-	$(compiler) $(flag) -I$(prefix)/include -L$(prefix)/lib -lFL -ipo test.f90 -o test_dynamic.exe
-ifeq (,$(findstring $(prefix)/lib,$(LD_LIBRARY_PATH)))
-	# Please set LD_LIBRARY_PATH properly, then run test_dynamic.exe
+	$(f90) $(flag) -I$(incdir) -ipo test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	test/test_static.exe > test/log_static
+ifneq (,$(findstring $(libdir),$(LIBRARY_PATH)))
+ifneq (,$(findstring $(libdir),$(LD_LIBRARY_PATH)))
+	$(f90) $(flag) -I$(incdir) -ipo test/test.f90 -lFL -o test/test_dynamic.exe
+	test/test_dynamic.exe > test/log_dynamic
+ifneq (,$(findstring $(incdir),$(CPATH)))
+	$(cpp) $(flag) -ipo test/test.cpp -lFL -o test/test_cpp.exe
+	test/test_cpp.exe > test/log_cpp
 else
-	./test_dynamic.exe > log_dynamic
+	# Please set CPATH properly before running test
 endif
-
-.PHONY: clean
-clean:
-	rm -f *.mod *.a *.so test_* log_*
+else
+	# Please set LD_LIBRARY_PATH properly before running test
+endif
+else
+	# Please set LIBRARY_PATH properly before running test
+endif

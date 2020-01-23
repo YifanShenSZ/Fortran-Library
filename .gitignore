@@ -1,11 +1,47 @@
-*.a
-*.so
-*.mod
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
 *.o
-test_*
-log_*
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Visual studio and VS code
+.vscode/
 My Advisor Results - Fortran/
 x64/
 *.u2d
 *.vfproj
+
+# test
+lib/
+test_*
+log_*
+
+# Closed source
 mkl_*
