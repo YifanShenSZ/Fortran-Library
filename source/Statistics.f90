@@ -17,7 +17,7 @@ real*8 function RSquare(prediction,data,N)!R^2 (coefficient of determination) fo
     dev=prediction-data; RSquare=1d0-sum(dev*dev)/(sum(data*data)-sum(data)**2/dble(N))
 end function RSquare
 
-real*8 function NormalDistribution(x,average,covariance,N)
+real*8 function NormalDistribution(x,average,covariance,N)!N dimensional normal distribution
     integer,intent(in)::N
     real*8,dimension(N),intent(in)::x,average
     real*8,dimension(N,N),intent(in)::covariance

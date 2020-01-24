@@ -37,7 +37,7 @@ subroutine TestFortranLibrary()
     real*8,dimension(10,10,2)::covariance
 
     call BetterRandomSeed()
-    write(*,*)'This is a test program on Fortran-Library'
+    write(*,*)'This is a test routine on Fortran-Library'
     write(*,*)'Correct routines should print close to 0'
     call ShowTime()
 

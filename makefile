@@ -7,7 +7,7 @@
 prefix = .
 f90 = ifort
 cpp = icpc
-flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -mkl -O3 -no-prec-div -fp-model fast=2
+flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
 src = $(addprefix source/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
 Clustering.f90 Statistics.f90 Chemistry.f90 \
@@ -31,10 +31,11 @@ endif
 
 .PHONY: install
 install: | $(incdir) $(libdir)
-ifneq ($(realpath include),$(incdir))
-	cp include/*.h $(incdir)
-endif
 	mv *.mod $(incdir)
+ifneq ($(realpath include),$(incdir))
+	cp include/*.h  $(incdir)
+	cp include/*.py $(incdir)
+endif
 	mv *.a   $(libdir)
 	mv *.so  $(libdir)
 
@@ -46,17 +47,22 @@ $(libdir):
 
 .PHONY: test
 test:
-	$(f90) $(flag) -I$(incdir) -ipo test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	$(f90) $(flag) -ipo -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
 	test/test_static.exe > test/log_static
 ifneq (,$(findstring $(libdir),$(LIBRARY_PATH)))
 ifneq (,$(findstring $(libdir),$(LD_LIBRARY_PATH)))
-	$(f90) $(flag) -I$(incdir) -ipo test/test.f90 -lFL -o test/test_dynamic.exe
+	$(f90) $(flag) -ipo -lFL test/test.f90 -o test/test_dynamic.exe
 	test/test_dynamic.exe > test/log_dynamic
 ifneq (,$(findstring $(incdir),$(CPATH)))
-	$(cpp) $(flag) -ipo test/test.cpp -lFL -o test/test_cpp.exe
+	$(cpp) $(flag) -ipo -lFL test/test.cpp -o test/test_cpp.exe
 	test/test_cpp.exe > test/log_cpp
 else
 	# Please set CPATH properly before running test
+endif
+ifneq (,$(findstring $(incdir),$(PYTHONPATH)))
+	python test/test.py > test/log_py
+else
+	# Please set PYTHONPATH properly before running test
 endif
 else
 	# Please set LD_LIBRARY_PATH properly before running test
