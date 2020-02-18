@@ -267,19 +267,20 @@ end subroutine AssimilateGeometry
     !    cartgrad & intgrad: Cartesian & internal gradient (cartdim & intdim x NStates x NStates 3rd-order tensor)
 
     !Define internal coordinate (GeometryTransformation_IntCDef), return the dimension of internal space (intdim)
-    !Input: Definition: internal coordinate definition format (Available: Columbus7, default)
-    !On exit, intdim harvests the number of internal coordinates
-    !For Columbus7, the subroutine will look for Columbus7 internal coordinate file intcfl
-    !    default  , the subroutine will look for file InternalCoordinateDefinition
-    !See InvolvedMotion in Derived type section for available types and ordering of atoms
-    subroutine DefineInternalCoordinate(Definition,intdim)
-        character*32,intent(in)::Definition
-        integer,intent(out)::intdim
+    !Input:  internal coordinate definition (Available: Columbus7, default)
+    !Output: the number of internal coordinates
+    !For Columbus7, read Columbus7 internal coordinate file intcfl
+    !    default  , read file InternalCoordinateDefinition
+    !See InvolvedMotion in 'Derived type' section for available types and ordering of atoms
+    integer function DefineInternalCoordinate(definition)
+        character(*),intent(in)::definition
+        integer::intdim
         if(allocated(GeometryTransformation_IntCDef)) deallocate(GeometryTransformation_IntCDef)
-        select case(Definition)
+        select case(definition)
         case('Columbus7'); call Columbus7()
         case default; call default()
         end select
+        DefineInternalCoordinate=intdim
         contains
         !First line is always 'TEXAS'
         !New internal coordinate line starts with 'K'
@@ -463,34 +464,34 @@ end subroutine AssimilateGeometry
             close(99)
             deallocate(NewLine); deallocate(MotionType)!Clean up
         end subroutine default
-    end subroutine DefineInternalCoordinate
+    end function DefineInternalCoordinate
 
     !========== Cartesian -> Internal ==========
         !Generate internal coordinate q from Cartesian coordinate r and internal coordinate definition
         !The definition is a global variable, so only take r as input
-        function InternalCoordinateq(r,intdim,cartdim)
-            integer,intent(in)::intdim,cartdim
+        subroutine InternalCoordinateq(r,q,cartdim,intdim)
+            integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
-            real*8,dimension(intdim)::InternalCoordinateq
+            real*8,dimension(intdim),intent(out)::q
             integer::iIntC,iMotion
-            InternalCoordinateq=0d0
+            q=0d0
             do iIntC=1,intdim
                 do iMotion=1,GeometryTransformation_IntCDef(iIntC).NMotions
                     select case(GeometryTransformation_IntCDef(iIntC).motion(iMotion).type)
                     case('stretching')
-                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                        q(iIntC)=q(iIntC)&
                             +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
                             *stretching(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     case('bending')
-                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                        q(iIntC)=q(iIntC)&
                             +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
                             *bending(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     case('torsion')
-                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                        q(iIntC)=q(iIntC)&
                             +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
                             *torsion(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     case('OutOfPlane')
-                        InternalCoordinateq(iIntC)=InternalCoordinateq(iIntC)&
+                        q(iIntC)=q(iIntC)&
                             +GeometryTransformation_IntCDef(iIntC).motion(iMotion).coeff&
                             *OutOfPlane(r,GeometryTransformation_IntCDef(iIntC).motion(iMotion).atom,cartdim)
                     end select
@@ -545,7 +546,7 @@ end subroutine AssimilateGeometry
                 r23=cross_product(r23,r24)
                 OutOfPlane=asin(dot_product(r23/norm2(r23),r21/norm2(r21)))
             end function OutOfPlane
-        end function InternalCoordinateq
+        end subroutine InternalCoordinateq
 
         !Convert geometry and gradient from Cartesian coordinate to internal coordinate
         !Required: r, cartgrad, q, intgrad, cartdim, intdim, NStates
@@ -557,7 +558,7 @@ end subroutine AssimilateGeometry
             real*8,dimension(intdim),intent(out)::q
             real*8,dimension(intdim,NStates,NStates),intent(out),optional::intgrad
             integer::i,j; real*8,dimension(intdim,cartdim)::B
-            call WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
+            call WilsonBMatrixAndInternalCoordinateq(r,B,q,cartdim,intdim)
             call dGeneralizedInverseTranspose(B,intdim,cartdim)
             forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
         end subroutine Cartesian2Internal
@@ -565,11 +566,11 @@ end subroutine AssimilateGeometry
         !Generate Wilson B matrix and internal coordinate q from Cartesian coordinate r and internal coordinate definition
         !The definition is a global variable, so only take r as input
         !Reference: E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
-        subroutine WilsonBMatrixAndInternalCoordinateq(B,q,r,intdim,cartdim)
-            integer,intent(in)::intdim,cartdim
+        subroutine WilsonBMatrixAndInternalCoordinateq(r,B,q,cartdim,intdim)
+            integer,intent(in)::cartdim,intdim
+            real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim,cartdim),intent(out)::B
             real*8,dimension(intdim),intent(out)::q
-            real*8,dimension(cartdim),intent(in)::r
             integer::iIntC,iMotion; real*8::qMotion; real*8,dimension(cartdim)::BRowVector
             B=0d0; q=0d0
             do iIntC=1,intdim
@@ -734,7 +735,8 @@ end subroutine AssimilateGeometry
                 integer,intent(in)::dim,cartdim
                 real*8,dimension(dim),intent(out)::res
                 real*8,dimension(cartdim),intent(in)::r
-                res(1:intdim)=InternalCoordinateq(r,intdim,cartdim)-q
+                call InternalCoordinateq(r,res(1:intdim),cartdim,intdim)
+                res(1:intdim)=res(1:intdim)-q
                 res(intdim+1:dim)=0d0
             end subroutine Residue
             integer function Jacobian(Jacob,r,dim,cartdim)
@@ -742,7 +744,7 @@ end subroutine AssimilateGeometry
                 real*8,dimension(dim,cartdim),intent(out)::Jacob
                 real*8,dimension(cartdim),intent(in)::r
                 real*8,dimension(intdim)::qtemp
-                call WilsonBMatrixAndInternalCoordinateq(Jacob(1:intdim,:),qtemp,r,intdim,cartdim)
+                call WilsonBMatrixAndInternalCoordinateq(r,Jacob(1:intdim,:),qtemp,cartdim,intdim)
                 Jacob(intdim+1:dim,:)=0d0
                 Jacobian=0!Return 0
             end function Jacobian
@@ -781,7 +783,7 @@ end subroutine AssimilateGeometry
                     else; r=CartesianCoordinater(q,cartdim,intdim); end if
                 end if
             end if
-            call WilsonBMatrixAndInternalCoordinateq(B,qtemp,r,intdim,cartdim)
+            call WilsonBMatrixAndInternalCoordinateq(r,B,qtemp,cartdim,intdim)
             forall(i=1:NStates,j=1:NStates); cartgrad(:,i,j)=matmul(transpose(B),intgrad(:,i,j)); end forall
         end subroutine Internal2Cartesian
     !=================== End ===================
@@ -840,26 +842,26 @@ end subroutine AssimilateGeometry
     !              intdim x 3NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
-    !        Linv = normal modes contained in each row in input frame (Wilson L^-1 matrix)
     !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
+    !        Linv = normal modes contained in each row in input frame (Wilson L^-1 matrix)
     !H will be overwritten
-    subroutine WilsonGFMethod(freq,L,Linv,H,intdim,B,mass,NAtoms)
+    subroutine WilsonGFMethod(H,B,mass,freq,L,Linv,intdim,NAtoms)
         !Step 1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
         !        LAPACK will normalized l by l(:,i)^T . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
         !        This is why I call l raw normal mode. w is freq
         !Step 2, if H is positive definite, then step 1 would succeed thus we only have to convert w^2 to w and l to L,
         !        else resolve (G . H) . l = l . w^2 by traditional eigenvalue then convert
         integer,intent(in)::intdim,NAtoms
-        real*8,dimension(intdim),intent(out)::freq
-        real*8,dimension(intdim,intdim),intent(out)::L,Linv
         real*8,dimension(intdim,intdim),intent(inout)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
+        real*8,dimension(intdim),intent(out)::freq
+        real*8,dimension(intdim,intdim),intent(out)::L,Linv
         integer::i; real*8,dimension(intdim,intdim)::Hsave; real*8,dimension(intdim,3*NAtoms)::Btemp
         integer,dimension(intdim)::indice; real*8,dimension(intdim)::freqtemp!For imaginary frequency case
         Hsave=H; call syL2U(Hsave,intdim)!Save Hessian
         forall(i=1:NAtoms); Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i); end forall
-        L=matmul(Btemp,transpose(B)); call My_dsygv(2,'V',L,H,freq,intdim,i)
+        L=matmul(Btemp,transpose(B)); call My_dsygv(2,'V',L,H,freq,intdim,info=i)
         if(i==0) then!freq^2 and raw normal modes are normally obtained
             Linv=matmul(transpose(L),Hsave)
             forall(i=1:intdim)
@@ -883,12 +885,11 @@ end subroutine AssimilateGeometry
     end subroutine WilsonGFMethod
     !Convert internal coordinate normal mode to Cartesian coordinate normal mode
     !L and B will be overwritten
-    subroutine InternalMode2CartesianMode(freq,L,intdim,B,cartmode,cartdim)
+    subroutine InternalMode2CartesianMode(L,B,cartmode,intdim,cartdim)
         !L . dQ = dq = B . dr, where Q denotes internal coordinate normal mode
         !With any diagonal [dQ], the solution [dr] contains unnormalized Cartesian coordinate normal mode in each column
         !For convenience here we let [dQ] = 1
         integer,intent(in)::intdim,cartdim
-        real*8,dimension(intdim),intent(in)::freq
         real*8,dimension(intdim,intdim),intent(inout)::L
         real*8,dimension(intdim,cartdim),intent(inout)::B
         real*8,dimension(cartdim,intdim),intent(out)::cartmode
