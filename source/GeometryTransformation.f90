@@ -549,14 +549,13 @@ end subroutine AssimilateGeometry
         end subroutine InternalCoordinateq
 
         !Convert geometry and gradient from Cartesian coordinate to internal coordinate
-        !Required: r, cartgrad, q, intgrad, cartdim, intdim, NStates
         !r & cartgrad are the input Cartesian space value, q & intgrad harvest corresponding internal space value
         subroutine Cartesian2Internal(r,cartgrad,q,intgrad,cartdim,intdim,NStates)
             integer,intent(in)::cartdim,intdim,NStates
             real*8,dimension(cartdim),intent(in)::r
-            real*8,dimension(cartdim,NStates,NStates),intent(in),optional::cartgrad
+            real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
             real*8,dimension(intdim),intent(out)::q
-            real*8,dimension(intdim,NStates,NStates),intent(out),optional::intgrad
+            real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
             integer::i,j; real*8,dimension(intdim,cartdim)::B
             call WilsonBMatrixAndInternalCoordinateq(r,B,q,cartdim,intdim)
             call dGeneralizedInverseTranspose(B,intdim,cartdim)
@@ -701,18 +700,18 @@ end subroutine AssimilateGeometry
         !    r0: initial guess of r
         !        optional when uniquify = standardize
         !        required when uniquify = assimilate
-        function CartesianCoordinater(q,cartdim,intdim,uniquify,mass,r0)
+        subroutine CartesianCoordinater(q,r,intdim,cartdim,uniquify,mass,r0)
             !Required argument
-                integer,intent(in)::cartdim,intdim
-                real*8,dimension(intdim)::q
+                integer,intent(in)::intdim,cartdim
+                real*8,dimension(intdim),intent(in)::q
+                real*8,dimension(cartdim),intent(out)::r
             !Optional argument
-                character*32,intent(in),optional::uniquify
+                character(*),intent(in),optional::uniquify
                 real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
-            real*8,dimension(cartdim)::CartesianCoordinater
-            if(present(r0)) then; CartesianCoordinater=r0!Initial guess
-            else; call random_number(CartesianCoordinater); end if
-            call TrustRegion(Residue,CartesianCoordinater,cartdim,cartdim,Jacobian=Jacobian,Warning=.false.)
+            if(present(r0)) then; r=r0!Initial guess
+            else; call random_number(r); end if
+            call TrustRegion(Residue,r,cartdim,cartdim,Jacobian=Jacobian,Warning=.false.)
             if(present(uniquify)) then
                 select case(uniquify)
                 case('standardize')
@@ -720,14 +719,14 @@ end subroutine AssimilateGeometry
                         write(*,*)'mass is required when uniquify = assimilate. A nonunique Cartesian coordinate is returned'
                         return
                     end if
-                    if(present(r0)) then; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1,ref=r0)
-                    else; call StandardizeGeometry(CartesianCoordinater,mass,cartdim/3,1); end if
+                    if(present(r0)) then; call StandardizeGeometry(r,mass,cartdim/3,1,ref=r0)
+                    else; call StandardizeGeometry(r,mass,cartdim/3,1); end if
                 case('assimilate')
                     if(.not.(present(mass).and.present(r0))) then
                         write(*,*)'mass and r0 are required when uniquify = assimilate. A nonunique Cartesian coordinate is returned'
                         return
                     end if
-                    call AssimilateGeometry(CartesianCoordinater,r0,mass,cartdim/3)
+                    call AssimilateGeometry(r,r0,mass,cartdim/3)
                 end select
             end if
             contains
@@ -748,7 +747,7 @@ end subroutine AssimilateGeometry
                 Jacob(intdim+1:dim,:)=0d0
                 Jacobian=0!Return 0
             end function Jacobian
-        end function CartesianCoordinater
+        end subroutine CartesianCoordinater
 
         !Convert geometry and gradient from internal coordinate to Cartesian coordinate
         !Required: q, intgrad, r, cartgrad, intdim, cartdim, NStates
@@ -768,19 +767,19 @@ end subroutine AssimilateGeometry
             integer::i,j; real*8,dimension(intdim)::qtemp; real*8,dimension(intdim,cartdim)::B
             if(present(uniquify)) then
                 if(present(mass)) then
-                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify,mass=mass,r0=r0)
-                    else; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify,mass=mass); end if
+                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify,mass=mass,r0=r0)
+                    else; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify,mass=mass); end if
                 else
-                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify,r0=r0)
-                    else; r=CartesianCoordinater(q,cartdim,intdim,uniquify=uniquify); end if
+                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify,r0=r0)
+                    else; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify); end if
                 end if
             else
                 if(present(mass)) then
-                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,mass=mass,r0=r0)
-                    else; r=CartesianCoordinater(q,cartdim,intdim,mass=mass); end if
+                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,mass=mass,r0=r0)
+                    else; call CartesianCoordinater(q,r,intdim,cartdim,mass=mass); end if
                 else
-                    if(present(r0)) then; r=CartesianCoordinater(q,cartdim,intdim,r0=r0)
-                    else; r=CartesianCoordinater(q,cartdim,intdim); end if
+                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,r0=r0)
+                    else; call CartesianCoordinater(q,r,intdim,cartdim); end if
                 end if
             end if
             call WilsonBMatrixAndInternalCoordinateq(r,B,qtemp,cartdim,intdim)

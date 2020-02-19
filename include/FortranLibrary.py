@@ -1,13 +1,13 @@
 """
 Python interface to Fortran-Library
-Note that some python data types are immutable,
-so such fortran routines now return output values in python style
+Note that some fortran routines are rewrapped in python style
 """
 
 ''' Library '''
 from typing import Any, List, Tuple
 from ctypes import *
-import numpy # This tells python to use MKL in numpy
+import numpy # This also tells python to use numpy MKL
+import numpy.random
 
 ''' Global variable '''
 p_int    = POINTER(c_int   )
@@ -36,14 +36,17 @@ def p2array(p:Any, array:numpy.ndarray) -> None:
 FL = CDLL('libFL.so')
 
 ''' Rewrap fortran functions '''
-# There are 2 reasons:
+# Reasons are:
 #     1. Python recognizes fortran functions by their compiled names:
 #        fortran function Func contained in module Mod will be renamed as mod_mp_func_
 #        ( You may use command nm to view the compiled names: nm libFL.so )
 #     2. Some python data types are immutable:
 #        such argument value cannot be changed by passing reference
+#     3. Optional argument cannot be easily passed:
+#        cannot call as func(optarg=x)
 # So we rename fortran functions back to their origin,
-# and return immutable output values in python style
+# return immutable output values in python style,
+# input optional arguments in python style (default them in wrapper then pass all to fortran)
 
 """ General """
 ShowTime = FL.general_mp_showtime_
@@ -62,7 +65,8 @@ AInAU    = 1.8897261339212517
 cm_1InAu = 0.000004556335830019422
 
 """ Chemistry """
-def Avogadro_Vibration(NAtoms:int, symbol:numpy.ndarray, r:numpy.ndarray, vibdim:int, freq:numpy.ndarray, mode:numpy.ndarray, FileName='avogadro.log') -> None:
+def Avogadro_Vibration(NAtoms:int, symbol:numpy.ndarray, r:numpy.ndarray,\
+    vibdim:int, freq:numpy.ndarray, mode:numpy.ndarray, FileName='avogadro.log') -> None:
     p_symbol = cast(((c_char*2)*NAtoms)(), POINTER(c_char*2))
     for i in range(NAtoms):
         p_symbol[i][0] = (symbol[i][0]).encode('ascii')
@@ -153,12 +157,30 @@ def InternalCoordinateq(r:numpy.ndarray, q:numpy.ndarray, cartdim:int, intdim:in
     p2array(p_q, q)
 
 # Due to row- and column-major difference, python fetchs B^T
-def WilsonBMatrixAndInternalCoordinateq(r:numpy.ndarray, BT:numpy.ndarray, q:numpy.ndarray, cartdim:int, intdim:int) -> None:
+def WilsonBMatrixAndInternalCoordinateq(r:numpy.ndarray, BT:numpy.ndarray, q:numpy.ndarray,\
+    cartdim:int, intdim:int) -> None:
     p_r = array2p(r)
     p_BT = array2p(BT); p_q = array2p(q)
     FL.geometrytransformation_mp_wilsonbmatrixandinternalcoordinateq_\
         (p_r, p_BT, p_q, byref(c_int(cartdim)), byref(c_int(intdim)))
     p2array(p_BT, BT); p2array(p_q, q)
+
+# =================== End ===================
+
+# ========== Cartesian <- Internal ==========
+
+def CartesianCoordinater(q:numpy.ndarray, r:numpy.ndarray, intdim:int, cartdim:int,\
+    uniquify='none', mass=numpy.array([numpy.nan]), r0=numpy.array([numpy.nan])) -> None:
+    p_q = array2p(q)
+    p_r = array2p(r)
+    n = len(uniquify)
+    f = (c_char*n)(); f.value = uniquify.encode('ascii')
+    if numpy.isnan(mass[0]): mass=numpy.random.rand(int(cartdim/3))
+    if numpy.isnan(r0[0]): r0=numpy.random.rand(cartdim)
+    p_mass = array2p(mass); p_r0 = array2p(r0)
+    FL.geometrytransformation_mp_cartesiancoordinater_\
+        (p_q, p_r, byref(c_int(intdim)), byref(c_int(cartdim)), f, p_mass, p_r0, n)
+    p2array(p_r, r)
 
 # =================== End ===================
 
@@ -168,7 +190,8 @@ def WilsonBMatrixAndInternalCoordinateq(r:numpy.ndarray, BT:numpy.ndarray, q:num
 # Due to row- and column-major difference, python
 #     throws: H^T (H^T = H), B^T
 #     fetchs: L^T, (L^-1)^T
-def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray, freq:numpy.ndarray, LT:numpy.ndarray, LinvT:numpy.ndarray, intdim:int, NAtoms:int) -> None:
+def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray,\
+    freq:numpy.ndarray, LT:numpy.ndarray, LinvT:numpy.ndarray, intdim:int, NAtoms:int) -> None:
     p_H = array2p(H); p_BT = array2p(BT); p_mass = array2p(mass)
     p_freq = array2p(freq); p_LT = array2p(LT); p_LinvT = array2p(LinvT)
     FL.geometrytransformation_mp_wilsongfmethod_\
@@ -178,7 +201,8 @@ def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray, freq:n
 # Due to row- and column-major difference, python
 #     throws: L^T, B^T
 #     fetchs: cartmode^T
-def InternalMode2CartesianMode(LT:numpy.ndarray, BT:numpy.ndarray, cartmodeT:numpy.ndarray, intdim:int, cartdim:int) -> None:
+def InternalMode2CartesianMode(LT:numpy.ndarray, BT:numpy.ndarray,\
+    cartmodeT:numpy.ndarray, intdim:int, cartdim:int) -> None:
     p_LT = array2p(LT); p_BT = array2p(BT)
     p_cartmodeT = array2p(cartmodeT)
     FL.geometrytransformation_mp_internalmode2cartesianmode_\
