@@ -4,7 +4,7 @@
 #                                            #
 ##############################################
 
-prefix = .
+prefix = . # Default to install to Fortran-Library
 f90 = ifort
 cpp = icpc
 flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3

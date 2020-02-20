@@ -806,7 +806,7 @@ end subroutine AssimilateGeometry
         real*8,dimension(3*NAtoms,3*NAtoms),intent(inout)::H
 		real*8,dimension(NAtoms),intent(in)::mass
 		real*8,dimension(vibdim),intent(out)::freq
-		real*8,dimension(vibdim,vibdim),intent(out)::mode
+		real*8,dimension(3*NAtoms,vibdim),intent(out)::mode
 		integer::i; integer,dimension(3*NAtoms)::indice
 		real*8,dimension(NAtoms)::sqrtmass; real*8,dimension(3*NAtoms)::freqall,freqabs
 		!Obtain freq^2 and normal modes
@@ -842,34 +842,38 @@ end subroutine AssimilateGeometry
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
     !         L   = normal modes in input frame contained in each column (Wilson L matrix)
-    !        Linv = normal modes in input frame contained in each row (Wilson L^-1 matrix)
+    !        Linv = Wilson L^-1 matrix
     subroutine WilsonGFMethod(H,B,mass,freq,L,Linv,intdim,NAtoms)
-        !Step 1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
-        !        LAPACK will normalized l by l(:,i)^T . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
-        !        This is why I call l raw normal mode. w is freq
-        !Step 2, if H is positive definite, then step 1 would succeed thus we only have to convert w^2 to w and l to L,
-        !        else resolve (G . H) . l = l . w^2 by traditional eigenvalue then convert
         integer,intent(in)::intdim,NAtoms
-        real*8,dimension(intdim,intdim),intent(inout)::H
+        real*8,dimension(intdim,intdim),intent(in)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
         real*8,dimension(NAtoms),intent(in)::mass
-        real*8,dimension(intdim),intent(out)::freq
-        real*8,dimension(intdim,intdim),intent(out)::L,Linv
-        integer::i; real*8,dimension(intdim,intdim)::Hsave; real*8,dimension(intdim,3*NAtoms)::Btemp
-        integer,dimension(intdim)::indice; real*8,dimension(intdim)::freqtemp!For imaginary frequency case
-        Hsave=H; call syL2U(Hsave,intdim)!Save Hessian
+        real*8,dimension(intdim),intent(out)::freq,L,Linv
+        real*8,dimension(intdim,intdim),intent(out)::
+        integer::i; integer,dimension(intdim)::indice
+        real*8,dimension(intdim)::freqtemp!For imaginary frequency case
+        real*8,dimension(intdim,intdim)::Htemp
+        real*8,dimension(intdim,3*NAtoms)::Btemp
+        !Try solving G . H . l = l . w^2 in generalized eigenvalue manner
+        !LAPACK will normalized l by l(:,i)^T . H . l(:,j) = delta_ij,
+        !but the true solution is L(:,i) . H . L(:,j) = w^2
+        !This is why I call l raw normal mode. w is freq
+        Htemp=H; call syL2U(Htemp,intdim)!Save Hessian
         forall(i=1:NAtoms); Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i); end forall
-        L=matmul(Btemp,transpose(B)); call My_dsygv(2,'V',L,H,freq,intdim,info=i)
-        if(i==0) then!freq^2 and raw normal modes are normally obtained
-            Linv=matmul(transpose(L),Hsave)
+        L=matmul(Btemp,transpose(B)); call My_dsygv(2,'V',L,Htemp,freq,intdim,info=i)
+        !If H is positive definite, then step 1 would succeed,
+        !freq^2 and raw normal modes are normally obtained
+        if(i==0) then!then we only have to convert w^2 to w and l to L
+            Linv=matmul(transpose(L),H)
             forall(i=1:intdim)
                 freq(i)=dSqrt(freq(i))
                 L(:,i)=L(:,i)*freq(i); Linv(i,:)=Linv(i,:)/freq(i)
             end forall
-        else!Hessian is not positive definite, need more complicated treatment
-            H=matmul(L,Hsave); call My_dgeev('V',H,freq,freqtemp,L,intdim)
+        !Else resolve (G . H) . l = l . w^2 by general eigensolver then convert
+        else
+            Htemp=matmul(L,H); call My_dgeev('V',Htemp,freq,freqtemp,L,intdim)
             forall(i=1:intdim)!Raw normal modes -> normal modes
-                L(:,i)=L(:,i)*dSqrt(freq(i)/dot_product(L(:,i),matmul(Hsave,L(:,i))))
+                L(:,i)=L(:,i)*dSqrt(freq(i)/dot_product(L(:,i),matmul(H,L(:,i))))
             end forall
             do i=1,intdim!freq^2 -> freq
                 if(freq(i)<0d0) then; freq(i)=-dSqrt(-freq(i))
@@ -877,7 +881,7 @@ end subroutine AssimilateGeometry
             end do
             forall(i=1:intdim); indice(i)=i; end forall!Sort freq ascendingly, then sort normal modes accordingly
             call dQuickSort(freq,1,intdim,indice,intdim)
-            H=L; forall(i=1:intdim); L(:,i)=H(:,indice(i)); end forall
+            Htemp=L; forall(i=1:intdim); L(:,i)=Htemp(:,indice(i)); end forall
             Linv=L; call My_dgetri(Linv,intdim)
         end if
     end subroutine WilsonGFMethod

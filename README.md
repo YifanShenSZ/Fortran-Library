@@ -48,10 +48,10 @@ Linear algebra:
 ## Installation
 1. Copy mkl_rci.f90 & mkl_dfti.f90 from MKL installation path to source
 2. `make`, `make install`
-3. `export LIBRARY_PATH=prefix/lib:$LIBRARY_PATH`
-4. `export LD_LIBRARY_PATH=prefix/lib:$LD_LIBRARY_PATH`
-5. `export CPATH=prefix/include:$CPATH`
-6. `export PYTHONPATH=prefix/include:$PYTHONPATH`
+3. `export LIBRARY_PATH=Fortran-Library/lib:$LIBRARY_PATH`
+4. `export LD_LIBRARY_PATH=Fortran-Library/lib:$LD_LIBRARY_PATH`
+5. `export CPATH=Fortran-Library/include:$CPATH`
+6. `export PYTHONPATH=Fortran-Library:$PYTHONPATH`
 7. (optional) `make test`, then check the logs
 
 ## Usage
