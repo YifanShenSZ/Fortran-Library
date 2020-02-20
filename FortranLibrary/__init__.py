@@ -1,5 +1,3 @@
-#__all__=['General', 'Mathematics', 'Chemistry', 'GeometryTransformation']
-
 from .basic import *
 from .General import *; from .Mathematics import *
 from .Chemistry import *
