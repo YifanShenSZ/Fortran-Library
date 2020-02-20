@@ -796,17 +796,17 @@ end subroutine AssimilateGeometry
 	!    E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
 
 	!Input:  3NAtoms order real symmetric matrix H = Hessian in Cartesian coordinate (will be overwritten)
-	!Output: vibdim order vector freq = vibrational angular frequencies (negative if imaginary)
-    !        vibdim order matrix mode = normal modes in input frame contained in each row
-    !        H will be overwritten
+    !               NAtoms order array mass        = mass of each atom
+    !Output: freq = vibrational angular frequencies (negative if imaginary)
+    !        mode = normal modes in input frame contained in each row
     !Lowest 3 * NAtoms - vibdim modes are considered translation and rotation thus ruled out
-    subroutine VibrationAnalysis(freq,mode,vibdim,H,mass,NAtoms)
+    subroutine AnalyzeVibration(H,mass,freq,mode,NAtoms,vibdim)
         ! H . mode = diag{freq^2} . mode
-		integer,intent(in)::vibdim,NAtoms
-		real*8,dimension(vibdim),intent(out)::freq
-		real*8,dimension(vibdim,vibdim),intent(out)::mode
+        integer,intent(in)::NAtoms,vibdim
         real*8,dimension(3*NAtoms,3*NAtoms),intent(inout)::H
 		real*8,dimension(NAtoms),intent(in)::mass
+		real*8,dimension(vibdim),intent(out)::freq
+		real*8,dimension(vibdim,vibdim),intent(out)::mode
 		integer::i; integer,dimension(3*NAtoms)::indice
 		real*8,dimension(NAtoms)::sqrtmass; real*8,dimension(3*NAtoms)::freqall,freqabs
 		!Obtain freq^2 and normal modes
@@ -834,16 +834,15 @@ end subroutine AssimilateGeometry
 		    forall(i=1:vibdim); indice(i)=i; end forall
 			call dQuickSort(freq,1,vibdim,indice(1:vibdim),vibdim)
 			H(:,1:vibdim)=mode; forall(i=1:vibdim); mode(:,i)=H(:,indice(i)); end forall
-	end subroutine VibrationAnalysis
+	end subroutine AnalyzeVibration
 
     !Use Wilson GF method to obtain normal mode and vibrational frequency from Hessian in internal coordinate
-    !Input:  intdim order real symmetric matrix H = Hessian in internal coordinate
+    !Input:  intdim order real symmetric matrix H = Hessian in internal coordinate (will be overwritten)
     !              intdim x 3NAtoms matrix B      = Wilson B matrix
     !              NAtoms order array mass        = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
-    !         L   = normal modes contained in each column in mass weighted coordinate (Wilson L matrix)
-    !        Linv = normal modes contained in each row in input frame (Wilson L^-1 matrix)
-    !H will be overwritten
+    !         L   = normal modes in input frame contained in each column (Wilson L matrix)
+    !        Linv = normal modes in input frame contained in each row (Wilson L^-1 matrix)
     subroutine WilsonGFMethod(H,B,mass,freq,L,Linv,intdim,NAtoms)
         !Step 1, try solving G . H . l = l . w^2 in generalized eigenvalue manner
         !        LAPACK will normalized l by l(:,i)^T . H . l(:,j) = delta_ij, but the true solution is L(:,i) . H . L(:,j) = w^2
@@ -883,13 +882,13 @@ end subroutine AssimilateGeometry
         end if
     end subroutine WilsonGFMethod
     !Convert internal coordinate normal mode to Cartesian coordinate normal mode
-    !L and B will be overwritten
+    !B will be overwritten
     subroutine InternalMode2CartesianMode(L,B,cartmode,intdim,cartdim)
         !L . dQ = dq = B . dr, where Q denotes internal coordinate normal mode
         !With any diagonal [dQ], the solution [dr] contains unnormalized Cartesian coordinate normal mode in each column
         !For convenience here we let [dQ] = 1
         integer,intent(in)::intdim,cartdim
-        real*8,dimension(intdim,intdim),intent(inout)::L
+        real*8,dimension(intdim,intdim),intent(in)::L
         real*8,dimension(intdim,cartdim),intent(inout)::B
         real*8,dimension(cartdim,intdim),intent(out)::cartmode
         integer::i
