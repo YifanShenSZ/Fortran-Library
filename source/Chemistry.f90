@@ -101,20 +101,20 @@ character*2 function Number2Symbol(element)!Vice versa
 end function Number2Symbol
 
 !Write molecular structure and vibration to an Avogadro format file
-!Required:         NAtoms order vector symbol         = element symbol of each atom
-!                 3 x NAtoms matrix structure         = Cartesian coordinate of each atom in Angstrom
-!                   vibdim order vector freq          = vibrational angular frequencies in cm^-1
-!          3 x NAtoms x vibdim 3-rd order tensor mode = Cartesian normal modes
-!Optional: FileName: (default = 'avogadro.log') name of the output file
-subroutine Avogadro_Vibration(NAtoms,symbol,structure,vibdim,freq,mode,FileName)
+!Required: symbol: element symbol of each atom
+!          structure: Cartesian coordinate of each atom in Angstrom
+!          freq: vibrational angular frequencies in cm^-1
+!          mode: Cartesian normal modes
+!Optional: file: (default = 'avogadro.log') output file name
+subroutine Avogadro_Vibration(NAtoms,symbol,structure,vibdim,freq,mode,file)
     integer,intent(in)::NAtoms,vibdim
     character*2,dimension(NAtoms),intent(in)::symbol
     real*8,dimension(3,NAtoms),intent(in)::structure
     real*8,dimension(vibdim),intent(in)::freq
     real*8,dimension(3,NAtoms,vibdim),intent(in)::mode
-    character(*),optional,intent(in)::FileName
+    character(*),optional,intent(in)::file
     integer::i; integer,dimension(NAtoms)::number
-    if(present(FileName)) then; open(unit=99,file=FileName,status='replace')
+    if(present(file)) then; open(unit=99,file=file,status='replace')
     else; open(unit=99,file='avogadro.log',status='replace'); end if
         write(99,'(A29)')'---------- Comment ----------'
         write(99,'(A76)')'    Open this file in Avogadro to visualize the molecule and the normal mode'

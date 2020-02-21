@@ -4,6 +4,7 @@ General basic routines for python interface to Fortran-Library
 
 ''' Library '''
 from typing import Any, List, Tuple
+from pathlib import Path
 from ctypes import *
 import numpy # This also tells python to use numpy MKL
 import numpy.random
