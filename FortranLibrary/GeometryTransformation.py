@@ -108,26 +108,16 @@ def CartesianCoordinater(q:numpy.ndarray, r:numpy.ndarray, intdim:int, cartdim:i
 # --------------- Normal mode ----------------
 # Due to row- and column-major difference, python
 #     throws: H^T (H^T = H), B^T
-#     fetchs: L^T, (L^-1)^T
-# Output: freq, L^T, (L^-1)^T
+#     fetchs: intmode^T, (L^-1)^T, cartmode^T
+# Output: freq, intmode^T, (L^-1)^T, cartmode^T
 def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray,\
-    freq:numpy.ndarray, LT:numpy.ndarray, LinvT:numpy.ndarray, intdim:int, NAtoms:int) -> None:
+    freq:numpy.ndarray, intmodeT:numpy.ndarray, LinvT:numpy.ndarray, cartmodeT:numpy.ndarray,\
+    intdim:int, NAtoms:int) -> None:
     p_H = array2p(H); p_BT = array2p(BT); p_mass = array2p(mass)
-    p_freq = array2p(freq); p_LT = array2p(LT); p_LinvT = array2p(LinvT)
+    p_freq = array2p(freq); p_intmodeT = array2p(intmodeT); p_LinvT = array2p(LinvT); p_cartmodeT = array2p(cartmodeT)
     FL.geometrytransformation_mp_wilsongfmethod_\
-        (p_H, p_BT, p_mass, p_freq, p_LT, p_LinvT, byref(c_int(intdim)), byref(c_int(NAtoms)))
-    p2array(p_freq, freq); p2array(p_LT, LT); p2array(p_LinvT, LinvT)
-
-# Due to row- and column-major difference, python
-#     throws: L^T, B^T
-#     fetchs: cartmode^T
-# Output: cartmode^T
-def InternalMode2CartesianMode(LT:numpy.ndarray, BT:numpy.ndarray,\
-    cartmodeT:numpy.ndarray, intdim:int, cartdim:int) -> None:
-    p_LT = array2p(LT); p_BT = array2p(BT)
-    p_cartmodeT = array2p(cartmodeT)
-    FL.geometrytransformation_mp_internalmode2cartesianmode_\
-        (p_LT, p_BT, p_cartmodeT, byref(c_int(intdim)), byref(c_int(cartdim)))
-    p2array(p_cartmodeT, cartmodeT)
+        (p_H, p_BT, p_mass, p_freq, p_intmodeT, p_LinvT, p_cartmodeT,\
+        byref(c_int(intdim)), byref(c_int(NAtoms)))
+    p2array(p_freq, freq); p2array(p_intmodeT, intmodeT); p2array(p_LinvT, LinvT); p2array(p_cartmodeT, cartmodeT)
 
 # ------------------- End --------------------
