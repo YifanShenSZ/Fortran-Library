@@ -797,7 +797,8 @@ end subroutine AssimilateGeometry
     !For visualization, the output normal mode is not mass weighted
 
     !Obtain normal mode and vibrational frequency from Hessian in Cartesian coordinate
-	!Input:   H   = Cartesian coordinate Hessian (will be overwritten)
+    !Note that normal modes are normalized by mass weight metric
+    !Input:   H   = Cartesian coordinate Hessian (will be overwritten)
     !        mass = mass of each atom
     !Output: freq = vibrational angular frequencies (negative if imaginary)
     !        mode = normal modes contained in each column
@@ -838,6 +839,7 @@ end subroutine AssimilateGeometry
 	end subroutine AnalyzeVibration
 
     !Use Wilson GF method to obtain normal mode and vibrational frequency from Hessian in internal coordinate
+    !Note that normal modes are normalized by Hessian metric
     !Input:     H     = internal coordinate Hessian
     !           B     = Wilson B matrix
     !          mass   = mass of each atom
@@ -891,7 +893,6 @@ end subroutine AssimilateGeometry
         Btemp=B
         call dGeneralizedInverseTranspose(Btemp,intdim,3*NAtoms)
         cartmode=matmul(transpose(Btemp),intmode)
-        forall(i=1:intdim); cartmode(:,i)=cartmode(:,i)/norm2(cartmode(:,i)); end forall
     end subroutine WilsonGFMethod
 !------------------- End --------------------
 
