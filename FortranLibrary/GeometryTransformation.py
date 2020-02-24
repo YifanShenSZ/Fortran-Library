@@ -113,6 +113,18 @@ def InternalCoordinateq(r:numpy.ndarray, q:numpy.ndarray, cartdim:int, intdim:in
         (p_r, p_q, byref(c_int(cartdim)), byref(c_int(intdim)))
     p2array(p_q, q)
 
+# Due to row- and column-major difference, python
+#     throws: cartgrad^T
+#     fetchs:  intgrad^T
+def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray, intgradT:numpy.ndarray,\
+    cartdim:int, intdim:int, NStates:int) -> None:
+    p_r = array2p(r); p_cartgradT = array2p(cartgradT)
+    p_q = array2p(q); p_intgradT  = array2p( intgradT)
+    FL.geometrytransformation_mp_cartesian2internal_\
+        (p_r, p_cartgradT, p_q, p_intgradT,\
+        byref(c_int(cartdim)), byref(c_int(intdim)), byref(c_int(NStates)))
+    p2array(p_q, q); p2array(p_intgradT, intgradT)
+
 # Due to row- and column-major difference, python fetchs B^T
 def WilsonBMatrixAndInternalCoordinateq(r:numpy.ndarray, BT:numpy.ndarray, q:numpy.ndarray,\
     cartdim:int, intdim:int) -> None:
@@ -126,18 +138,29 @@ def WilsonBMatrixAndInternalCoordinateq(r:numpy.ndarray, BT:numpy.ndarray, q:num
 
 # ========== Cartesian <- Internal ==========
 
-def CartesianCoordinater(q:numpy.ndarray, r:numpy.ndarray, intdim:int, cartdim:int,\
-    uniquify='none', mass=numpy.array([numpy.nan]), r0=numpy.array([numpy.nan])) -> None:
+def CartesianCoordinater(q:numpy.ndarray, r:numpy.ndarray,\
+    intdim:int, cartdim:int, r0=numpy.array([numpy.nan])) -> None:
     p_q = array2p(q)
     p_r = array2p(r)
-    n = len(uniquify)
-    f = (c_char*n)(); f.value = uniquify.encode('ascii')
-    if numpy.isnan(mass[0]): mass=numpy.random.rand(int(cartdim/3))
     if numpy.isnan(r0[0]): r0=numpy.random.rand(cartdim)
-    p_mass = array2p(mass); p_r0 = array2p(r0)
+    p_r0 = array2p(r0)
     FL.geometrytransformation_mp_cartesiancoordinater_\
-        (p_q, p_r, byref(c_int(intdim)), byref(c_int(cartdim)), f, p_mass, p_r0, n)
+        (p_q, p_r, byref(c_int(intdim)), byref(c_int(cartdim)), p_r0)
     p2array(p_r, r)
+
+# Due to row- and column-major difference, python
+#     throws:  intgrad^T
+#     fetchs: cartgrad^T
+def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray,\
+    intdim:int, cartdim:int, NStates:int, r0=numpy.array([numpy.nan])) -> None:
+    p_q = array2p(q); p_intgradT  = array2p( intgradT)
+    p_r = array2p(r); p_cartgradT = array2p(cartgradT)
+    if numpy.isnan(r0[0]): r0=numpy.random.rand(cartdim)
+    p_r0 = array2p(r0)
+    FL.geometrytransformation_mp_internal2cartesian_\
+        (p_q, p_intgradT, p_r, p_cartgradT,\
+        byref(c_int(intdim)), byref(c_int(cartdim)), byref(c_int(NStates)), p_r0)
+    p2array(p_r, r); p2array(p_cartgradT, cartgradT)
 
 # =================== End ===================
 
@@ -147,7 +170,6 @@ def CartesianCoordinater(q:numpy.ndarray, r:numpy.ndarray, intdim:int, cartdim:i
 # Due to row- and column-major difference, python
 #     throws: H^T (H^T = H), B^T
 #     fetchs: intmode^T, (L^-1)^T, cartmode^T
-# Output: freq, intmode^T, (L^-1)^T, cartmode^T
 def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray,\
     freq:numpy.ndarray, intmodeT:numpy.ndarray, LinvT:numpy.ndarray, cartmodeT:numpy.ndarray,\
     intdim:int, NAtoms:int) -> None:

@@ -1,8 +1,10 @@
 !Common geometry transformation applied in molecule computation:
-!    Standard geometry
+!    Standardize geometry
 !    Assimilate geometry
 !    Cartesian <-> internal coodinate
-!    Normal mode and vibrational frequency
+!    Vibrational frequency and normal mode
+!
+!Reference: E. B. Wilson, J. C. Decius, P. C. Cross, *Molecular viobrations: the theory of infrared and Raman vibrational spectra* (Dover, 1980)
 module GeometryTransformation
     use General; use Mathematics; use LinearAlgebra
     use NonlinearOptimization
@@ -264,13 +266,14 @@ end subroutine AssimilateGeometry
     !r is a 3NAtoms order vector with r[3*i-2:3*i] corresponding to the coordinate of i-th atom
     !Nomenclature:
     !    cartdim & intdim: Cartesian & internal space dimensionality
-    !    cartgrad & intgrad: Cartesian & internal gradient (cartdim & intdim x NStates x NStates 3rd-order tensor)
+    !    cartgrad & intgrad: Cartesian & internal coordinate gradient (cartdim & intdim x NStates x NStates 3rd-order tensor)
 
     !Define internal coordinate, return the internal space dimensionality
     !Input:  format: internal coordinate definition format (Available: Columbus7, default)
     !        (optional) file: (default = 'intcfl' for Columbus7, 'IntCoordDef' for default) internal coordinate definition file name
     !Output: the internal space dimensionality
     !        also set the module-wide variable GeometryTransformation_IntCoordDef
+    !        which will be refered by all routines in this section
     !See InvolvedMotion in 'Derived type' section for available types and ordering of atoms
     integer function DefineInternalCoordinate(format,file)
         character(*),intent(in)::format
@@ -470,8 +473,7 @@ end subroutine AssimilateGeometry
     end function DefineInternalCoordinate
 
     !========== Cartesian -> Internal ==========
-        !Generate internal coordinate q from Cartesian coordinate r and internal coordinate definition
-        !The definition is a module-wide variable, so only take r as input
+        !Convert r to q
         subroutine InternalCoordinateq(r,q,cartdim,intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
@@ -551,8 +553,7 @@ end subroutine AssimilateGeometry
             end function OutOfPlane
         end subroutine InternalCoordinateq
 
-        !Convert geometry and gradient from Cartesian coordinate to internal coordinate
-        !r & cartgrad are the input Cartesian space value, q & intgrad harvest corresponding internal space value
+        !Convert r & cartgrad to q & intgrad
         subroutine Cartesian2Internal(r,cartgrad,q,intgrad,cartdim,intdim,NStates)
             integer,intent(in)::cartdim,intdim,NStates
             real*8,dimension(cartdim),intent(in)::r
@@ -565,9 +566,7 @@ end subroutine AssimilateGeometry
             forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
         end subroutine Cartesian2Internal
         
-        !Generate Wilson B matrix and internal coordinate q from Cartesian coordinate r and internal coordinate definition
-        !The definition is a module-wide variable, so only take r as input
-        !Reference: E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
+        !From r, generate B & q
         subroutine WilsonBMatrixAndInternalCoordinateq(r,B,q,cartdim,intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
@@ -691,47 +690,19 @@ end subroutine AssimilateGeometry
     !=================== End ===================
 
     !========== Cartesian <- Internal ==========
-        !Generate Cartesian coordinate r from internal coordinate q and internal coordinate definition
-        !The definition is a module-wide variable, so only take r as input
-        !Optional argument:
-        !    uniquify: (default = none) r varies by arbitrary translation & rotation, you may uniquify it by
-        !              none: do nothing, let r vary
-        !              standardize: standardize r
-        !              assimilate: assimilate r to r0
-        !    mass: no use in this function
-        !          required when uniquify = standardize or assimilate
-        !    r0: initial guess of r
-        !        optional when uniquify = standardize
-        !        required when uniquify = assimilate
-        subroutine CartesianCoordinater(q,r,intdim,cartdim,uniquify,mass,r0)
+        !Convert q to r
+        !Please note that r may vary with arbitrary translation & rotation
+        !Optional argument: r0: (default = random) initial guess of r
+        subroutine CartesianCoordinater(q,r,intdim,cartdim,r0)
             !Required argument
                 integer,intent(in)::intdim,cartdim
                 real*8,dimension(intdim),intent(in)::q
                 real*8,dimension(cartdim),intent(out)::r
             !Optional argument
-                character(*),intent(in),optional::uniquify
-                real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
             if(present(r0)) then; r=r0!Initial guess
             else; call random_number(r); end if
-            call TrustRegion(Residue,r,cartdim,cartdim,Jacobian=Jacobian,Warning=.false.)
-            if(present(uniquify)) then
-                select case(uniquify)
-                case('standardize')
-                    if(.not.present(mass)) then
-                        write(*,*)'mass is required when uniquify = assimilate. A nonunique Cartesian coordinate is returned'
-                        return
-                    end if
-                    if(present(r0)) then; call StandardizeGeometry(r,mass,cartdim/3,1,ref=r0)
-                    else; call StandardizeGeometry(r,mass,cartdim/3,1); end if
-                case('assimilate')
-                    if(.not.(present(mass).and.present(r0))) then
-                        write(*,*)'mass and r0 are required when uniquify = assimilate. A nonunique Cartesian coordinate is returned'
-                        return
-                    end if
-                    call AssimilateGeometry(r,r0,mass,cartdim/3)
-                end select
-            end if
+            call TrustRegion(Residue,r,cartdim,cartdim,Jacobian=Jacobian,Precision=1d-10)
             contains
             subroutine Residue(res,r,dim,cartdim)
                 integer,intent(in)::dim,cartdim
@@ -752,11 +723,11 @@ end subroutine AssimilateGeometry
             end function Jacobian
         end subroutine CartesianCoordinater
 
-        !Convert geometry and gradient from internal coordinate to Cartesian coordinate
-        !Required: q, intgrad, r, cartgrad, intdim, cartdim, NStates
-        !Optional: uniquify & mass & r0 (same as above)
-        !q & intgrad are the input internal space value, r & cartgrad harvest corresponding Cartesian space value
-        subroutine Internal2Cartesian(q,intgrad,r,cartgrad,intdim,cartdim,NStates,uniquify,mass,r0)
+        !Convert q & intgrad to r & cartgrad
+        !Please note that r may vary with arbitrary translation & rotation
+        !so cartgrad varies with same rotation to r
+        !Optional argument: r0: (default = random) initial guess of r
+        subroutine Internal2Cartesian(q,intgrad,r,cartgrad,intdim,cartdim,NStates,r0)
             !Required argument
                 integer,intent(in)::intdim,cartdim,NStates
                 real*8,dimension(intdim),intent(in)::q
@@ -764,27 +735,10 @@ end subroutine AssimilateGeometry
                 real*8,dimension(cartdim),intent(out)::r
                 real*8,dimension(cartdim,NStates,NStates),intent(out)::cartgrad
             !Optional argument
-                character*32,intent(in),optional::uniquify
-                real*8,dimension(cartdim/3),intent(in),optional::mass
                 real*8,dimension(cartdim),intent(in),optional::r0
             integer::i,j; real*8,dimension(intdim)::qtemp; real*8,dimension(intdim,cartdim)::B
-            if(present(uniquify)) then
-                if(present(mass)) then
-                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify,mass=mass,r0=r0)
-                    else; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify,mass=mass); end if
-                else
-                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify,r0=r0)
-                    else; call CartesianCoordinater(q,r,intdim,cartdim,uniquify=uniquify); end if
-                end if
-            else
-                if(present(mass)) then
-                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,mass=mass,r0=r0)
-                    else; call CartesianCoordinater(q,r,intdim,cartdim,mass=mass); end if
-                else
-                    if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,r0=r0)
-                    else; call CartesianCoordinater(q,r,intdim,cartdim); end if
-                end if
-            end if
+            if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,r0=r0)
+            else; call CartesianCoordinater(q,r,intdim,cartdim); end if
             call WilsonBMatrixAndInternalCoordinateq(r,B,qtemp,cartdim,intdim)
             forall(i=1:NStates,j=1:NStates); cartgrad(:,i,j)=matmul(transpose(B),intgrad(:,i,j)); end forall
         end subroutine Internal2Cartesian
@@ -795,8 +749,7 @@ end subroutine AssimilateGeometry
 	!Normal mode is the mass weighted eigenvector of Hessian:
 	!    In Cartesian coordinate, it is the usual eigenvector
 	!    In  internal coordinate, it is the generalized eigenvector of G under Hessian metric
-	!G is built from mass and Wilson B matrix, for details see Wilson GF method in: (note that Wilson calls Hessian by F)
-    !    E. B. Wilson, J. C. Decius, P. C. Cross, Molecular viobrations: the theory of infrared and Raman vibrational spectra (Dover, 1980)
+	!G is built from mass and Wilson B matrix, for details see Wilson GF method in reference
     !For visualization, the output normal mode is not mass weighted
 
     !Obtain normal mode and vibrational frequency from Hessian in Cartesian coordinate
