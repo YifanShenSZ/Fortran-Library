@@ -1,6 +1,6 @@
 from .basic import *
 
-def Avogadro_Vibration(NAtoms:int, symbol:numpy.ndarray, r:numpy.ndarray,\
+def Avogadro_Vibration(NAtoms:int, symbol:List, r:numpy.ndarray,\
     vibdim:int, freq:numpy.ndarray, mode:numpy.ndarray, file=Path('avogadro.log')) -> None:
     p_symbol = cast(((c_char*2)*NAtoms)(), POINTER(c_char*2))
     for i in range(NAtoms):
