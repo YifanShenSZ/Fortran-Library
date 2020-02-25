@@ -1,8 +1,7 @@
 !Common geometry transformation applied in molecule computation:
-!    Standardize geometry
-!    Assimilate geometry
+!    Uniquify geometry
 !    Cartesian <-> internal coodinate
-!    Vibrational frequency and normal mode
+!    Normal mode and vibrational frequency
 !
 !Reference: E. B. Wilson, J. C. Decius, P. C. Cross, *Molecular viobrations: the theory of infrared and Raman vibrational spectra* (Dover, 1980)
 module GeometryTransformation
@@ -43,215 +42,247 @@ module GeometryTransformation
     type(IntCoordDef),allocatable,dimension(:)::GeometryTransformation_IntCoordDef!short for INTernal COORDinate DEFinition
 
 contains
-!Standardize a geometry (and optionally gradient) (optionally to a reference)
-!Here we define a standard geometry as: (also called standard orientaion)
-!    the centre of mass at origin
-!    the rotational principle axes along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
-!Note this definition does not determine geometry uniquely:
-!    axes may take different positive direction as long as forming right-hand system (4 possibilities)
-!Required argument: 
-!    geom: geom(:,i) corresponds to [x,y,z] of i-th atom
-!    mass: mass(i) is the mass of i-th atom
-!    NAtoms, NStates
-!Optional argument:
-!    ref : uniquely define the standard geometry by the one with smallest difference to ref out of 4
-!    diff: harvest mass^2 weighted || geom - ref ||_F^2
-!    grad: gradient (of multiple electronic states) to transform to standard coordinate
-subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,ref,diff,grad)
-    !Required argument
+!------------ Uniquify geometry -------------
+    !Standardize a geometry (and optionally gradient) (optionally to a reference)
+    !Here we define a standard geometry as: (also called standard orientaion)
+    !    the centre of mass at origin
+    !    the rotational principle axes along xyz axes, with the smallest corresponding to x axis, 2nd to y, 3rd to z
+    !Note this definition does not determine geometry uniquely:
+    !    axes may take different positive direction as long as forming right-hand system (4 possibilities)
+    !Required argument: 
+    !    geom: geom(:,i) corresponds to [x,y,z] of i-th atom
+    !    mass: mass(i) is the mass of i-th atom
+    !    NAtoms, NStates
+    !Optional argument:
+    !    ref : uniquely define the standard geometry by the one with smallest difference to ref out of 4
+    !    diff: harvest mass^2 weighted || geom - ref ||_F^2
+    !    grad: gradient (of multiple electronic states) to transform to standard coordinate
+    subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,ref,diff,grad)
+        !Required argument
+            integer,intent(in)::NAtoms,NStates
+            real*8,dimension(3,NAtoms),intent(inout)::geom
+            real*8,dimension(NAtoms),intent(in)::mass
+        !Optional argument
+            real*8,dimension(3,NAtoms),intent(in),optional::ref
+            real*8,intent(out),optional::diff
+            real*8,dimension(3,NAtoms,NStates,NStates),intent(inout),optional::grad
+        integer::indicemin,i,istate,jstate
+        real*8::mindiff,dbletemp
+        real*8,dimension(3)::com!centre of mass
+        real*8,dimension(3,3)::UT,moi!moment of inertia
+        real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
+        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
+            com=matmul(geom,mass)/sum(mass); moi=0d0
+            do i=1,NAtoms
+                geom(:,i)=geom(:,i)-com
+                moi=moi+mass(i)*(dot_product(geom(:,i),geom(:,i))*UnitMatrix(3)-vector_direct_product(geom(:,i),geom(:,i),3,3))
+            end do
+        !Diagonalize momentum of inertia
+            call My_dsyev('V',moi,com,3)
+            if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
+            UT=transpose(moi)
+        !Transform geometry (and optionally gradient) to principle axes frame
+        if(present(ref)) then
+            !The positive direction has 4 legal choices, determine it by comparing difference to the reference
+            forall(i=1:NAtoms)
+                r(:,i,1)=matmul(UT,geom(:,i))
+                !Flip x and y positive directions
+                r(1:2,i,2)=-r(1:2,i,1)
+                r(  3,i,2)= r(  3,i,1)
+                !Flip x and z positive directions
+                r(1,i,3)=-r(1,i,1)
+                r(2,i,3)= r(2,i,1)
+                r(3,i,3)=-r(3,i,1)
+                !Flip y and z positive directions
+                r(  1,i,4)= r(  1,i,1)
+                r(2:3,i,4)=-r(2:3,i,1)
+            end forall
+            !Which one has smallest difference?
+            indicemin=1; mindiff=difference(r(:,:,1))
+            do i=2,4
+                dbletemp=difference(r(:,:,i))
+                if(dbletemp<mindiff) then
+                    indicemin=i; mindiff=dbletemp
+                end if
+            end do
+            if(present(diff)) diff=mindiff!Harvest mass^2 weighted || geom - ref ||_2^2
+            geom=r(:,:,indicemin)!Determine the unique geometry
+            select case(indicemin)!Determine the principle axes
+            case(2); moi(:,1:2)=-moi(:,1:2)
+            case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
+            case(4); moi(:,2:3)=-moi(:,2:3)
+            end select
+            if(present(grad)) UT=transpose(moi)!Update U^T accordingly
+        else
+            forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
+        end if
+        if(present(grad)) then
+            forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
+                grad(:,i,istate,jstate)=matmul(UT,grad(:,i,istate,jstate))
+            end forall
+        end if
+        contains
+        real*8 function difference(geom)
+            real*8,dimension(3,NAtoms),intent(in)::geom
+            integer::i; real*8,dimension(3,NAtoms)::temp
+            temp=geom-ref
+            forall(i=1:NAtoms); temp(:,i)=temp(:,i)*mass(i); end forall
+            difference=dgeFrobeniusSquare(temp,3,NAtoms)
+        end function difference
+    end subroutine StandardizeGeometry
+
+    !Python can only pass none or all optional arguments
+    !So the (.not.present(ref)) .and. present(grad) branch will not be run in code above
+    !Here we explicitly provide such case
+    subroutine py_StandardizeGeometry(geom,mass,NAtoms,NStates,grad)
         integer,intent(in)::NAtoms,NStates
         real*8,dimension(3,NAtoms),intent(inout)::geom
         real*8,dimension(NAtoms),intent(in)::mass
-    !Optional argument
-        real*8,dimension(3,NAtoms),intent(in),optional::ref
-        real*8,intent(out),optional::diff
-        real*8,dimension(3,NAtoms,NStates,NStates),intent(inout),optional::grad
-    integer::indicemin,i,istate,jstate
-    real*8::mindiff,dbletemp
-    real*8,dimension(3)::com!centre of mass
-    real*8,dimension(3,3)::UT,moi!moment of inertia
-    real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
-    !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
+        real*8,dimension(3,NAtoms,NStates,NStates),intent(inout)::grad
+        integer::indicemin,i,istate,jstate
+        real*8::mindiff,dbletemp
+        real*8,dimension(3)::com!centre of mass
+        real*8,dimension(3,3)::UT,moi!moment of inertia
+        real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
+        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
         com=matmul(geom,mass)/sum(mass); moi=0d0
         do i=1,NAtoms
             geom(:,i)=geom(:,i)-com
             moi=moi+mass(i)*(dot_product(geom(:,i),geom(:,i))*UnitMatrix(3)-vector_direct_product(geom(:,i),geom(:,i),3,3))
         end do
-    !Diagonalize momentum of inertia
+        !Diagonalize momentum of inertia
         call My_dsyev('V',moi,com,3)
         if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
         UT=transpose(moi)
-    !Transform geometry (and optionally gradient) to principle axes frame
-    if(present(ref)) then
-        !The positive direction has 4 legal choices, determine it by comparing difference to the reference
-        forall(i=1:NAtoms)
-            r(:,i,1)=matmul(UT,geom(:,i))
-            !Flip x and y positive directions
-            r(1:2,i,2)=-r(1:2,i,1)
-            r(  3,i,2)= r(  3,i,1)
-            !Flip x and z positive directions
-            r(1,i,3)=-r(1,i,1)
-            r(2,i,3)= r(2,i,1)
-            r(3,i,3)=-r(3,i,1)
-            !Flip y and z positive directions
-            r(  1,i,4)= r(  1,i,1)
-            r(2:3,i,4)=-r(2:3,i,1)
-        end forall
-        !Which one has smallest difference?
-        indicemin=1; mindiff=difference(r(:,:,1))
-        do i=2,4
-            dbletemp=difference(r(:,:,i))
-            if(dbletemp<mindiff) then
-                indicemin=i; mindiff=dbletemp
-            end if
-        end do
-        if(present(diff)) diff=mindiff!Harvest mass^2 weighted || geom - ref ||_2^2
-        geom=r(:,:,indicemin)!Determine the unique geometry
-        select case(indicemin)!Determine the principle axes
-        case(2); moi(:,1:2)=-moi(:,1:2)
-        case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
-        case(4); moi(:,2:3)=-moi(:,2:3)
-        end select
-        if(present(grad)) UT=transpose(moi)!Update U^T accordingly
-    else
+        !Transform geometry and gradient to principle axes frame
         forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
-    end if
-    if(present(grad)) then
         forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
             grad(:,i,istate,jstate)=matmul(UT,grad(:,i,istate,jstate))
         end forall
-    end if
-    contains
-    real*8 function difference(geom)
-        real*8,dimension(3,NAtoms),intent(in)::geom
-        integer::i; real*8,dimension(3,NAtoms)::temp
-        temp=geom-ref
-        forall(i=1:NAtoms); temp(:,i)=temp(:,i)*mass(i); end forall
-        difference=dgeFrobeniusSquare(temp,3,NAtoms)
-    end function difference
-end subroutine StandardizeGeometry
-
-!Assimilate a geometry to a reference
-!Required argument: 
-!    geom: geom(:,i) corresponds to [x,y,z] of i-th atom
-!    ref : the reference
-!    mass: mass(i) is the mass of i-th atom
-!    NAtoms
-!Optional argument:
-!    diff: harvest mass^2 weighted || geom - ref ||_F^2
-!    init: initial value of rotation, see rotation section
-subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff,init)
-    !Required argument
-        integer,intent(in)::NAtoms
-        real*8,dimension(3,NAtoms),intent(inout)::geom
-        real*8,dimension(3,NAtoms),intent(in)::ref
-        real*8,dimension(NAtoms),intent(in)::mass
-    !Optional argument
-        real*8,intent(out),optional::diff
-        real*8,dimension(3),intent(in),optional::init
-    !Rotation
-        real*8::diffmin,difftemp,sintheta
-        real*8,dimension(3)::qind
-        real*8,dimension(4)::q,qmin
-        real*8,dimension(3,NAtoms)::geommin,geomtemp
-    integer::i!Work variable
-    !Shift the centre of mass of the input geometry to the reference
-        qind=matmul(ref-geom,mass)/sum(mass)
-        forall(i=1:NAtoms); geom(:,i)=geom(:,i)+qind; end forall
-    !Rotate geometry to minimize mass^2 weighted || geom - ref ||_F^2
-        !Rotation is done by unit quaternion q=[cos(alpha/2),sin(alpha/2)*axis]
-        !Here we let the independent variables be alpha/2, theta, phi
-        !    where axis=[sin(theta)cos(phi),sin(theta)sin(phi),cos(theta)]
-        if(present(init)) then; qind=init!Initial value = user input
-        else!or random value
-            !No rotation
-            qmin=[1d0,0d0,0d0,0d0]
-            diffmin=difference(geom)
-            !Randomly sample 1000000 orientations
-            do i=1,1000000
-                q=RandomUnitQuaternion()
-                geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
-                if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-            end do
-            !Try [0,360) degree with step length = 1 degree along x, y, z
-                !0 degree along x
-                    qind=[0d0,pid2,0d0]
-                    q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
-                    q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+    end subroutine py_StandardizeGeometry
+    
+    !Assimilate a geometry to a reference
+    !Required argument: 
+    !    geom: geom(:,i) corresponds to [x,y,z] of i-th atom
+    !    ref : the reference
+    !    mass: mass(i) is the mass of i-th atom
+    !    NAtoms
+    !Optional argument:
+    !    diff: harvest mass^2 weighted || geom - ref ||_F^2
+    !    init: initial value of rotation, see rotation section
+    subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff,init)
+        !Required argument
+            integer,intent(in)::NAtoms
+            real*8,dimension(3,NAtoms),intent(inout)::geom
+            real*8,dimension(3,NAtoms),intent(in)::ref
+            real*8,dimension(NAtoms),intent(in)::mass
+        !Optional argument
+            real*8,intent(out),optional::diff
+            real*8,dimension(3),intent(in),optional::init
+        !Rotation
+            real*8::diffmin,difftemp,sintheta
+            real*8,dimension(3)::qind
+            real*8,dimension(4)::q,qmin
+            real*8,dimension(3,NAtoms)::geommin,geomtemp
+        integer::i!Work variable
+        !Shift the centre of mass of the input geometry to the reference
+            qind=matmul(ref-geom,mass)/sum(mass)
+            forall(i=1:NAtoms); geom(:,i)=geom(:,i)+qind; end forall
+        !Rotate geometry to minimize mass^2 weighted || geom - ref ||_F^2
+            !Rotation is done by unit quaternion q=[cos(alpha/2),sin(alpha/2)*axis]
+            !Here we let the independent variables be alpha/2, theta, phi
+            !    where axis=[sin(theta)cos(phi),sin(theta)sin(phi),cos(theta)]
+            if(present(init)) then; qind=init!Initial value = user input
+            else!or random value
+                !No rotation
+                qmin=[1d0,0d0,0d0,0d0]
+                diffmin=difference(geom)
+                !Randomly sample 1000000 orientations
+                do i=1,1000000
+                    q=RandomUnitQuaternion()
                     geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
                     if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-                    do i=1,359
-                        qind(1)=qind(1)+DegInRad/2d0
+                end do
+                !Try [0,360) degree with step length = 1 degree along x, y, z
+                    !0 degree along x
+                        qind=[0d0,pid2,0d0]
                         q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
                         q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
                         geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
                         if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-                    end do
-                !0 degree along y
-                    qind=[0d0,pid2,pid2]
-                    q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
-                    q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
-                    geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
-                    if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-                    do i=1,359
-                        qind(1)=qind(1)+DegInRad/2d0
+                        do i=1,359
+                            qind(1)=qind(1)+DegInRad/2d0
+                            q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                            q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                            geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                            if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                        end do
+                    !0 degree along y
+                        qind=[0d0,pid2,pid2]
                         q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
                         q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
                         geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
                         if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-                    end do
-                !0 degree along z
-                    qind=0d0
-                    q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
-                    q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
-                    geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
-                    if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-                    do i=1,359
-                        qind(1)=qind(1)+DegInRad/2d0
+                        do i=1,359
+                            qind(1)=qind(1)+DegInRad/2d0
+                            q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                            q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                            geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                            if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                        end do
+                    !0 degree along z
+                        qind=0d0
                         q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
                         q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
                         geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
                         if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
-                    end do
-            !Use the one with smallest difference
-            if(qmin(1)==1d0) then!No rotation, axis is arbitrary
-                qind=[0d0,pid2,pid2]!Arbitrarily let axis = y
-            else
-                qind(1)=dACos(qmin(1))
-                q(1:3)=qmin(2:4)/dSqrt(1d0-qmin(1)*qmin(1))!Save axis
-                qind(2)=dACos(q(3))
-                q(1:2)=q(1:2)/dSqrt(1d0-q(3)*q(3))
-                qind(3)=dACos(q(1)); if(q(2)<0d0) qind(3)=-qind(3)
+                        do i=1,359
+                            qind(1)=qind(1)+DegInRad/2d0
+                            q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+                            q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+                            geomtemp=geom; call Rotate(q,geomtemp,NAtoms); difftemp=difference(geomtemp)
+                            if(difftemp<diffmin) then; qmin=q; diffmin=difftemp; end if
+                        end do
+                !Use the one with smallest difference
+                if(qmin(1)==1d0) then!No rotation, axis is arbitrary
+                    qind=[0d0,pid2,pid2]!Arbitrarily let axis = y
+                else
+                    qind(1)=dACos(qmin(1))
+                    q(1:3)=qmin(2:4)/dSqrt(1d0-qmin(1)*qmin(1))!Save axis
+                    qind(2)=dACos(q(3))
+                    q(1:2)=q(1:2)/dSqrt(1d0-q(3)*q(3))
+                    qind(3)=dACos(q(1)); if(q(2)<0d0) qind(3)=-qind(3)
+                end if
             end if
-        end if
-        !Search for an optimal rotation
-        call TrustRegion(Residue,qind,3*NAtoms,3,Warning=.false.)
-        !Perform the rotation
-        q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
-        q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
-        call Rotate(q,geom,NAtoms)
-    if(present(diff)) diff=difference(geom)
-    contains
-    real*8 function difference(geom)
-        real*8,dimension(3,NAtoms),intent(in)::geom
-        integer::i; real*8,dimension(3,NAtoms)::temp
-        temp=geom-ref
-        forall(i=1:NAtoms); temp(:,i)=temp(:,i)*mass(i); end forall
-        difference=dgeFrobeniusSquare(temp,3,NAtoms)
-    end function difference
-    subroutine Residue(res,qind,cartdim,qdim)
-        integer,intent(in)::cartdim,qdim
-        real*8,dimension(cartdim),intent(out)::res
-        real*8,dimension(qdim),intent(in)::qind
-        real*8::sintheta; real*8,dimension(4)::q
-        real*8,dimension(3,NAtoms)::geomtemp
-        q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
-        q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
-        geomtemp=geom; call Rotate(q,geomtemp,NAtoms); geomtemp=geomtemp-ref
-        forall(i=1:NAtoms); geomtemp(:,i)=geomtemp(:,i)*mass(i); end forall
-        res=reshape(geomtemp,[cartdim])
-    end subroutine Residue
-end subroutine AssimilateGeometry
+            !Search for an optimal rotation
+            call TrustRegion(Residue,qind,3*NAtoms,3,Warning=.false.)
+            !Perform the rotation
+            q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+            q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+            call Rotate(q,geom,NAtoms)
+        if(present(diff)) diff=difference(geom)
+        contains
+        real*8 function difference(geom)
+            real*8,dimension(3,NAtoms),intent(in)::geom
+            integer::i; real*8,dimension(3,NAtoms)::temp
+            temp=geom-ref
+            forall(i=1:NAtoms); temp(:,i)=temp(:,i)*mass(i); end forall
+            difference=dgeFrobeniusSquare(temp,3,NAtoms)
+        end function difference
+        subroutine Residue(res,qind,cartdim,qdim)
+            integer,intent(in)::cartdim,qdim
+            real*8,dimension(cartdim),intent(out)::res
+            real*8,dimension(qdim),intent(in)::qind
+            real*8::sintheta; real*8,dimension(4)::q
+            real*8,dimension(3,NAtoms)::geomtemp
+            q(1)=dCos(qind(1)); sintheta=dSin(qind(2))
+            q(2:4)=dSin(qind(1))*[sintheta*dCos(qind(3)),sintheta*dSin(qind(3)),dCos(qind(2))]
+            geomtemp=geom; call Rotate(q,geomtemp,NAtoms); geomtemp=geomtemp-ref
+            forall(i=1:NAtoms); geomtemp(:,i)=geomtemp(:,i)*mass(i); end forall
+            res=reshape(geomtemp,[cartdim])
+        end subroutine Residue
+    end subroutine AssimilateGeometry
+!------------------- End --------------------
 
 !---------- Cartesian <-> Internal ----------
     !An interal coordinate is the linear combination of several translationally and rotationally invariant displacements
@@ -474,7 +505,7 @@ end subroutine AssimilateGeometry
 
     !========== Cartesian -> Internal ==========
         !Convert r to q
-        subroutine InternalCoordinateq(r,q,cartdim,intdim)
+        subroutine InternalCoordinate(r,q,cartdim,intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim),intent(out)::q
@@ -551,7 +582,7 @@ end subroutine AssimilateGeometry
                 r23=cross_product(r23,r24)
                 OutOfPlane=asin(dot_product(r23/norm2(r23),r21/norm2(r21)))
             end function OutOfPlane
-        end subroutine InternalCoordinateq
+        end subroutine InternalCoordinate
 
         !Convert r & cartgrad to q & intgrad
         subroutine Cartesian2Internal(r,cartgrad,q,intgrad,cartdim,intdim,NStates)
@@ -561,13 +592,13 @@ end subroutine AssimilateGeometry
             real*8,dimension(intdim),intent(out)::q
             real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
             integer::i,j; real*8,dimension(intdim,cartdim)::B
-            call WilsonBMatrixAndInternalCoordinateq(r,B,q,cartdim,intdim)
+            call WilsonBMatrixAndInternalCoordinate(r,B,q,cartdim,intdim)
             call dGeneralizedInverseTranspose(B,intdim,cartdim)
             forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
         end subroutine Cartesian2Internal
         
         !From r, generate B & q
-        subroutine WilsonBMatrixAndInternalCoordinateq(r,B,q,cartdim,intdim)
+        subroutine WilsonBMatrixAndInternalCoordinate(r,B,q,cartdim,intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim,cartdim),intent(out)::B
@@ -686,14 +717,14 @@ end subroutine AssimilateGeometry
                 b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))-b(3*atom(4)-2:3*atom(4))
                 q=asin(sintheta)
             end subroutine bAndOutOfPlane
-        end subroutine WilsonBMatrixAndInternalCoordinateq
+        end subroutine WilsonBMatrixAndInternalCoordinate
     !=================== End ===================
 
     !========== Cartesian <- Internal ==========
         !Convert q to r
         !Please note that r may vary with arbitrary translation & rotation
         !Optional argument: r0: (default = random) initial guess of r
-        subroutine CartesianCoordinater(q,r,intdim,cartdim,r0)
+        subroutine CartesianCoordinate(q,r,intdim,cartdim,r0)
             !Required argument
                 integer,intent(in)::intdim,cartdim
                 real*8,dimension(intdim),intent(in)::q
@@ -708,7 +739,7 @@ end subroutine AssimilateGeometry
                 integer,intent(in)::dim,cartdim
                 real*8,dimension(dim),intent(out)::res
                 real*8,dimension(cartdim),intent(in)::r
-                call InternalCoordinateq(r,res(1:intdim),cartdim,intdim)
+                call InternalCoordinate(r,res(1:intdim),cartdim,intdim)
                 res(1:intdim)=res(1:intdim)-q
                 res(intdim+1:dim)=0d0
             end subroutine Residue
@@ -717,11 +748,11 @@ end subroutine AssimilateGeometry
                 real*8,dimension(dim,cartdim),intent(out)::Jacob
                 real*8,dimension(cartdim),intent(in)::r
                 real*8,dimension(intdim)::qtemp
-                call WilsonBMatrixAndInternalCoordinateq(r,Jacob(1:intdim,:),qtemp,cartdim,intdim)
+                call WilsonBMatrixAndInternalCoordinate(r,Jacob(1:intdim,:),qtemp,cartdim,intdim)
                 Jacob(intdim+1:dim,:)=0d0
                 Jacobian=0!Return 0
             end function Jacobian
-        end subroutine CartesianCoordinater
+        end subroutine CartesianCoordinate
 
         !Convert q & intgrad to r & cartgrad
         !Please note that r may vary with arbitrary translation & rotation
@@ -737,9 +768,9 @@ end subroutine AssimilateGeometry
             !Optional argument
                 real*8,dimension(cartdim),intent(in),optional::r0
             integer::i,j; real*8,dimension(intdim)::qtemp; real*8,dimension(intdim,cartdim)::B
-            if(present(r0)) then; call CartesianCoordinater(q,r,intdim,cartdim,r0=r0)
-            else; call CartesianCoordinater(q,r,intdim,cartdim); end if
-            call WilsonBMatrixAndInternalCoordinateq(r,B,qtemp,cartdim,intdim)
+            if(present(r0)) then; call CartesianCoordinate(q,r,intdim,cartdim,r0=r0)
+            else; call CartesianCoordinate(q,r,intdim,cartdim); end if
+            call WilsonBMatrixAndInternalCoordinate(r,B,qtemp,cartdim,intdim)
             forall(i=1:NStates,j=1:NStates); cartgrad(:,i,j)=matmul(transpose(B),intgrad(:,i,j)); end forall
         end subroutine Internal2Cartesian
     !=================== End ===================

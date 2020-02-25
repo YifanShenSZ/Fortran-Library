@@ -17,6 +17,38 @@ class IntCoordDef:
         # We no longer provide self.NMotions as it = len(self.motion)
         self.motion = []
 
+def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray,\
+    ref=numpy.array([numpy.nan]), grad=numpy.array([numpy.nan])) -> float:
+    p_geom = array2p(geom); p_mass = array2p(mass)
+    diff = c_double(0.0)
+    NAtoms = c_int(mass.shape[0])
+    if len(grad.shape) >= 3:
+        NStates = c_int(grad.shape[0])
+    else:
+        NStates = c_int(1)
+    if numpy.isnan(ref[0]):
+        if numpy.isnan(grad[0]):
+            FL.geometrytransformation_mp_standardizegeometry_\
+                (p_geom, p_mass, byref(NAtoms), byref(NStates))
+        else:
+            p_grad = array2p(grad)
+            FL.geometrytransformation_mp_py_standardizegeometry_\
+                (p_geom, p_mass, byref(NAtoms), byref(NStates), p_grad)
+            p2array(p_grad, grad)
+    else:
+        p_ref = array2p(ref)
+        if numpy.isnan(grad[0]):
+            grad = numpy.zeros(geom.shape)
+            p_grad = array2p(grad)
+            FL.geometrytransformation_mp_standardizegeometry_\
+                (p_geom, p_mass, byref(NAtoms), byref(NStates), p_ref, byref(diff), p_grad)
+        else:
+            p_grad = array2p(grad)
+            FL.geometrytransformation_mp_standardizegeometry_\
+                (p_geom, p_mass, byref(NAtoms), byref(NStates), p_ref, byref(diff), p_grad)
+            p2array(p_grad, grad)
+    return diff.value
+
 # ---------- Cartesian <-> Internal ----------
 
 # Fail to fetch GeometryTransformation_IntCoordDef:
@@ -106,60 +138,57 @@ def DefineInternalCoordinate(format:str, file=Path('null')) -> int:
 
 # ========== Cartesian -> Internal ==========
 
-def InternalCoordinateq(r:numpy.ndarray, q:numpy.ndarray, cartdim:int, intdim:int) -> None:
+def InternalCoordinate(r:numpy.ndarray, q:numpy.ndarray) -> None:
     p_r = array2p(r)
     p_q = array2p(q)
-    FL.geometrytransformation_mp_internalcoordinateq_\
-        (p_r, p_q, byref(c_int(cartdim)), byref(c_int(intdim)))
+    cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
+    FL.geometrytransformation_mp_internalcoordinate_(p_r, p_q, byref(cartdim), byref(intdim))
     p2array(p_q, q)
 
 # Due to row- and column-major difference, python
 #     throws: cartgrad^T
 #     fetchs:  intgrad^T
-def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray, intgradT:numpy.ndarray,\
-    cartdim:int, intdim:int, NStates:int) -> None:
+def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray, intgradT:numpy.ndarray, NStates=1) -> None:
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
+    cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
     FL.geometrytransformation_mp_cartesian2internal_\
-        (p_r, p_cartgradT, p_q, p_intgradT,\
-        byref(c_int(cartdim)), byref(c_int(intdim)), byref(c_int(NStates)))
+        (p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(c_int(NStates)))
     p2array(p_q, q); p2array(p_intgradT, intgradT)
 
 # Due to row- and column-major difference, python fetchs B^T
-def WilsonBMatrixAndInternalCoordinateq(r:numpy.ndarray, BT:numpy.ndarray, q:numpy.ndarray,\
-    cartdim:int, intdim:int) -> None:
+def WilsonBMatrixAndInternalCoordinate(r:numpy.ndarray, BT:numpy.ndarray, q:numpy.ndarray) -> None:
     p_r = array2p(r)
     p_BT = array2p(BT); p_q = array2p(q)
-    FL.geometrytransformation_mp_wilsonbmatrixandinternalcoordinateq_\
-        (p_r, p_BT, p_q, byref(c_int(cartdim)), byref(c_int(intdim)))
+    cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
+    FL.geometrytransformation_mp_wilsonbmatrixandinternalcoordinate_(p_r, p_BT, p_q, byref(cartdim), byref(intdim))
     p2array(p_BT, BT); p2array(p_q, q)
 
 # =================== End ===================
 
 # ========== Cartesian <- Internal ==========
 
-def CartesianCoordinater(q:numpy.ndarray, r:numpy.ndarray,\
-    intdim:int, cartdim:int, r0=numpy.array([numpy.nan])) -> None:
+def CartesianCoordinate(q:numpy.ndarray, r:numpy.ndarray, r0=numpy.array([numpy.nan])) -> None:
     p_q = array2p(q)
     p_r = array2p(r)
-    if numpy.isnan(r0[0]): r0=numpy.random.rand(cartdim)
+    if numpy.isnan(r0[0]): r0=numpy.random.rand(r.shape[0])
     p_r0 = array2p(r0)
-    FL.geometrytransformation_mp_cartesiancoordinater_\
-        (p_q, p_r, byref(c_int(intdim)), byref(c_int(cartdim)), p_r0)
+    intdim = c_int(q.shape[0]); cartdim = c_int(r.shape[0])
+    FL.geometrytransformation_mp_cartesiancoordinate_(p_q, p_r, byref(intdim), byref(cartdim), p_r0)
     p2array(p_r, r)
 
 # Due to row- and column-major difference, python
 #     throws:  intgrad^T
 #     fetchs: cartgrad^T
 def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray,\
-    intdim:int, cartdim:int, NStates:int, r0=numpy.array([numpy.nan])) -> None:
+    NStates=1, r0=numpy.array([numpy.nan])) -> None:
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
-    if numpy.isnan(r0[0]): r0=numpy.random.rand(cartdim)
+    if numpy.isnan(r0[0]): r0=numpy.random.rand(r.shape[0])
+    intdim = c_int(q.shape[0]); cartdim = c_int(r.shape[0])
     p_r0 = array2p(r0)
     FL.geometrytransformation_mp_internal2cartesian_\
-        (p_q, p_intgradT, p_r, p_cartgradT,\
-        byref(c_int(intdim)), byref(c_int(cartdim)), byref(c_int(NStates)), p_r0)
+        (p_q, p_intgradT, p_r, p_cartgradT, byref(intdim), byref(cartdim), byref(c_int(NStates)), p_r0)
     p2array(p_r, r); p2array(p_cartgradT, cartgradT)
 
 # =================== End ===================
@@ -171,10 +200,10 @@ def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray,
 #     throws: H^T (H^T = H), B^T
 #     fetchs: intmode^T, (L^-1)^T, cartmode^T
 def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray,\
-    freq:numpy.ndarray, intmodeT:numpy.ndarray, LinvT:numpy.ndarray, cartmodeT:numpy.ndarray,\
-    intdim:int, NAtoms:int) -> None:
+    freq:numpy.ndarray, intmodeT:numpy.ndarray, LinvT:numpy.ndarray, cartmodeT:numpy.ndarray) -> None:
     p_H = array2p(H); p_BT = array2p(BT); p_mass = array2p(mass)
     p_freq = array2p(freq); p_intmodeT = array2p(intmodeT); p_LinvT = array2p(LinvT); p_cartmodeT = array2p(cartmodeT)
+    intdim = H.shape[0]; NAtoms = mass.shape[0]
     FL.geometrytransformation_mp_wilsongfmethod_\
         (p_H, p_BT, p_mass, p_freq, p_intmodeT, p_LinvT, p_cartmodeT,\
         byref(c_int(intdim)), byref(c_int(NAtoms)))
