@@ -130,36 +130,6 @@ contains
             difference=dgeFrobeniusSquare(temp,3,NAtoms)
         end function difference
     end subroutine StandardizeGeometry
-
-    !Python can only pass none or all optional arguments
-    !So the (.not.present(ref)) .and. present(grad) branch will not be run in code above
-    !Here we explicitly provide such case
-    subroutine py_StandardizeGeometry(geom,mass,NAtoms,NStates,grad)
-        integer,intent(in)::NAtoms,NStates
-        real*8,dimension(3,NAtoms),intent(inout)::geom
-        real*8,dimension(NAtoms),intent(in)::mass
-        real*8,dimension(3,NAtoms,NStates,NStates),intent(inout)::grad
-        integer::indicemin,i,istate,jstate
-        real*8::mindiff,dbletemp
-        real*8,dimension(3)::com!centre of mass
-        real*8,dimension(3,3)::UT,moi!moment of inertia
-        real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
-        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
-        com=matmul(geom,mass)/sum(mass); moi=0d0
-        do i=1,NAtoms
-            geom(:,i)=geom(:,i)-com
-            moi=moi+mass(i)*(dot_product(geom(:,i),geom(:,i))*UnitMatrix(3)-vector_direct_product(geom(:,i),geom(:,i),3,3))
-        end do
-        !Diagonalize momentum of inertia
-        call My_dsyev('V',moi,com,3)
-        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
-        UT=transpose(moi)
-        !Transform geometry and gradient to principle axes frame
-        forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
-        forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
-            grad(:,i,istate,jstate)=matmul(UT,grad(:,i,istate,jstate))
-        end forall
-    end subroutine py_StandardizeGeometry
     
     !Assimilate a geometry to a reference
     !Required argument: 
@@ -881,6 +851,58 @@ contains
         call dGeneralizedInverseTranspose(Btemp,intdim,3*NAtoms)
         cartmode=matmul(transpose(Btemp),intmode)
     end subroutine WilsonGFMethod
+!------------------- End --------------------
+
+!-------------- Python special --------------
+    subroutine py_StandardizeGeometry(geom,mass,NAtoms)
+        integer,intent(in)::NAtoms
+        real*8,dimension(3,NAtoms),intent(inout)::geom
+        real*8,dimension(NAtoms),intent(in)::mass
+        integer::indicemin,i,istate,jstate
+        real*8::mindiff,dbletemp
+        real*8,dimension(3)::com!centre of mass
+        real*8,dimension(3,3)::UT,moi!moment of inertia
+        real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
+        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
+        com=matmul(geom,mass)/sum(mass); moi=0d0
+        do i=1,NAtoms
+            geom(:,i)=geom(:,i)-com
+            moi=moi+mass(i)*(dot_product(geom(:,i),geom(:,i))*UnitMatrix(3)-vector_direct_product(geom(:,i),geom(:,i),3,3))
+        end do
+        !Diagonalize momentum of inertia
+        call My_dsyev('V',moi,com,3)
+        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
+        UT=transpose(moi)
+        !Transform geometry to principle axes frame
+        forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
+    end subroutine py_StandardizeGeometry
+
+    subroutine py_StandardizeGeometry_grad(geom,mass,NAtoms,NStates,grad)
+        integer,intent(in)::NAtoms,NStates
+        real*8,dimension(3,NAtoms),intent(inout)::geom
+        real*8,dimension(NAtoms),intent(in)::mass
+        real*8,dimension(3,NAtoms,NStates,NStates),intent(inout)::grad
+        integer::indicemin,i,istate,jstate
+        real*8::mindiff,dbletemp
+        real*8,dimension(3)::com!centre of mass
+        real*8,dimension(3,3)::UT,moi!moment of inertia
+        real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
+        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
+        com=matmul(geom,mass)/sum(mass); moi=0d0
+        do i=1,NAtoms
+            geom(:,i)=geom(:,i)-com
+            moi=moi+mass(i)*(dot_product(geom(:,i),geom(:,i))*UnitMatrix(3)-vector_direct_product(geom(:,i),geom(:,i),3,3))
+        end do
+        !Diagonalize momentum of inertia
+        call My_dsyev('V',moi,com,3)
+        if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
+        UT=transpose(moi)
+        !Transform geometry and gradient to principle axes frame
+        forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
+        forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
+            grad(:,i,istate,jstate)=matmul(UT,grad(:,i,istate,jstate))
+        end forall
+    end subroutine py_StandardizeGeometry_grad
 !------------------- End --------------------
 
 end module GeometryTransformation

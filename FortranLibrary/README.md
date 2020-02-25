@@ -9,9 +9,10 @@ Python interface wraps fortran routines, because:
 * For example, built-in types such as: int, float, bool, string, tuple
 * Such argument value cannot be changed by passing reference
 * Example of mutable data types: numpy.ndarray
-3. Optional argument cannot be easily passed to fortran:
+3. Optional argument cannot be conveniently passed to fortran:
 * In fortran, function func with optional argument optarg can be called by func(optarg=x)
 * When interfaced to python, we can no longer selectively pass optarg to fortran
+* Actually, we have to pass all (python has no linker to tell libFL.so how many optional arguments are present, and libFL.so defaults all)
 
 There are also some python convenience to utilize:
 1. Python has specified array length with .shape:
@@ -28,6 +29,12 @@ So the wrappers:
 3. Take in optional arguments in python style (actually, default them in wrapper then pass all to fortran)
 4. No longer take array length as an argument
 5. No longer unnecessarily overwrite input arguments
+
+The fortran side also provides some help in 'Python special' section:
+1. Again, the optional argument issue:
+* Some fortran routine's behaviour is controled by the presence of optional arguments
+* As noted above, when called from python, only the 'all present' case will be run
+* So other cases now are provided as specific fortran routines
 
 Weird issue:
 1. When a fortran variable length string argument receives a long python string, it will keep only leading 10 characters

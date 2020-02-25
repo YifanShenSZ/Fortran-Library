@@ -5,8 +5,8 @@ module Chemistry
 
 !Global variable
     !Phase fixing
-        integer::Nonadiabatic_NPhasePossibilities,Nonadiabatic_NPhaseDifferencePossibilities
-        real*8,allocatable,dimension(:,:)::Nonadiabatic_PhasePossibility,Nonadiabatic_PhaseDifferencePossibility
+        integer::Chemistry_NPhasePossibilities,Chemistry_NPhaseDifferencePossibilities
+        real*8,allocatable,dimension(:,:)::Chemistry_PhasePossibility,Chemistry_PhaseDifferencePossibility
 
 contains
 integer function Symbol2Number(element)!Return element number based on input element symbol
@@ -327,7 +327,7 @@ subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
     end if
 end subroutine ghOrthogonalization
 
-!--------------------- Phase fixing ---------------------
+!----------- Phase fixing -----------
     !Eigenvector has indeterminate phase, consequently any inner product involving two
     !different states also does not have determinate phase. Sometimes we need to fix it
 
@@ -336,35 +336,35 @@ end subroutine ghOrthogonalization
         integer,intent(in)::N
         integer::i,j
         !Basis have 2^N possible phases
-            Nonadiabatic_NPhasePossibilities=ishft(1,N)-1!Unchanged case is excluded
-            if(allocated(Nonadiabatic_PhasePossibility)) deallocate(Nonadiabatic_PhasePossibility)
-            allocate(Nonadiabatic_PhasePossibility(N,Nonadiabatic_NPhasePossibilities))
-            Nonadiabatic_PhasePossibility(1,1)=-1d0
-            Nonadiabatic_PhasePossibility(2:N,1)=1d0
-            do i=2,Nonadiabatic_NPhasePossibilities
-                Nonadiabatic_PhasePossibility(:,i)=Nonadiabatic_PhasePossibility(:,i-1)
+            Chemistry_NPhasePossibilities=ishft(1,N)-1!Unchanged case is excluded
+            if(allocated(Chemistry_PhasePossibility)) deallocate(Chemistry_PhasePossibility)
+            allocate(Chemistry_PhasePossibility(N,Chemistry_NPhasePossibilities))
+            Chemistry_PhasePossibility(1,1)=-1d0
+            Chemistry_PhasePossibility(2:N,1)=1d0
+            do i=2,Chemistry_NPhasePossibilities
+                Chemistry_PhasePossibility(:,i)=Chemistry_PhasePossibility(:,i-1)
                 j=1
-                do while(Nonadiabatic_PhasePossibility(j,i)==-1d0)
-                    Nonadiabatic_PhasePossibility(j,i)=1d0
+                do while(Chemistry_PhasePossibility(j,i)==-1d0)
+                    Chemistry_PhasePossibility(j,i)=1d0
                     j=j+1
                 end do
-                Nonadiabatic_PhasePossibility(j,i)=-1d0
+                Chemistry_PhasePossibility(j,i)=-1d0
             end do
         !Basis have 2^(N-1) possible phase difference, so we arbitrarily assign 1st basis has phase = 1
-            Nonadiabatic_NPhaseDifferencePossibilities=ishft(1,N-1)-1!Unchanged case is excluded
-            if(allocated(Nonadiabatic_PhaseDifferencePossibility)) deallocate(Nonadiabatic_PhaseDifferencePossibility)
-            allocate(Nonadiabatic_PhaseDifferencePossibility(N,Nonadiabatic_NPhaseDifferencePossibilities))
-            Nonadiabatic_PhaseDifferencePossibility(1,1)=1d0
-            Nonadiabatic_PhaseDifferencePossibility(2,1)=-1d0
-            Nonadiabatic_PhaseDifferencePossibility(3:N,1)=1d0
-            do i=2,Nonadiabatic_NPhaseDifferencePossibilities
-                Nonadiabatic_PhaseDifferencePossibility(:,i)=Nonadiabatic_PhaseDifferencePossibility(:,i-1)
+            Chemistry_NPhaseDifferencePossibilities=ishft(1,N-1)-1!Unchanged case is excluded
+            if(allocated(Chemistry_PhaseDifferencePossibility)) deallocate(Chemistry_PhaseDifferencePossibility)
+            allocate(Chemistry_PhaseDifferencePossibility(N,Chemistry_NPhaseDifferencePossibilities))
+            Chemistry_PhaseDifferencePossibility(1,1)=1d0
+            Chemistry_PhaseDifferencePossibility(2,1)=-1d0
+            Chemistry_PhaseDifferencePossibility(3:N,1)=1d0
+            do i=2,Chemistry_NPhaseDifferencePossibilities
+                Chemistry_PhaseDifferencePossibility(:,i)=Chemistry_PhaseDifferencePossibility(:,i-1)
                 j=2
-                do while(Nonadiabatic_PhaseDifferencePossibility(j,i)==-1d0)
-                    Nonadiabatic_PhaseDifferencePossibility(j,i)=1d0
+                do while(Chemistry_PhaseDifferencePossibility(j,i)==-1d0)
+                    Chemistry_PhaseDifferencePossibility(j,i)=1d0
                     j=j+1
                 end do
-                Nonadiabatic_PhaseDifferencePossibility(j,i)=-1d0
+                Chemistry_PhaseDifferencePossibility(j,i)=-1d0
             end do
     end subroutine InitializePhaseFixing
 
@@ -388,15 +388,15 @@ end subroutine ghOrthogonalization
                     difference=difference+dot_product(d,d)
                 end do
             end do
-        do i=1,Nonadiabatic_NPhaseDifferencePossibilities!Try out all possibilities
+        do i=1,Chemistry_NPhaseDifferencePossibilities!Try out all possibilities
             temp=0d0
             do jstate=2,N!1st basis is assigned to have phase = 1
-                d=Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
+                d=Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
                 temp=temp+dot_product(d,d)
             end do
             do istate=2,N
                 do jstate=istate+1,N
-                    d=Nonadiabatic_PhaseDifferencePossibility(istate,i)*Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
+                    d=Chemistry_PhaseDifferencePossibility(istate,i)*Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
                     temp=temp+dot_product(d,d)
                 end do
             end do
@@ -407,10 +407,10 @@ end subroutine ghOrthogonalization
         end do
         if(indexmin>0) then!Fix off-diagonals phase = the one with smallest difference
             forall(jstate=2:N)!1st basis is assigned to have phase = 1
-                dH(:,jstate,1)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
+                dH(:,jstate,1)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
             end forall
             forall(istate=2:N-1,jstate=3:N,jstate>istate)
-                dH(:,jstate,istate)=Nonadiabatic_PhaseDifferencePossibility(istate,indexmin)*Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
+                dH(:,jstate,istate)=Chemistry_PhaseDifferencePossibility(istate,indexmin)*Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
             end forall
         end if
         difference=difference*2d0!Above only counted strictly lower triangle
@@ -442,15 +442,15 @@ end subroutine ghOrthogonalization
                     difference=difference+dot_product(d,d)
                 end do
             end do
-        do i=1,Nonadiabatic_NPhaseDifferencePossibilities!Try out all possibilities
+        do i=1,Chemistry_NPhaseDifferencePossibilities!Try out all possibilities
             temp=0d0
             do jstate=2,N!1st basis is assigned to have phase = 1
-                d=Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
+                d=Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
                 temp=temp+dot_product(d,d)
             end do
             do istate=2,N
                 do jstate=istate+1,N
-                    d=Nonadiabatic_PhaseDifferencePossibility(istate,i)*Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
+                    d=Chemistry_PhaseDifferencePossibility(istate,i)*Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
                     temp=temp+dot_product(d,d)
                 end do
             end do
@@ -461,12 +461,12 @@ end subroutine ghOrthogonalization
         end do
         if(indexmin>0) then!Fix off-diagonals phase = the one with smallest difference
             forall(jstate=2:N)!1st basis is assigned to have phase = 1
-                 H(  jstate,1)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,1)
-                dH(:,jstate,1)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
+                 H(  jstate,1)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,1)
+                dH(:,jstate,1)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
             end forall
             forall(istate=2:N-1,jstate=3:N,jstate>istate)
-                 H(  jstate,istate)=Nonadiabatic_PhaseDifferencePossibility(istate,indexmin)*Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,istate)
-                dH(:,jstate,istate)=Nonadiabatic_PhaseDifferencePossibility(istate,indexmin)*Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
+                 H(  jstate,istate)=Chemistry_PhaseDifferencePossibility(istate,indexmin)*Chemistry_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,istate)
+                dH(:,jstate,istate)=Chemistry_PhaseDifferencePossibility(istate,indexmin)*Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
             end forall
         end if
         difference=difference*2d0!Above only counted strictly lower triangle
@@ -499,15 +499,15 @@ end subroutine ghOrthogonalization
                     difference=difference+dot_product(d,d)
                 end do
             end do
-        do i=1,Nonadiabatic_NPhaseDifferencePossibilities!Try out all possibilities
+        do i=1,Chemistry_NPhaseDifferencePossibilities!Try out all possibilities
             temp=0d0
             do jstate=2,N!1st basis is assigned to have phase = 1
-                d=Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
+                d=Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
                 temp=temp+dot_product(d,d)
             end do
             do istate=2,N
                 do jstate=istate+1,N
-                    d=Nonadiabatic_PhaseDifferencePossibility(istate,i)*Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
+                    d=Chemistry_PhaseDifferencePossibility(istate,i)*Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
                     temp=temp+dot_product(d,d)
                 end do
             end do
@@ -518,11 +518,11 @@ end subroutine ghOrthogonalization
         end do
         if(indexmin>0) then!Assign phase = the one with smallest difference
             forall(jstate=2:N)!1st basis is assigned to have phase = 1
-                phi(:,jstate)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*phi(:,jstate)
-                dH(:,jstate,1)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
+                phi(:,jstate)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)*phi(:,jstate)
+                dH(:,jstate,1)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
             end forall
             forall(istate=2:N-1,jstate=3:N,jstate>istate)
-                dH(:,jstate,istate)=Nonadiabatic_PhaseDifferencePossibility(istate,indexmin)*Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
+                dH(:,jstate,istate)=Chemistry_PhaseDifferencePossibility(istate,indexmin)*Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
             end forall
         end if
         difference=difference*2d0!Above only counted strictly lower triangle
@@ -556,15 +556,15 @@ end subroutine ghOrthogonalization
                     difference=difference+dot_product(d,d)
                 end do
             end do
-        do i=1,Nonadiabatic_NPhaseDifferencePossibilities!Try out all possibilities
+        do i=1,Chemistry_NPhaseDifferencePossibilities!Try out all possibilities
             temp=0d0
             do jstate=2,N!1st basis is assigned to have phase = 1
-                d=Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
+                d=Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,1)-dH_Ref(:,jstate,1)
                 temp=temp+dot_product(d,d)
             end do
             do istate=2,N
                 do jstate=istate+1,N
-                    d=Nonadiabatic_PhaseDifferencePossibility(istate,i)*Nonadiabatic_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
+                    d=Chemistry_PhaseDifferencePossibility(istate,i)*Chemistry_PhaseDifferencePossibility(jstate,i)*dH(:,jstate,istate)-dH_Ref(:,jstate,istate)
                     temp=temp+dot_product(d,d)
                 end do
             end do
@@ -575,13 +575,13 @@ end subroutine ghOrthogonalization
         end do
         if(indexmin>0) then!Fix phase = the one with smallest difference
             forall(jstate=2:N)!1st basis is assigned to have phase = 1
-                phi(:,jstate) =Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*phi(:,jstate)
-                 H(  jstate,1)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,1)
-                dH(:,jstate,1)=Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
+                phi(:,jstate) =Chemistry_PhaseDifferencePossibility(jstate,indexmin)*phi(:,jstate)
+                 H(  jstate,1)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,1)
+                dH(:,jstate,1)=Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,1)
             end forall
             forall(istate=2:N-1,jstate=3:N,jstate>istate)
-                 H(  jstate,istate)=Nonadiabatic_PhaseDifferencePossibility(istate,indexmin)*Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,istate)
-                dH(:,jstate,istate)=Nonadiabatic_PhaseDifferencePossibility(istate,indexmin)*Nonadiabatic_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
+                 H(  jstate,istate)=Chemistry_PhaseDifferencePossibility(istate,indexmin)*Chemistry_PhaseDifferencePossibility(jstate,indexmin)* H(  jstate,istate)
+                dH(:,jstate,istate)=Chemistry_PhaseDifferencePossibility(istate,indexmin)*Chemistry_PhaseDifferencePossibility(jstate,indexmin)*dH(:,jstate,istate)
             end forall
         end if
         difference=difference*2d0!Above only counted strictly lower triangle
@@ -590,7 +590,7 @@ end subroutine ghOrthogonalization
             difference=difference+dot_product(d,d)
         end do
     end subroutine dFixHPhase_AssignBasisPhaseBydH
-!------------------------- End --------------------------
+!--------------- End ----------------
 
 !A, eigval, eigvec satisfy: A . eigvec(:,i) = eigval(i) * eigvec(:,i) for all 1 <= i <= N
 !dA = ▽A in A representation is dim x N x N 3rd-order tensor
@@ -606,5 +606,25 @@ function deigvec_ByKnowneigval_dA(eigval,dA,dim,N)
         deigvec_ByKnowneigval_dA(:,i,j)=dA(:,i,j)/(eigval(j)-eigval(i))
     end forall
 end function deigvec_ByKnowneigval_dA
+
+!---------- Python special ----------
+    subroutine py_ghOrthogonalization(grad1,grad2,h,dim)
+        integer,intent(in)::dim
+        real*8,dimension(dim),intent(inout)::grad1,grad2,h
+        real*8::theta,sinsqtheta,cossqtheta,sin2theta
+        real*8,dimension(dim)::g,dh11
+        g=(grad2-grad1)/2d0; sinsqtheta=dot_product(g,h)
+        if(dAbs(sinsqtheta)<1d-15) return
+        theta=dot_product(g,g)-dot_product(h,h)
+        if(dAbs(theta)<1d-15) then; theta=pid8
+        else; theta=atan(2d0*sinsqtheta/theta)/4d0; end if
+        sinsqtheta=dSin(theta); cossqtheta=dCos(theta)
+        sin2theta=2d0*sinsqtheta*cossqtheta; sinsqtheta=sinsqtheta*sinsqtheta; cossqtheta=cossqtheta*cossqtheta
+        dh11=grad1
+        grad1=cossqtheta*dh11+sinsqtheta*grad2-sin2theta*h
+        grad2=sinsqtheta*dh11+cossqtheta*grad2+sin2theta*h
+        h=(cossqtheta-sinsqtheta)*h-sin2theta*g
+    end subroutine py_ghOrthogonalization
+!--------------- End ----------------
 
 end module Chemistry

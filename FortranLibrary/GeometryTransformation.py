@@ -28,11 +28,10 @@ def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray,\
         NStates = c_int(1)
     if numpy.isnan(ref[0]):
         if numpy.isnan(grad[0]):
-            FL.geometrytransformation_mp_standardizegeometry_\
-                (p_geom, p_mass, byref(NAtoms), byref(NStates))
+            FL.geometrytransformation_mp_py_standardizegeometry_(p_geom, p_mass, byref(NAtoms))
         else:
             p_grad = array2p(grad)
-            FL.geometrytransformation_mp_py_standardizegeometry_\
+            FL.geometrytransformation_mp_py_standardizegeometry_grad_\
                 (p_geom, p_mass, byref(NAtoms), byref(NStates), p_grad)
             p2array(p_grad, grad)
     else:
