@@ -795,7 +795,7 @@ contains
     end function quamul
     
     !Rotate each column of 3 x NAtoms matrix r by unit quaternion q
-    !q = [ cos(theta/2), sin(theta/2) * axis ]
+    !q = [ cos(alpha/2), sin(alpha/2) * axis ]
     subroutine Rotate(q,r,NAtoms)
         real*8,dimension(4),intent(in)::q
         integer,intent(in)::NAtoms

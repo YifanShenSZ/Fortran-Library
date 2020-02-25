@@ -5,7 +5,7 @@
 !    adopt MKL trust region solver
 !    or build your own merit function then use other routines to search for its minimum
 !This module mainly provides unconstrained local minimizer
-!    only solvers in Equality constraint section are constrained
+!    only solvers in 'Equality constraint' section are constrained
 !    only solvers in Heuristic section are global
 !Global optimization remains an unsolved problem, since it is NP-complete
 !    Heuristic algorithm is general but naive: search entire space (pay exponentially)
@@ -1613,7 +1613,7 @@ contains
             !    5, || f'(x) ||_2 - || f'(x) - Jacobian . s ||_2 < tol(5)
             !tol(6) is the precision of s calculation
             real*8,dimension(6)::tol
-        !TotalIteration harvests the solver stops after how many interations
+        !TotalIteration harvests the solver stops after how many iterations
         !StopReason harvests why the solver has stopped:
         !    1,   max iteration exceeded
         !    2-6, tol(StopReason-1) is met
@@ -1789,7 +1789,7 @@ contains
     !    miu should >= 1 because c ~ ( lamda - lamda_true ) / miu
     !Suggestion:
     !    Augmented Lagrangian has ill conditioned Hessian when miu is too large, deteriorating performance of line searchers
-    !    so do not take too much interations nor push accuracy to double precision limit
+    !    so do not take too much iterations nor push accuracy to double precision limit
     !External procedure:
     !    subroutine f(f(x),x,N)
     !    subroutine fd(f'(x),x,N)
