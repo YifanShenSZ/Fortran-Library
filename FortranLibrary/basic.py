@@ -14,8 +14,8 @@ p_int    = POINTER(c_int   )
 p_double = POINTER(c_double)
 
 ''' Auxiliary routine '''
-# Return a C pointer converted from array
 def array2p(array:numpy.ndarray) -> Any:
+    """ Return a C pointer converted from array """
     n = numpy.prod(array.shape)
     a = numpy.reshape(array, n)
     if a.dtype == int:
@@ -25,8 +25,8 @@ def array2p(array:numpy.ndarray) -> Any:
     for i in range(n): p[i] = a[i]
     return p
 
-# Fill array with the value contained in p
 def p2array(p:Any, array:numpy.ndarray) -> None:
+    """ Fill array with the value contained in p """
     n = numpy.prod(array.shape)
     a = numpy.reshape(array, n)
     for i in range(n): a[i] = p[i]
