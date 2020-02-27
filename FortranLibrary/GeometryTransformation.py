@@ -147,10 +147,14 @@ def InternalCoordinate(r:numpy.ndarray, q:numpy.ndarray) -> None:
 # Due to row- and column-major difference, python
 #     throws: cartgrad^T
 #     fetchs:  intgrad^T
-def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray, intgradT:numpy.ndarray, NStates=1) -> None:
+def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray, intgradT:numpy.ndarray) -> None:
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
     cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
+    if len(intgradT.shape) >= 3:
+        NStates = c_int(intgradT.shape[0])
+    else:
+        NStates = c_int(1)
     FL.geometrytransformation_mp_cartesian2internal_\
         (p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(c_int(NStates)))
     p2array(p_q, q); p2array(p_intgradT, intgradT)
@@ -179,12 +183,15 @@ def CartesianCoordinate(q:numpy.ndarray, r:numpy.ndarray, r0=numpy.array([numpy.
 # Due to row- and column-major difference, python
 #     throws:  intgrad^T
 #     fetchs: cartgrad^T
-def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray,\
-    NStates=1, r0=numpy.array([numpy.nan])) -> None:
+def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray, r0=numpy.array([numpy.nan])) -> None:
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
-    if numpy.isnan(r0[0]): r0=numpy.random.rand(r.shape[0])
     intdim = c_int(q.shape[0]); cartdim = c_int(r.shape[0])
+    if len(intgradT.shape) >= 3:
+        NStates = c_int(intgradT.shape[0])
+    else:
+        NStates = c_int(1)
+    if numpy.isnan(r0[0]): r0=numpy.random.rand(r.shape[0])
     p_r0 = array2p(r0)
     FL.geometrytransformation_mp_internal2cartesian_\
         (p_q, p_intgradT, p_r, p_cartgradT, byref(intdim), byref(cartdim), byref(c_int(NStates)), p_r0)
