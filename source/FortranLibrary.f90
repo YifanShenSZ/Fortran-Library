@@ -312,7 +312,7 @@ subroutine TestFortranLibrary()
                 end forall
                 call My_zheev('V',zA,eigval,10)
                 write(*,*)norm2(low-eigval)
-                write(*,*)z2normge(matmul(zB,zA),10,10)-1d0
+                write(*,*)norm2ge(matmul(zB,zA),10,10)-1d0
             write(*,*)
         write(*,*)
         write(*,*)'Testing matrix norm...'
@@ -328,10 +328,10 @@ subroutine TestFortranLibrary()
             write(*,*)My_dlange('1',A,10,10)-My_dlansy('1',A,10)
             write(*,*)My_dlange('I',A,10,10)-My_dlansy('I',A,10)
             write(*,*)
-            write(*,*)'d2normge'
+            write(*,*)'norm2ge'
             eigvec=matmul(transpose(A),A)
             call My_dsyev('N',eigvec,eigval,10)
-            write(*,*)d2normge(A,10,10)-dSqrt(maxval(eigval))
+            write(*,*)norm2ge(A,10,10)-dSqrt(maxval(eigval))
         write(*,*)
     write(*,*)'---------- Linear algebra routines test passed ----------'
     write(*,*)

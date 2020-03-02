@@ -25,6 +25,11 @@ module Mathematics
             KInAU=3.166813539739535d-6,&!Temperature
             barInAU=3.39882737736419d-9!Pressure
 
+!Overload
+    interface RK4
+        module procedure dRK4, zRK4
+    end interface RK4
+
 contains
 !----------------- Special function -----------------
     real*8 function Gaussian(x,miu,sigma)
@@ -596,8 +601,7 @@ contains
             case(21); iFactorial=5109094217170944 
             case(22); iFactorial=112400072777760768 
             case(23); iFactorial=2585201673888497664  
-            case default
-                write(*,'(1x,A62)')'Failed integer factorial: 8 bits integer upper limit exceeded!'
+            case default; write(*,*)'Failed integer factorial: 8 bits integer upper limit exceeded!'
         end select
     end function iFactorial
 
@@ -818,6 +822,7 @@ contains
     !Output: new harvests u(dt)
 
     !Runge Kutta 4 order
+    !Double old, new
     subroutine dRK4(old,new,f,dt,dim)
         integer,intent(in)::dim
         real*8,dimension(dim),intent(in)::old
@@ -833,8 +838,7 @@ contains
         call f(k4,old+k3*dt,dim)
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine dRK4
-
-    !Runge Kutta 4 order
+    !Complex old, new
     subroutine zRK4(old,new,f,dt,dim)
         integer,intent(in)::dim
         complex*16,dimension(dim),intent(in)::old

@@ -16,6 +16,15 @@ module General
         real*8,allocatable,dimension(:,:)::Matrix
     end type d2PMatrix
 
+!Overload
+    interface QuickSort
+        module procedure dQuickSort, iQuickSort
+    end interface QuickSort
+
+    interface MergeSort
+        module procedure dMergeSort, iMergeSort
+    end interface MergeSort
+
 contains
 subroutine ShowTime()!Show date hour minute second
     integer,dimension(8)::time
@@ -178,6 +187,7 @@ end subroutine dScientificNotation
     !        sort from item(first) to item(last), inclusive
     !Returns: item (modified) contains elements in ascending order
     !         indices(i) is the original index of sorted item(i)
+    !Double item
     recursive subroutine dQuickSort(item,first,last,indices,N)
         integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
@@ -212,11 +222,7 @@ end subroutine dScientificNotation
             indices(low)=indices(right); indices(right)=iPivot
         end subroutine split
     end subroutine dQuickSort
-    
-    !Inputs: N dimensional vector item & indices, item contains the elements to be sorted, indices(i)=i
-    !        sort from item(first) to item(last), inclusive
-    !Returns: item (modified) contains elements in ascending order
-    !         indices(i) is the original index of sorted item(i)
+    !Integer item
     recursive subroutine iQuickSort(item,first,last,indices,N)
         integer,intent(in)::N,first,last
         integer,dimension(N),intent(inout)::item,indices
@@ -253,6 +259,7 @@ end subroutine dScientificNotation
     !        sort from item(first) to item(last), inclusive
     !Returns: item (modified) contains elements in ascending order
     !         NRP harvests the number of reverse pairs
+    !Double item
     subroutine dMergeSort(item,first,last,NRP,N)
         integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
@@ -301,11 +308,7 @@ end subroutine dScientificNotation
             end do
         end subroutine merge
     end subroutine dMergeSort
-
-    !Inputs: N dimensional vector item, item contains the elements to be sorted
-    !        sort from item(first) to item(last), inclusive
-    !Returns: item (modified) contains elements in ascending order
-    !         NRP harvests the number of reverse pairs
+    !Integer item
     subroutine iMergeSort(item,first,last,NRP,N)
         integer,intent(in)::N,first,last
         integer,dimension(N),intent(inout)::item

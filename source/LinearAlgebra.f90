@@ -9,6 +9,11 @@
 module LinearAlgebra
     implicit none
 
+!Overload
+    interface norm2ge
+        module procedure dnorm2ge, znorm2ge
+    end interface norm2ge
+
 contains
 !--------------- Vector ----------------
     !cross_product(a,b) = a x b
@@ -786,26 +791,27 @@ contains
 !------------- Matrix norm -------------
     !============= 2-norm ==============
         !M x N matrix A, return 2 norm of A
-
-        real*8 function d2normge(A,M,N)
+    
+        !Double A
+        real*8 function dnorm2ge(A,M,N)
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(in)::A
             real*8,dimension(N)::eigval
             real*8,dimension(N,N)::ATA
             ATA=matmul(transpose(A),A)
             call My_dsyev('N',ATA,eigval,N)
-            d2normge=Sqrt(maxval(eigval))
-        end function d2normge
-
-        real*8 function z2normge(A,M,N)
+            dnorm2ge=Sqrt(maxval(eigval))
+        end function dnorm2ge
+        !Complex A
+        real*8 function znorm2ge(A,M,N)
             integer,intent(in)::M,N
             complex*16,dimension(M,N),intent(in)::A
             real*8,dimension(N)::eigval
             complex*16,dimension(N,N)::ATA
             ATA=matmul(conjg(transpose(A)),A)
             call My_zheev('N',ATA,eigval,N)
-            z2normge=Sqrt(maxval(eigval))
-        end function z2normge
+            znorm2ge=Sqrt(maxval(eigval))
+        end function znorm2ge
     !=============== End ===============
 
     !========== F-norm square ==========
