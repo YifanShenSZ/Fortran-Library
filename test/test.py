@@ -9,7 +9,7 @@ print('\nTime display')
 FL.ShowTime()
 print('\nScientific notation')
 x = 3564.1212587; i = 0
-x, i = FL.dScientificNotation(x, i)
+x, i = FL.dScientificNotation(x)
 print(x - 3.5641212587, i - 3)
 print('\n<<< Calling from python test passed <<<')
 

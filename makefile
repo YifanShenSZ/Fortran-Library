@@ -33,11 +33,13 @@ endif
 install: | $(incdir) $(libdir)
 	mv *.mod $(incdir)
 ifneq ($(realpath include),$(incdir))
-	cp include/*.h  $(incdir)
-	cp include/*.py $(incdir)
+	cp include/*.h $(incdir)
 endif
-	mv *.a   $(libdir)
-	mv *.so  $(libdir)
+	mv *.a  $(libdir)
+	mv *.so $(libdir)
+ifneq ($(realpath .),$(RealPrefix))
+        cp -r FortranLibrary $(RealPrefix)
+endif
 
 $(incdir):
 	mkdir $(incdir)
@@ -51,15 +53,15 @@ test:
 	test/test_static.exe > test/log_static
 ifneq (,$(findstring $(libdir),$(LIBRARY_PATH)))
 ifneq (,$(findstring $(libdir),$(LD_LIBRARY_PATH)))
-	$(f90) $(flag) -ipo -lFL test/test.f90 -o test/test_dynamic.exe
+	$(f90) $(flag) -lFL test/test.f90 -o test/test_dynamic.exe
 	test/test_dynamic.exe > test/log_dynamic
 ifneq (,$(findstring $(incdir),$(CPATH)))
-	$(cpp) $(flag) -ipo -lFL test/test.cpp -o test/test_cpp.exe
+	$(cpp) $(flag) -lFL test/test.cpp -o test/test_cpp.exe
 	test/test_cpp.exe > test/log_cpp
 else
 	# Please set CPATH properly before running test
 endif
-ifneq (,$(findstring $(incdir),$(PYTHONPATH)))
+ifneq (,$(findstring $(RealPrefix),$(PYTHONPATH)))
 	python test/test.py > test/log_py
 else
 	# Please set PYTHONPATH properly before running test
