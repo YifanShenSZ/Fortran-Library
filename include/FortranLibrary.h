@@ -1,5 +1,12 @@
-// C++ interface to Fortran-Library
+// c++ interface to Fortran-Library
 // Include this header so that C++ can link to libFL.so
+#ifndef __DVR_H__
+#define __DVR_H__
+
+// No need to fetch constant, directly provide them in c++
+const double AMUInAU  = 1822.888486192;
+const double AInAU    = 1.8897261339212517;
+const double cm_1InAu = 0.000004556335830019422;
 
 // Raw interface
 // C recognizes fortran functions by their compiled names:
@@ -19,3 +26,5 @@ extern "C" {
     void dScientificNotation(double& x, int& i) {general_mp_dscientificnotation_(x,i);}
 // FortranLibrary
     void TestFortranLibrary() {fortranlibrary_mp_testfortranlibrary_();}
+
+#endif
