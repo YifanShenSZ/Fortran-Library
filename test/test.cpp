@@ -1,6 +1,6 @@
 // A test program on the c++ interface of Fortran-Library
 #include <iostream>
-#include <FortranLibrary.h>
+#include <FortranLibrary.hpp>
 using namespace std;
 int main() {
     int i;

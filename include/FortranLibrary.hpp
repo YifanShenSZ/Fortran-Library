@@ -1,7 +1,7 @@
 // c++ interface to Fortran-Library
 // Include this header so that C++ can link to libFL.so
-#ifndef __DVR_H__
-#define __DVR_H__
+#ifndef DVR_H__
+#define DVR_H__
 
 // No need to fetch constant, directly provide them in c++
 const double AMUInAU  = 1822.888486192;
