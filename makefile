@@ -7,7 +7,7 @@
 prefix = . # Default to install to Fortran-Library
 f90 = ifort
 cpp = icpc
-flag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
+flag = -ipo -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
 src = $(addprefix source/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
 Clustering.f90 Statistics.f90 Chemistry.f90 \
@@ -16,6 +16,8 @@ FortranLibrary.f90 )
 RealPrefix = $(realpath $(prefix))
 incdir = $(RealPrefix)/include
 libdir = $(RealPrefix)/lib
+statflag = -I$(incdir) $(libdir)/libFL.a $(flag)
+dynflag = -lFL -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
 
 libFL.a libFL.so: $(src)
 ifeq ($(f90),ifort)
@@ -49,14 +51,14 @@ $(libdir):
 
 .PHONY: test
 test:
-	$(f90) $(flag) -ipo -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	$(f90) $(statflag) test/test.f90 -o test/test_static.exe
 	test/test_static.exe > test/log_static
 ifneq (,$(findstring $(libdir),$(LIBRARY_PATH)))
 ifneq (,$(findstring $(libdir),$(LD_LIBRARY_PATH)))
-	$(f90) $(flag) -lFL test/test.f90 -o test/test_dynamic.exe
+	$(f90) $(dynflag) test/test.f90 -o test/test_dynamic.exe
 	test/test_dynamic.exe > test/log_dynamic
 ifneq (,$(findstring $(incdir),$(CPATH)))
-	$(cpp) $(flag) -lFL test/test.cpp -o test/test_cpp.exe
+	$(cpp) $(dynflag) test/test.cpp -o test/test_cpp.exe
 	test/test_cpp.exe > test/log_cpp
 else
 	# Please set CPATH properly before running test
