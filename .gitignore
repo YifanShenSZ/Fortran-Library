@@ -36,10 +36,7 @@ __pycache__/
 
 # Visual studio and VS code
 .vscode/
-My Advisor Results - Fortran/
-x64/
-*.u2d
-*.vfproj
+test-windows/
 
 # test
 test_*

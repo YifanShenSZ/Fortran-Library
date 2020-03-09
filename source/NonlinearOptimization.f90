@@ -27,10 +27,10 @@ contains
     !    p = the line search direction
     !    phi(a) = f( x + a * p ), so phi'(a) = f'( x + a * p ) . p
     !External procedure:
-    !    subroutine f(f(x),x,dim)
-    !    subroutine fd(f'(x),x,dim)
-    !    integer function f_fd(f(x),f'(x),x,dim)
-    !    integer function fdd(f''(x),x,dim)
+    !    subroutine f(f(x), x, dim)
+    !    subroutine fd(f'(x), x, dim)
+    !    integer function f_fd(f(x), f'(x), x, dim)
+    !    integer function fdd(f''(x), x, dim)
     !    dim dimensional vector x & f'(x), dim order matrix f''(x)
     !Required argument:
     !    subroutine f & fd, dim dimensional vector x, integer dim
@@ -49,7 +49,9 @@ contains
 
     !Newton-Raphson method, requiring Wolfe condition
     !Optional: fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
-    subroutine NewtonRaphson(f,fd,x,dim,fdd,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
+    subroutine NewtonRaphson(f, fd, x, dim, &
+    fdd, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -301,7 +303,9 @@ contains
     !    fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
     !    ExactStep: (default = 20) every how many steps compute exact hessian. [10,50] is recommended
     !               if ExactStep <= 0, exact Hessian will not be computed at all
-    subroutine BFGS(f,fd,x,dim,fdd,ExactStep,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
+    subroutine BFGS(f, fd, x, dim, &
+    fdd, ExactStep, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -697,7 +701,9 @@ contains
 
     !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
     !Optional: Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
-    subroutine LBFGS(f,fd,x,dim,Memory,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
+    subroutine LBFGS(f, fd, x, dim, &
+    Memory, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -930,7 +936,9 @@ contains
     !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
     !Available methods: DY (Dai-Yun), PR (Polak-Ribiere+)
     !Optional: Method: (default = DY) which conjugate gradient method to use
-    subroutine ConjugateGradient(f,fd,x,dim,Method,f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment)
+    subroutine ConjugateGradient(f, fd, x, dim, &
+    Method, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
@@ -1139,14 +1147,14 @@ contains
         !For Newton and quasi-Newton, the initial guess can always be a = 1, because their direction vector is well scaled
         !However, for methods whose direction is not determined by inverted (approximate) Hessian multiplying -gradient,
         !e.g., steepest descent and conjugate gradient, user has to come up with a good initial guess
-        !Input:  c1 & c2 are Wolfe constants (0<c1<c2<1), x is current x
+        !Input:  c1 & c2 are Wolfe constants (0 < c1 < c2 < 1), x is current x
         !        a is initial guess of a, p is current p, fx = f(x), phid0 = phi'(0)
         !Output: a harvests the step length satisfying certain condition, x = x + a * p, fx = f(x), fdx = f'(x)
         !Optional: Increment: (default = 1.05) each iteration change a by how much time (must > 1)
 
         !Line search for a step length satisfying Wolfe condition
         !This routine is designed to minimize gradient computation
-        subroutine Wolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim,Increment)
+        subroutine Wolfe(c1, c2, f, fd, x, a, p, fx, phid0, fdx, dim, Increment)
             !Required argument
                 real*8,intent(in)::c1,c2
                 external::f,fd
@@ -1233,7 +1241,7 @@ contains
             end subroutine zoom
         end subroutine Wolfe
         !When it is cheaper to evaluate f' along with f
-        subroutine Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)!CURRENTLY NO BETTER THAN Wolfe
+        subroutine Wolfe_fdwithf(c1, c2, f, fd, f_fd, x, a, p, fx, phid0, fdx, dim, Increment)!CURRENTLY NO BETTER THAN Wolfe
             !Required argument
                 real*8,intent(in)::c1,c2
                 external::f,fd
@@ -1322,7 +1330,7 @@ contains
         end subroutine Wolfe_fdwithf
         
         !Line search for a step length satisfying strong Wolfe condition
-        subroutine StrongWolfe(c1,c2,f,fd,x,a,p,fx,phid0,fdx,dim,Increment)
+        subroutine StrongWolfe(c1, c2, f, fd, x, a, p, fx, phid0, fdx, dim, Increment)
             !Required argument
                 real*8,intent(in)::c1,c2
                 external::f,fd
@@ -1442,7 +1450,7 @@ contains
             end subroutine zoom
         end subroutine StrongWolfe
         !When it is cheaper to evaluate f' along with f
-        subroutine StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fx,phid0,fdx,dim,Increment)
+        subroutine StrongWolfe_fdwithf(c1, c2, f, fd, f_fd, x, a, p, fx, phid0, fdx, dim, Increment)
             !Required argument
                 real*8,intent(in)::c1,c2
                 external::f,fd
@@ -1573,8 +1581,8 @@ contains
     !        but trnlsp doesn't necessarily optimize f(x) (unless f(x) = const * F(x) by coincidence),
     !        it merely return a stationary point of f(x)
     !External procedure:
-    !    subroutine fd(f'(x),x,M,N)
-    !    integer function Jacobian(J(x),x,M,N)
+    !    subroutine fd(f'(x), x, M, N)
+    !    integer function Jacobian(J(x), x, M, N)
     !    M dimensional vector f'(x), N dimensional vector x, M x N matrix J(x)
     !Required argument:
     !    subroutine fd, N dimensional vector x, integer M & N
@@ -1587,7 +1595,8 @@ contains
     !    Precision: (default = 1d-15) convergence considered when || f'(x) ||_2 < Precision
     !    MinStepLength: (default = 1d-15) terminate if search step < MinStepLength before || f'(x) ||_2 converges
     !On input x is an initial guess, on exit x is a solution of f'(x) = 0
-    subroutine TrustRegion(fd,x,M,N,Jacobian,low,up,Warning,MaxIteration,MaxStepIteration,Precision,MinStepLength)
+    subroutine TrustRegion(fd, x, M, N, &
+    Jacobian, low, up, Warning, MaxIteration, MaxStepIteration, Precision, MinStepLength)
         !Required argument
             external::fd
             integer,intent(in)::M,N
@@ -1812,8 +1821,8 @@ contains
     !    Warning: (default = true) if false, all warnings will be suppressed
     !    MaxIteration: (default = 1000) max number of iterations to perform
     !    Precision: (default = 1d-15) convergence considered when || L'(x) ||_2 < Precision
-    subroutine LagrangianMultiplier(fd,fdd,c,cd,cdd,x,lamda,N,M,&
-        Warning,MaxIteration,Precision)
+    subroutine LagrangianMultiplier(fd, fdd, c, cd, cdd, x, lamda, N, M, &
+    Warning, MaxIteration, Precision)
         !Required argument
             external::fd,c,cd; integer,external::fdd,cdd
             integer,intent(in)::N,M
@@ -1867,8 +1876,9 @@ contains
     !        MaxIteration: max number of augmented Lagrangian iterations to perform
     !        Precision: convergence considered when || c(x) ||_2 < Precision
 	!        Increment: each iteration change miu by how much time
-    subroutine AugmentedLagrangian(f,fd,c,cd,x,N,M,UnconstrainedSolver,lamda0,miu0,&
-        f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,cdd,ExactStep,Memory,Method)
+    subroutine AugmentedLagrangian(f, fd, c, cd, x, N, M, &
+    UnconstrainedSolver,lamda0,miu0,&
+    f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,cdd,ExactStep,Memory,Method)
         !Required argument
             external::f,fd,c,cd
             integer,intent(in)::N,M

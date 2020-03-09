@@ -10,14 +10,38 @@ module LinearAlgebra
     implicit none
 
 !Overload
+    interface My_gesv
+        module procedure My_dgesv, My_dgesvM
+    end interface My_gesv
+
+    interface My_sysv
+        module procedure My_dsysv, My_dsysvM
+    end interface My_sysv
+
+    interface My_posv
+        module procedure My_dposv, My_dposvM
+    end interface My_posv
+
+    interface My_getri
+        module procedure My_dgetri, My_zgetri
+    end interface My_getri
+
+    interface My_geev
+        module procedure My_dgeev, My_zgeev
+    end interface My_geev
+
     interface norm2ge
         module procedure dnorm2ge, znorm2ge
     end interface norm2ge
 
+    interface My_lange
+        module procedure My_dlange, My_zlange
+    end interface My_lange
+
 contains
 !--------------- Vector ----------------
     !cross_product(a,b) = a x b
-    function cross_product(a,b)
+    function cross_product(a, b)
         real*8,dimension(3),intent(in)::a,b
         real*8,dimension(3)::cross_product
         cross_product(1)=a(2)*b(3)-a(3)*b(2)
@@ -26,13 +50,13 @@ contains
     end function cross_product
     
     !triple_product(a,b,c) = ( a x b ) . c
-    real*8 function triple_product(a,b,c)
+    real*8 function triple_product(a, b, c)
         real*8,dimension(3),intent(in)::a,b,c
         triple_product=c(1)*(a(2)*b(3)-a(3)*b(2))+c(2)*(a(3)*b(1)-a(1)*b(3))+c(3)*(a(1)*b(2)-a(2)*b(1))
     end function triple_product
     
     !M dimensional vector a, N dimensional vector b, vector_direct_product(a,b) = a b
-    function vector_direct_product(a,b,M,N)
+    function vector_direct_product(a, b, M, N)
         integer,intent(in)::M,N
         real*8,dimension(M),intent(in)::a
         real*8,dimension(N),intent(in)::b
@@ -44,7 +68,7 @@ contains
     end function vector_direct_product
 
     !N dimensional vector a, vector_direct_square(a) = a a, which is symmetric
-    function vector_direct_square(a,N)
+    function vector_direct_square(a, N)
         integer,intent(in)::N
         real*8,dimension(N),intent(in)::a
         real*8,dimension(N,N)::vector_direct_square
@@ -55,7 +79,7 @@ contains
     end function vector_direct_square
 
     !M dimensional vector a, N dimensional vector b, return [ a^T, b^T ]^T
-    function vector_direct_sum(a,b,M,N)
+    function vector_direct_sum(a, b, M, N)
         integer,intent(in)::M,N
         real*8,dimension(M),intent(in)::a
         real*8,dimension(N),intent(in)::b
@@ -67,7 +91,7 @@ contains
 
 !--------------- Matrix ----------------
     !N order matrix A, return det(A)
-    real*8 function determinant(A,N)
+    real*8 function determinant(A, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A
         integer::i; integer,dimension(N)::ipiv; real*8::sign
@@ -83,7 +107,7 @@ contains
     end function determinant
 
     !N order matrix A, return Tr(A)
-    real*8 function Trace(A,N)
+    real*8 function Trace(A, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A
         integer::i
@@ -92,7 +116,7 @@ contains
     end function Trace
 
     !N order matrix A, return the main diagonal vector of A
-    function DiagVector(A,N)
+    function DiagVector(A, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A
         real*8,dimension(N)::DiagVector
@@ -101,7 +125,7 @@ contains
     end function DiagVector
 
     !M x K matrix A, K x N matrix B, return A . B
-    function matmul_dgemm(A,B,M,K,N)
+    function matmul_dgemm(A, B, M, K, N)
         integer,intent(in)::M,K,N
         real*8,dimension(M,K),intent(in)::A
         real*8,dimension(K,N),intent(in)::B
@@ -110,7 +134,7 @@ contains
     end function
 
     !M order real symmetric matrix A, M x N matrix B, return A . B
-    function matmul_dsymm(A,B,M,N)
+    function matmul_dsymm(A, B, M, N)
         integer,intent(in)::M,N
         real*8,dimension(M,M),intent(in)::A
         real*8,dimension(M,N),intent(in)::B
@@ -119,7 +143,7 @@ contains
     end function
 
     !M x N matrix A, N dimensional vector x, return A . x
-    function mvmul_dgemv(A,x,M,N)
+    function mvmul_dgemv(A, x, M, N)
         integer,intent(in)::M,N
         real*8,dimension(M,N),intent(in)::A
         real*8,dimension(N),intent(in)::x
@@ -128,7 +152,7 @@ contains
     end function mvmul_dgemv
 
     !MA x NA matrix A, MB x NB matrix B, ( A direct_product B )_ijkl = A_ij * B_kl
-    function matrix_direct_product(A,B,MA,NA,MB,NB)
+    function matrix_direct_product(A, B, MA, NA, MB, NB)
         integer,intent(in)::MA,NA,MB,NB
         real*8,dimension(MA,NA),intent(in)::A
         real*8,dimension(MB,NB),intent(in)::B
@@ -140,7 +164,7 @@ contains
     end function matrix_direct_product
 
     !M order matrix A, N order matrix B, A direct_sum B = M + N order block diagonal matrix with A and B as diagonal blocks
-    function matrix_direct_sum(A,B,M,N)
+    function matrix_direct_sum(A, B, M, N)
         integer,intent(in)::M,N
         real*8,dimension(M,M),intent(in)::A
         real*8,dimension(N,N),intent(in)::B
@@ -152,7 +176,7 @@ contains
     end function matrix_direct_sum
 
     !N order blank matrix A, N order real symmetric matrix B, perform A = B
-    subroutine sycp(A,B,N)
+    subroutine sycp(A, B, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(out)::A
         real*8,dimension(N,N),intent(in)::B
@@ -163,7 +187,7 @@ contains
     end subroutine sycp
 
     !N order matrix A, strictly upper triangle is blank, copy strictly lower triangle elements to strictly upper triangle
-    subroutine syL2U(A,N)
+    subroutine syL2U(A, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(inout)::A
         integer::i,j
@@ -173,7 +197,7 @@ contains
     end subroutine syL2U
 
     !N order real symmetric matrix A, N order anti symmetric matrix B, return A . B
-    function symatmulasy(A,B,N)
+    function symatmulasy(A, B, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A,B
         real*8,dimension(N,N)::symatmulasy
@@ -206,7 +230,7 @@ contains
     end function symatmulasy
 
     !N order anti symmetric matrix A, N order real symmetric matrix B, return A . B
-    function asymatmulsy(A,B,N)
+    function asymatmulsy(A, B, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A,B
         real*8,dimension(N,N)::asymatmulsy
@@ -241,7 +265,7 @@ contains
 
 !---------- High order tensor ----------
     !dim x N x N 3rd-order tensor A, Trace3(i) = Tr[A(i,:,:)]
-    function Trace3(A,dim,N)
+    function Trace3(A, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(in)::A
         real*8,dimension(dim)::Trace3
@@ -253,7 +277,7 @@ contains
     end function Trace3
 
     !dim1 x dim2 x N x N 4th-order tensor A, Trace4(i,j) = Tr[A(i,j,:,:)]
-    function Trace4(A,dim1,dim2,N)
+    function Trace4(A, dim1, dim2, N)
         integer,intent(in)::dim1,dim2,N
         real*8,dimension(dim1,dim2,N,N),intent(in)::A
         real*8,dimension(dim1,dim2)::Trace4
@@ -265,7 +289,7 @@ contains
     end function Trace4
 
     !dim x M x N 3rd-order tensor A, transpose on M x N
-    function Transpose3(A,dim,M,N)
+    function Transpose3(A, dim, M, N)
         integer,intent(in)::dim,M,N
         real*8,dimension(dim,M,N),intent(in)::A
         real*8,dimension(dim,N,M)::Transpose3
@@ -276,7 +300,7 @@ contains
     end function Transpose3
 
     !dim1 x dim2 x M x N 4rd-order tensor A, transpose on M x N
-    function Transpose4(A,dim1,dim2,M,N)
+    function Transpose4(A, dim1, dim2, M, N)
         integer,intent(in)::dim1,dim2,M,N
         real*8,dimension(dim1,dim2,M,N),intent(in)::A
         real*8,dimension(dim1,dim2,N,M)::Transpose4
@@ -288,7 +312,7 @@ contains
 
     !dim x N x N 3rd-order tensor A, strictly upper triangle of N x N is blank
     !Copy strictly lower triangle elements to strictly upper triangle
-    subroutine sy3L2U(A,dim,N)
+    subroutine sy3L2U(A, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(inout)::A
         integer::i,j
@@ -299,7 +323,7 @@ contains
 
     !dim1 x dim2 x N x N 3rd-order tensor A, strictly upper triangle of N x N is blank
     !Copy strictly lower triangle elements to strictly upper triangle
-    subroutine sy4L2U(A,dim1,dim2,N)
+    subroutine sy4L2U(A, dim1, dim2, N)
         integer,intent(in)::dim1,dim2,N
         real*8,dimension(dim1,dim2,N,N),intent(inout)::A
         integer::i,j
@@ -310,7 +334,7 @@ contains
 
     !dim x N x N 3rd-order tensor A, real symmetric in N x N. N order real symmetric matrix B
     !Matrix multiplication on N x N
-    function sy3matmulsy(A,B,dim,N)
+    function sy3matmulsy(A, B, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(in)::A
         real*8,dimension(N,N),intent(in)::B
@@ -345,7 +369,7 @@ contains
 
     !dim x N x N 3rd-order tensor A & B, real symmetric in N x N
     !Vector dot product on dim, matrix multiplication on N x N
-    function sy3matdotmul(A,B,dim,N)
+    function sy3matdotmul(A, B, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(in)::A,B
         real*8,dimension(N,N)::sy3matdotmul
@@ -379,7 +403,7 @@ contains
 
     !dim1 x dim2 x N x N 4th-order tensor A, dim2 x N x N 3rd-order tensor B, real symmetric in N x N
     !Vector dot product on dim2, matrix multiplication on N x N
-    function sy4matdotmulsy3(A,B,dim1,dim2,N)
+    function sy4matdotmulsy3(A, B, dim1, dim2, N)
         integer,intent(in)::dim1,dim2,N
         real*8,dimension(dim1,dim2,N,N),intent(in)::A
         real*8,dimension(dim2,N,N),intent(in)::B
@@ -426,7 +450,7 @@ contains
 
     !dim x N x N 3rd-order tensor A, anti symmetric in N x N. N order real symmetric matrix B
     !Matrix multiplication on N x N
-    function asy3matmulsy(A,B,dim,N)
+    function asy3matmulsy(A, B, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(in)::A
         real*8,dimension(N,N),intent(in)::B
@@ -462,7 +486,7 @@ contains
     !dim1 x N x N 3rd-order tensor A, anti symmetric in N x N
     !dim2 x N x N 3rd-order tensor B, real symmetric in N x N
     !Vector direct product on dim1 and dim2, matrix multiplication on N x N
-    function asy3matdirectmulsy3(A,B,dim1,dim2,N)
+    function asy3matdirectmulsy3(A, B, dim1, dim2, N)
         integer,intent(in)::dim1,dim2,N
         real*8,dimension(dim1,N,N),intent(in)::A
         real*8,dimension(dim2,N,N),intent(in)::B
@@ -497,7 +521,7 @@ contains
 
     !dim x N x N 3rd-order tensor A, real symmetric in N x N. N order unitary matrix U
     !Return U^T . A . U on N x N of A
-    function sy3UnitaryTransformation(A,U,dim,N)
+    function sy3UnitaryTransformation(A, U, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(in)::A
         real*8,dimension(N,N),intent(in)::U
@@ -520,7 +544,7 @@ contains
 
     !dim1 x dim2 x N x N 4th-order tensor A, real symmetric in N x N. N order unitary matrix U
     !Return U^T . A . U on N x N of A
-    function sy4UnitaryTransformation(A,U,dim1,dim2,N)
+    function sy4UnitaryTransformation(A, U, dim1, dim2, N)
         integer,intent(in)::dim1,dim2,N
         real*8,dimension(dim1,dim2,N,N),intent(in)::A
         real*8,dimension(N,N),intent(in)::U
@@ -552,9 +576,9 @@ contains
         !Solve the linear system A . x = b
         !b harvests the solution x
         
-        !N dimensional vector b
         !A harvests the Doolittle LU decomposition
-        subroutine My_dgesv(A,b,N)
+        !N dimensional vector b
+        subroutine My_dgesv(A, b, N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N),intent(inout)::b
@@ -562,10 +586,8 @@ contains
             integer,dimension(N)::ipiv
             call dgesv(N,1,A,N,ipiv,b,N,info)
         end subroutine My_dgesv
-        
         !N x M matrix b
-        !A harvests the Doolittle LU decomposition
-        subroutine My_dgesvM(A,b,N,M)
+        subroutine My_dgesvM(A, b, N, M)
             integer,intent(in)::N,M
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N,M),intent(inout)::b
@@ -574,9 +596,9 @@ contains
             call dgesv(N,M,A,N,ipiv,b,N,info)
         end subroutine My_dgesvM
     
-        !N dimensional vector b
         !A harvests the Bunch-Kaufman L . D . L^T decomposition (D is 1x1 and 2x2 block diagonal)
-        subroutine My_dsysv(A,b,N)
+        !N dimensional vector b
+        subroutine My_dsysv(A, b, N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N),intent(inout)::b
@@ -585,10 +607,8 @@ contains
             real*8,dimension(N)::work
             call dsysv('L',N,1,A,N,ipiv,b,N,work,N,info)
         end subroutine My_dsysv
-    
         !N x M matrix b
-        !A harvests the Bunch-Kaufman L . D . L^T decomposition (D is 1x1 and 2x2 block diagonal)
-        subroutine My_dsysvM(A,b,N,M)
+        subroutine My_dsysvM(A, b, N, M)
             integer,intent(in)::N,M
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N,M),intent(inout)::b
@@ -598,11 +618,11 @@ contains
             call dsysv('L',N,M,A,N,ipiv,b,N,work,N,info)
         end subroutine My_dsysvM
     
-        !N dimensional vector b
         !Optional: info: If A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
         !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
         !b will not be overwritten if fail
-        subroutine My_dposv(A,b,N,info)
+        !N dimensional vector b
+        subroutine My_dposv(A, b, N, info)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N),intent(inout)::b
@@ -614,12 +634,8 @@ contains
                 call dposv('L',N,1,A,N,b,N,temp)
             end if
         end subroutine My_dposv
-    
         !N x M matrix b
-        !Optional: info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and solving failed
-        !A harvests the Cholesky L . L^T decomposition. A will be overwritten even fail
-        !b will not be overwritten if fail
-        subroutine My_dposvM(A,b,N,M,info)
+        subroutine My_dposvM(A, b, N, M, info)
             integer,intent(in)::N,M
             real*8,dimension(N,N),intent(inout)::A
             real*8,dimension(N,M),intent(inout)::b
@@ -637,7 +653,7 @@ contains
         !Inverse A
         !A harvests its inverse
 
-        subroutine My_dgetri(A,N)
+        subroutine My_dgetri(A, N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             integer::info
@@ -646,8 +662,7 @@ contains
             call dgetrf(N,N,A,N,ipiv,info)
             call dgetri(N,A,N,ipiv,work,N,info)
         end subroutine My_dgetri
-
-        subroutine My_zgetri(A,N)
+        subroutine My_zgetri(A, N)
             integer,intent(in)::N
             complex*16,dimension(N,N),intent(inout)::A
             integer::info
@@ -657,7 +672,7 @@ contains
             call dgetri(N,A,N,ipiv,work,N,info)
         end subroutine My_zgetri
 
-        subroutine My_dsytri(A,N)
+        subroutine My_dsytri(A, N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             integer::info
@@ -669,7 +684,7 @@ contains
 
         !Optional: info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and inversing failed
         !A will be overwritten even fail
-        subroutine My_dpotri(A,N,info)
+        subroutine My_dpotri(A, N, info)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
             integer,intent(out),optional::info
@@ -686,7 +701,7 @@ contains
         end subroutine My_dpotri
 
         !M x N real matrix A. A harvests the transpose of its generalized inverse
-        subroutine dGeneralizedInverseTranspose(A,M,N)
+        subroutine dGeneralizedInverseTranspose(A, M, N)
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(inout)::A
             real*8,dimension(M,M)::AAT
@@ -706,12 +721,12 @@ contains
     !sy/he method: unitary transform to real symmetric tridiagonal, then
     !    if 'N', Pal-Walker-Kahan QR; else 'V', implicit QR
 
+    !A will be overwritten
+    !eigvec harvests the normalized eigenvectors
     !eigvalr harvests the real part of the eigenvalues,
     !eigvali harvests the imaginary part of the eigenvalues,
-    !eigvec harvests the normalized eigenvectors
     !Only right eigen: A . eigvec(:,j) = [ eigvalr(j) + i * eigvali(j) ] * eigvec(:,j)
-    !A will be overwritten
-    subroutine My_dgeev(jobtype,A,eigvalr,eigvali,eigvec,N)
+    subroutine My_dgeev(jobtype, A,  eigvalr,eigvali, eigvec, N)
         character,intent(in)::jobtype
         integer,intent(in)::N
         real*8,dimension(N,N),intent(in)::A
@@ -722,11 +737,9 @@ contains
         real*8,dimension(1,N)::vl
         call dgeev('N',jobtype,N,A,N,eigvalr,eigvali,vl,1,eigvec,N,work,5*N,info)
     end subroutine My_dgeev
-    
-    !eigval harvests the eigenvalues, eigvec harvests the normalized eigenvectors
+    !eigval harvests the eigenvalues
     !Only right eigen: A . eigvec(:,j) = eigval(j) * eigvec(:,j)
-    !A will be overwritten
-    subroutine My_zgeev(jobtype,A,eigval,eigvec,N)
+    subroutine My_zgeev(jobtype, A, eigval, eigvec, N)
         character,intent(in)::jobtype
         integer,intent(in)::N
         complex*16,dimension(N,N),intent(in)::A
@@ -741,7 +754,7 @@ contains
     
     !eigval harvests the eigenvalues in ascending order, A harvests the normalized eigenvectors
     !A will be overwritten even for 'N' job
-    subroutine My_dsyev(jobtype,A,eigval,N)
+    subroutine My_dsyev(jobtype, A, eigval, N)
         integer,intent(in)::N
         character,intent(in)::jobtype
         real*8,dimension(N,N),intent(inout)::A
@@ -758,7 +771,7 @@ contains
     !eigval harvests the eigenvalues in ascending order, A harvests the eigenvectors normalized under S metric
     !S harvests the Cholesky L . L^T decomposition. S will be overwritten even fail
     !A will be overwritten even for 'N' job
-    subroutine My_dsygv(gtype,jobtype,A,S,eigval,N,info)
+    subroutine My_dsygv(gtype, jobtype, A, S, eigval, N, info)
         integer,intent(in)::gtype,N
         character,intent(in)::jobtype
         real*8,dimension(N,N),intent(inout)::A,S
@@ -776,7 +789,7 @@ contains
 
     !eigval harvests the eigenvalues in ascending order, A harvests the normalized eigenvectors
     !A will be overwritten even for 'N' job
-    subroutine My_zheev(jobtype,A,eigval,N)
+    subroutine My_zheev(jobtype, A, eigval, N)
         integer,intent(in)::N
         character,intent(in)::jobtype
         complex*16,dimension(N,N),intent(inout)::A
@@ -793,7 +806,7 @@ contains
         !M x N matrix A, return 2 norm of A
     
         !Double A
-        real*8 function dnorm2ge(A,M,N)
+        real*8 function dnorm2ge(A, M, N)
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(in)::A
             real*8,dimension(N)::eigval
@@ -803,7 +816,7 @@ contains
             dnorm2ge=Sqrt(maxval(eigval))
         end function dnorm2ge
         !Complex A
-        real*8 function znorm2ge(A,M,N)
+        real*8 function znorm2ge(A, M, N)
             integer,intent(in)::M,N
             complex*16,dimension(M,N),intent(in)::A
             real*8,dimension(N)::eigval
@@ -817,7 +830,7 @@ contains
     !========== F-norm square ==========
         !Return Frobenius norm square of M x N matrix A
 
-        real*8 function dgeFrobeniusSquare(A,M,N)
+        real*8 function dgeFrobeniusSquare(A, M, N)
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(in)::A
             integer::i
@@ -827,7 +840,7 @@ contains
             end do
         end function dgeFrobeniusSquare
 
-        real*8 function dsyFrobeniusSquare(A,N)
+        real*8 function dsyFrobeniusSquare(A, N)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(in)::A
             integer::i
@@ -850,7 +863,8 @@ contains
         !         '1', return 1 norm
         !         'I', return infinity norm
 
-        real*8 function My_dlange(jobtype,A,M,N)
+        !Double A
+        real*8 function My_dlange(jobtype, A, M, N)
             character,intent(in)::jobtype
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(in)::A
@@ -858,8 +872,8 @@ contains
             real*8,dimension(M)::work
             My_dlange=dlange(jobtype,M,N,A,M,work)
         end function My_dlange
-
-        real*8 function My_zlange(jobtype,A,M,N)
+        !Complex A
+        real*8 function My_zlange(jobtype, A, M, N)
             character,intent(in)::jobtype
             integer,intent(in)::M,N
             complex*16,dimension(M,N)::A
@@ -868,7 +882,7 @@ contains
             My_zlange=zlange(jobtype,M,N,A,M,work)
         end function My_zlange
 
-        real*8 function My_dlansy(jobtype,A,N)
+        real*8 function My_dlansy(jobtype, A, N)
             character,intent(in)::jobtype
             integer,intent(in)::N
             real*8,dimension(N,N),intent(in)::A

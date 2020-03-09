@@ -20,7 +20,7 @@ module IntegralTransform
 contains
 !Fourier transform lx points (x,psy) to lk points (k,phi). x must be uniformly spaced
 !Input: x, psy, k. Output: phi
-subroutine dFourierTransform(x,psy,lx,k,phi,lk)
+subroutine dFourierTransform(x, psy, lx, k, phi, lk)
     integer,intent(in)::lx,lk
     real*8,dimension(lx),intent(in)::x
     complex*16,dimension(lx),intent(in)::psy
@@ -38,7 +38,7 @@ end subroutine dFourierTransform
 
 !Inverse Fourier transform lk points (k,phi) to lx points (x,psy). k must be uniformly spaced
 !Input: k, phi, x. Output: psy
-subroutine dInverseFourierTransform(k,phi,lk,x,psy,lx)
+subroutine dInverseFourierTransform(k, phi, lk, x, psy, lx)
     integer,intent(in)::lk,lx
     real*8,dimension(lk),intent(in)::k
     complex*16,dimension(lk),intent(in)::phi
@@ -57,7 +57,7 @@ end subroutine dInverseFourierTransform
 !Fast fourier transform 2^n data points
 !On input psy contains {psy(x_i)}, on exit psy harvests {phi(k_j)}
 !Although no explicit output, {k_j} = 2pi / (2^n * dx) * {0, 1, ..., 2^n-1}
-subroutine FFT(psy,n)
+subroutine FFT(psy, n)
     integer,intent(in)::n
     complex*16,dimension(2**n),intent(inout)::psy
     type(DFTI_DESCRIPTOR),pointer::handle

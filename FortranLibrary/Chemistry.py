@@ -1,7 +1,8 @@
 from .basic import *
 
 # Due to row- and column-major difference, python throws mode^T
-def Avogadro_Vibration(symbol:List, r:numpy.ndarray, freq:numpy.ndarray, modeT:numpy.ndarray, file=Path('avogadro.log')) -> None:
+def Avogadro_Vibration(symbol:List, r:numpy.ndarray, freq:numpy.ndarray, modeT:numpy.ndarray, \
+file=Path('avogadro.log')) -> None:
     NAtoms = c_int(len(symbol)); vibdim = c_int(freq.shape[0])
     p_symbol = cast(((c_char*2)*NAtoms.value)(), POINTER(c_char*2))
     for i in range(NAtoms.value):

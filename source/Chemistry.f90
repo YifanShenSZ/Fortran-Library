@@ -106,7 +106,7 @@ end function Number2Symbol
 !          freq: vibrational angular frequencies in cm^-1
 !          mode: Cartesian normal modes
 !Optional: file: (default = 'avogadro.log') output file name
-subroutine Avogadro_Vibration(NAtoms,symbol,structure,vibdim,freq,mode,file)
+subroutine Avogadro_Vibration(NAtoms, symbol, structure, vibdim, freq, mode, file)
     integer,intent(in)::NAtoms,vibdim
     character*2,dimension(NAtoms),intent(in)::symbol
     real*8,dimension(3,NAtoms),intent(in)::structure
@@ -195,7 +195,7 @@ end subroutine Avogadro_Vibration
 
 !Input:  N dimensional ascendingly sorted array energy
 !Output: degenerate harvests whether exists almost degenerate energy levels (energy difference < threshold)
-subroutine CheckDegeneracy(degenerate,threshold,energy,N)
+subroutine CheckDegeneracy(degenerate, threshold, energy, N)
     logical,intent(out)::degenerate
     real*8,intent(in)::threshold
     integer,intent(in)::N
@@ -223,7 +223,7 @@ end subroutine CheckDegeneracy
 !Optional: phi1 & phi2: wavefunction of 1st & 2nd intersected states
 !          gref & href: reference g & h to uniquely determine gh orthogonalization as the 1 with smallest difference to reference out of 8
 !On exit grad1, grad2, h (and optionally phi1, phi2) will be gauged
-subroutine ghOrthogonalization(grad1,grad2,h,dim,phi1,phi2,gref,href)
+subroutine ghOrthogonalization(grad1, grad2, h, dim, phi1, phi2, gref, href)
     !Required argument:
         integer,intent(in)::dim
         real*8,dimension(dim),intent(inout)::grad1,grad2,h
@@ -371,7 +371,7 @@ end subroutine ghOrthogonalization
     !dim x N x N 3-order tensor dH
     !Fix off-diagonal element phase of dH by minimizing its difference from reference
     !difference harvest the minimum || dH - dH_Ref ||_F^2
-    subroutine dFixdHPhase(dH,dH_Ref,difference,dim,N)
+    subroutine dFixdHPhase(dH, dH_Ref, difference, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(dim,N,N),intent(inout)::dH
         real*8,dimension(dim,N,N),intent(in)::dH_Ref
@@ -424,7 +424,7 @@ end subroutine ghOrthogonalization
     !Fix off-diagonal element phase of dH by minimizing its difference from reference
     !Phases of H off-diagonal elements is then fixed accordingly
     !difference harvest the minimum || dH - dH_Ref ||_F^2
-    subroutine dFixHPhaseBydH(H,dH,dH_Ref,difference,dim,N)
+    subroutine dFixHPhaseBydH(H, dH, dH_Ref, difference, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(N,N),intent(inout)::H
         real*8,dimension(dim,N,N),intent(inout)::dH
@@ -481,7 +481,7 @@ end subroutine ghOrthogonalization
     !Phase of basis phi is then assigned accordingly
     !Warning: 1st basis is arbitrarily assigned phase = 1 because dH can only determine phase difference
     !difference harvest the minimum || dH - dH_Ref ||_F^2
-    subroutine dAssignBasisPhaseBydH(phi,dH,dH_Ref,difference,dim,N)
+    subroutine dAssignBasisPhaseBydH(phi, dH, dH_Ref, difference, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(N,N),intent(inout)::phi
         real*8,dimension(dim,N,N),intent(inout)::dH
@@ -538,7 +538,7 @@ end subroutine ghOrthogonalization
     !Phase of basis phi is then assigned accordingly
     !Warning: 1st basis is arbitrarily assigned phase = 1 because dH can only determine phase difference
     !difference harvest the minimum || dH - dH_Ref ||_F^2
-    subroutine dFixHPhase_AssignBasisPhaseBydH(H,phi,dH,dH_Ref,difference,dim,N)
+    subroutine dFixHPhase_AssignBasisPhaseBydH(H, phi, dH, dH_Ref, difference, dim, N)
         integer,intent(in)::dim,N
         real*8,dimension(N,N),intent(inout)::H,phi
         real*8,dimension(dim,N,N),intent(inout)::dH
@@ -596,7 +596,7 @@ end subroutine ghOrthogonalization
 !dA = ▽A in A representation is dim x N x N 3rd-order tensor
 !Return dim x N x N 3rd-order tensor M satisfying: ▽eigvec = eigvec M (matrix multiplication on N x N)
 !Note that M is anti hermitian, so only fill in strictly lower triangle
-function deigvec_ByKnowneigval_dA(eigval,dA,dim,N)
+function deigvec_ByKnowneigval_dA(eigval, dA, dim, N)
     integer,intent(in)::dim,N
     real*8,dimension(N),intent(in)::eigval
     real*8,dimension(dim,N,N),intent(in)::dA
@@ -608,7 +608,7 @@ function deigvec_ByKnowneigval_dA(eigval,dA,dim,N)
 end function deigvec_ByKnowneigval_dA
 
 !---------- Python special ----------
-    subroutine py_ghOrthogonalization(grad1,grad2,h,dim)
+    subroutine py_ghOrthogonalization(grad1, grad2, h, dim)
         integer,intent(in)::dim
         real*8,dimension(dim),intent(inout)::grad1,grad2,h
         real*8::theta,sinsqtheta,cossqtheta,sin2theta

@@ -32,7 +32,7 @@ subroutine ShowTime()!Show date hour minute second
     write(*,'(1x,I4,1x,A4,1x,I2,1x,A5,1x,I2,1x,A3,1x,I2,A1,I2,A1,I2)')time(1),'year',time(2),'month',time(3),'day',time(5),':',time(6),':',time(7)
 end subroutine ShowTime
 
-subroutine dScientificNotation(x,i)! x_input = x_output * 10^i
+subroutine dScientificNotation(x, i)! x_input = x_output * 10^i
     real*8,intent(inout)::x
     integer,intent(out)::i
     i=0
@@ -72,7 +72,7 @@ end subroutine dScientificNotation
     
     !Input:  N dimensional vector x
     !Output: N order diagonal matrix with main diagonal vector = x
-    function diag(x,N)
+    function diag(x, N)
         integer,intent(in)::N
         real*8,dimension(N),intent(in)::x
         real*8,dimension(N,N)::diag
@@ -124,7 +124,7 @@ end subroutine dScientificNotation
 
     !Gaussian random number generator using box-muller method
     !Ref: http://en.wikipedia.org/wiki/gaussian_random_variable
-    real*8 function GaussianRandomNumber(mean,sigma)
+    real*8 function GaussianRandomNumber(mean, sigma)
         real*8,intent(in)::mean,sigma
         real*8::r1,r2
         call random_number(r1)
@@ -132,7 +132,7 @@ end subroutine dScientificNotation
         GaussianRandomNumber=mean+sigma*dsqrt(-2d0*dlog(r1))*dcos(6.283185307179586d0*r2)
     end function GaussianRandomNumber
     !More random
-    real*8 function BetterGaussianRandomNumber(mean,sigma)
+    real*8 function BetterGaussianRandomNumber(mean, sigma)
         real*8,intent(in)::mean,sigma
         real*8::r1,r2
         r1=BetterRandomNumber()
@@ -188,7 +188,7 @@ end subroutine dScientificNotation
     !Returns: item (modified) contains elements in ascending order
     !         indices(i) is the original index of sorted item(i)
     !Double item
-    recursive subroutine dQuickSort(item,first,last,indices,N)
+    recursive subroutine dQuickSort(item, first, last, indices, N)
         integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
         integer,dimension(N),intent(inout)::indices
@@ -223,7 +223,7 @@ end subroutine dScientificNotation
         end subroutine split
     end subroutine dQuickSort
     !Integer item
-    recursive subroutine iQuickSort(item,first,last,indices,N)
+    recursive subroutine iQuickSort(item, first, last, indices, N)
         integer,intent(in)::N,first,last
         integer,dimension(N),intent(inout)::item,indices
         integer::mid
@@ -260,7 +260,7 @@ end subroutine dScientificNotation
     !Returns: item (modified) contains elements in ascending order
     !         NRP harvests the number of reverse pairs
     !Double item
-    subroutine dMergeSort(item,first,last,NRP,N)
+    subroutine dMergeSort(item, first, last, NRP, N)
         integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
         integer,intent(out)::NRP
@@ -269,7 +269,7 @@ end subroutine dScientificNotation
         NRP=0; length=last-first+1; allocate(work((length+1)/2))
         call sort(item(first:last),length,work)
         contains
-        recursive subroutine sort(A,N,work)
+        recursive subroutine sort(A, N, work)
             integer,intent(in)::N
             real*8,dimension(N),intent(inout)::A
             real*8,dimension((N+1)/2),intent(out)::work
@@ -288,7 +288,7 @@ end subroutine dScientificNotation
                 work(1:NA)=A(1:NA); call merge(work(1:NA),NA,A(NA+1:N),NB,A,N)
             end if
         end subroutine sort
-        subroutine merge(A,NA,B,NB,C,NC)
+        subroutine merge(A, NA, B, NB, C, NC)
             integer,intent(in):: NA,NB,NC!Normal usage: NA + NB = NC
             real*8,dimension(NA),intent(inout)::A
             real*8,dimension(NB),intent(in)::B
@@ -309,7 +309,7 @@ end subroutine dScientificNotation
         end subroutine merge
     end subroutine dMergeSort
     !Integer item
-    subroutine iMergeSort(item,first,last,NRP,N)
+    subroutine iMergeSort(item, first, last, NRP, N)
         integer,intent(in)::N,first,last
         integer,dimension(N),intent(inout)::item
         integer,intent(out)::NRP
@@ -318,7 +318,7 @@ end subroutine dScientificNotation
         NRP=0; length=last-first+1; allocate(work((length+1)/2))
         call sort(item(first:last),length,work)
         contains
-        recursive subroutine sort(A,N,work)
+        recursive subroutine sort(A, N, work)
             integer,intent(in)::N
             integer,dimension(N),intent(inout)::A
             integer,dimension((N+1)/2),intent(out)::work
@@ -336,7 +336,7 @@ end subroutine dScientificNotation
                 work(1:NA)=A(1:NA); call merge(work(1:NA),NA,A(NA+1:N),NB,A,N)
             end if
         end subroutine sort
-        subroutine merge(A,NA,B,NB,C,NC)
+        subroutine merge(A, NA, B, NB, C, NC)
             integer,intent(in):: NA,NB,NC!Normal usage: NA + NB = NC
             integer,dimension(NA),intent(inout)::A
             integer,dimension(NB),intent(in)::B

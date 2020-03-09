@@ -23,7 +23,7 @@ extern "C" {
 // Rename fortran functions back to their origin
 // General
     void ShowTime() {general_mp_showtime_();}
-    void dScientificNotation(double& x, int& i) {general_mp_dscientificnotation_(x,i);}
+    void dScientificNotation(double& x, int& i) {general_mp_dscientificnotation_(x, i);}
 // FortranLibrary
     void TestFortranLibrary() {fortranlibrary_mp_testfortranlibrary_();}
 

@@ -57,7 +57,7 @@ contains
     !    ref : uniquely define the standard geometry by the one with smallest difference to ref out of 4
     !    diff: harvest mass^2 weighted || geom - ref ||_F^2
     !    grad: gradient (of multiple electronic states) to transform to standard coordinate
-    subroutine StandardizeGeometry(geom,mass,NAtoms,NStates,ref,diff,grad)
+    subroutine StandardizeGeometry(geom, mass, NAtoms, NStates, ref, diff, grad)
         !Required argument
             integer,intent(in)::NAtoms,NStates
             real*8,dimension(3,NAtoms),intent(inout)::geom
@@ -140,7 +140,7 @@ contains
     !Optional argument:
     !    diff: harvest mass^2 weighted || geom - ref ||_F^2
     !    init: initial value of rotation, see rotation section
-    subroutine AssimilateGeometry(geom,ref,mass,NAtoms,diff,init)
+    subroutine AssimilateGeometry(geom, ref, mass, NAtoms, diff, init)
         !Required argument
             integer,intent(in)::NAtoms
             real*8,dimension(3,NAtoms),intent(inout)::geom
@@ -276,7 +276,7 @@ contains
     !        also set the module-wide variable GeometryTransformation_IntCoordDef
     !        which will be refered by all routines in this section
     !See InvolvedMotion in 'Derived type' section for available types and ordering of atoms
-    integer function DefineInternalCoordinate(format,file)
+    integer function DefineInternalCoordinate(format, file)
         character(*),intent(in)::format
         character(*),optional,intent(in)::file
         integer::intdim
@@ -475,7 +475,7 @@ contains
 
     !========== Cartesian -> Internal ==========
         !Convert r to q
-        subroutine InternalCoordinate(r,q,cartdim,intdim)
+        subroutine InternalCoordinate(r, q, cartdim, intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim),intent(out)::q
@@ -506,7 +506,7 @@ contains
             contains
             !Transform from Cartesian coordinate r to a certain motion coordinate q, atom defines which atoms are involved
             !For stretching, q = bond length
-            real*8 function stretching(r,atom,cartdim)
+            real*8 function stretching(r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(2),intent(in)::atom
@@ -515,7 +515,7 @@ contains
                 stretching=Norm2(r12)
             end function stretching
             !For bending, q = bond angle
-            real*8 function bending(r,atom,cartdim)
+            real*8 function bending(r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(3),intent(in)::atom
@@ -527,7 +527,7 @@ contains
                 bending=acos(dot_product(runit21,runit23))
             end function bending
             !For torsion, q = dihedral angle
-            real*8 function torsion(r,atom,cartdim)
+            real*8 function torsion(r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
@@ -541,7 +541,7 @@ contains
                 if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
             end function torsion
             !For out of plane, q = out of plane angle
-            real*8 function OutOfPlane(r,atom,cartdim)
+            real*8 function OutOfPlane(r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
@@ -555,7 +555,7 @@ contains
         end subroutine InternalCoordinate
 
         !Convert r & cartgrad to q & intgrad
-        subroutine Cartesian2Internal(r,cartgrad,q,intgrad,cartdim,intdim,NStates)
+        subroutine Cartesian2Internal(r, cartgrad, q, intgrad, cartdim, intdim, NStates)
             integer,intent(in)::cartdim,intdim,NStates
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
@@ -568,7 +568,7 @@ contains
         end subroutine Cartesian2Internal
         
         !From r, generate B & q
-        subroutine WilsonBMatrixAndInternalCoordinate(r,B,q,cartdim,intdim)
+        subroutine WilsonBMatrixAndInternalCoordinate(r, B, q, cartdim, intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim,cartdim),intent(out)::B
@@ -594,7 +594,7 @@ contains
             !so b contributes (but not necessarily equals) to one row of Wilson B matrix
             ! d( i-th internal coordinate ) = ( i-th row vector of B ) . dr
             !For stretching, q = bond length
-            subroutine bAndStretching(b,q,r,atom,cartdim)
+            subroutine bAndStretching(b, q, r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(out)::b
                 real*8,intent(out)::q
@@ -609,7 +609,7 @@ contains
                 b(3*atom(2)-2:3*atom(2))=runit12
             end subroutine bAndStretching
             !For bending, q = bond angle
-            subroutine bAndBending(b,q,r,atom,cartdim)
+            subroutine bAndBending(b, q, r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(out)::b
                 real*8,intent(out)::q
@@ -631,7 +631,7 @@ contains
                 q=acos(costheta)
             end subroutine bAndBending
             !For torsion, q = dihedral angle
-            subroutine bAndTorsion(b,q,r,atom,cartdim)
+            subroutine bAndTorsion(b, q, r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(out)::b
                 real*8,intent(out)::q
@@ -660,7 +660,7 @@ contains
                 if(triple_product(n123,n234,runit23)<0d0) q=-q
             end subroutine bAndTorsion
             !For out of plane, q = out of plane angle
-            subroutine bAndOutOfPlane(b,q,r,atom,cartdim)
+            subroutine bAndOutOfPlane(b, q, r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(out)::b
                 real*8,intent(out)::q
@@ -694,7 +694,7 @@ contains
         !Convert q to r
         !Please note that r may vary with arbitrary translation & rotation
         !Optional argument: r0: (default = random) initial guess of r
-        subroutine CartesianCoordinate(q,r,intdim,cartdim,r0)
+        subroutine CartesianCoordinate(q, r, intdim, cartdim, r0)
             !Required argument
                 integer,intent(in)::intdim,cartdim
                 real*8,dimension(intdim),intent(in)::q
@@ -728,7 +728,7 @@ contains
         !Please note that r may vary with arbitrary translation & rotation
         !so cartgrad varies with same rotation to r
         !Optional argument: r0: (default = random) initial guess of r
-        subroutine Internal2Cartesian(q,intgrad,r,cartgrad,intdim,cartdim,NStates,r0)
+        subroutine Internal2Cartesian(q, intgrad, r, cartgrad, intdim, cartdim, NStates, r0)
             !Required argument
                 integer,intent(in)::intdim,cartdim,NStates
                 real*8,dimension(intdim),intent(in)::q
@@ -760,7 +760,7 @@ contains
     !Output: freq: vibrational angular frequencies (negative if imaginary)
     !        mode: normal modes contained in each column
     !Lowest 3 * NAtoms - vibdim modes are considered translation and rotation thus ruled out
-    subroutine AnalyzeVibration(H,mass,freq,mode,NAtoms,vibdim)
+    subroutine AnalyzeVibration(H, mass, freq, mode, NAtoms, vibdim)
         integer,intent(in)::NAtoms,vibdim
         real*8,dimension(3*NAtoms,3*NAtoms),intent(inout)::H
 		real*8,dimension(NAtoms),intent(in)::mass
@@ -804,7 +804,7 @@ contains
     !        intmode : internal coordinate normal modes contained in each column (Wilson L matrix)
     !          Linv  : Wilson L^-1 matrix
     !        cartmode: Cartesian coordinate normal modes contained in each column
-    subroutine WilsonGFMethod(H,B,mass,freq,intmode,Linv,cartmode,intdim,NAtoms)
+    subroutine WilsonGFMethod(H, B, mass, freq, intmode, Linv, cartmode, intdim, NAtoms)
         integer,intent(in)::intdim,NAtoms
         real*8,dimension(intdim,intdim),intent(in)::H
         real*8,dimension(intdim,3*NAtoms),intent(in)::B
@@ -854,7 +854,7 @@ contains
 !------------------- End --------------------
 
 !-------------- Python special --------------
-    subroutine py_StandardizeGeometry(geom,mass,NAtoms)
+    subroutine py_StandardizeGeometry(geom, mass, NAtoms)
         integer,intent(in)::NAtoms
         real*8,dimension(3,NAtoms),intent(inout)::geom
         real*8,dimension(NAtoms),intent(in)::mass
@@ -877,7 +877,7 @@ contains
         forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
     end subroutine py_StandardizeGeometry
 
-    subroutine py_StandardizeGeometry_grad(geom,mass,NAtoms,NStates,grad)
+    subroutine py_StandardizeGeometry_grad(geom, mass, NAtoms, NStates, grad)
         integer,intent(in)::NAtoms,NStates
         real*8,dimension(3,NAtoms),intent(inout)::geom
         real*8,dimension(NAtoms),intent(in)::mass

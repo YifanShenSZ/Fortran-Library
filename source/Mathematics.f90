@@ -32,36 +32,36 @@ module Mathematics
 
 contains
 !----------------- Special function -----------------
-    real*8 function Gaussian(x,miu,sigma)
+    real*8 function Gaussian(x, miu, sigma)
         real*8,intent(in)::x,miu,sigma
         real*8::temp
         temp=(x-miu)/sigma; Gaussian=exp(-temp*temp/2d0)/(sqrt2pi*sigma)
     end function Gaussian
-    real*8 function dGaussiandmiu(x,miu,sigma)
+    real*8 function dGaussiandmiu(x, miu, sigma)
         real*8,intent(in)::x,miu,sigma
         real*8::temp
         temp=(x-miu)/sigma
         dGaussiandmiu=2d0/(sqrt2pi*sigma*sigma)*temp*exp(-temp*temp/2d0)
     end function dGaussiandmiu
-    real*8 function dGaussiandsigma(x,miu,sigma)
+    real*8 function dGaussiandsigma(x, miu, sigma)
         real*8,intent(in)::x,miu,sigma
         real*8::temp
         temp=(x-miu)/sigma; temp=temp*temp
         dGaussiandsigma=2d0/(sqrt2pi*sigma*sigma)*(temp-1d0)*exp(-temp/2d0)
     end function dGaussiandsigma
 
-    real*8 function Lorentzian(x,miu,sigma)
+    real*8 function Lorentzian(x, miu, sigma)
         real*8,intent(in)::x,miu,sigma
         real*8::temp
         temp=(x-miu)/sigma; Lorentzian=1d0/(pi*sigma)/(1d0+temp*temp)
     end function Lorentzian
-    real*8 function dLorentziandmiu(x,miu,sigma)
+    real*8 function dLorentziandmiu(x, miu, sigma)
         real*8,intent(in)::x,miu,sigma
         real*8::temp,temp1
         temp=(x-miu)/sigma; temp1=1d0+temp*temp
         dLorentziandmiu=2d0/(pi*sigma*sigma)*temp/(temp1*temp1)
     end function dLorentziandmiu
-    real*8 function dLorentziandsigma(x,miu,sigma)
+    real*8 function dLorentziandsigma(x, miu, sigma)
         real*8,intent(in)::x,miu,sigma
         real*8::temp,temp1,temp2
         temp=(x-miu)/sigma; temp=temp*temp
@@ -96,7 +96,7 @@ contains
 
     !========== Gaussian integral ==========
         !Integrate[ 1 / Sqrt(2pi) / sigma * Exp(-0.5 * (x / sigma)^2) * x^i, {x, -Infinity, Infinity}]
-        real*8 function GaussianIntegral(i,sigma)
+        real*8 function GaussianIntegral(i, sigma)
             integer,intent(in)::i
             real*8,intent(in)::sigma
             GaussianIntegral=0d0
@@ -115,7 +115,7 @@ contains
         end function GaussianIntegraldsig
 
         !Extend to two variable x & p case x^i * p^j
-        real*8 function BinaryGaussianIntegral(i,j,sigmax,sigmap,rho)
+        real*8 function BinaryGaussianIntegral(i, j, sigmax, sigmap, rho)
             integer,intent(in)::i,j
             real*8,intent(in)::sigmax,sigmap,rho
             integer::k,minimum,maximum
@@ -131,7 +131,7 @@ contains
             end if
         end function BinaryGaussianIntegral
 
-        real*8 function BinaryGaussianIntegraldsig(i,j,rho)
+        real*8 function BinaryGaussianIntegraldsig(i, j, rho)
             integer,intent(in)::i,j
             real*8,intent(in)::rho
             integer::k,minimum,maximum
@@ -189,7 +189,7 @@ contains
         end function lnGamma
     
         !Regularized incomplete gamma function
-        real*8 function gamma_regularized_inc_lower(p,x)
+        real*8 function gamma_regularized_inc_lower(p, x)
             real*8,intent(in)::p,x
             integer::i
             real*8::a,an,arg,b,dif,factor,g,gin,rn,term
@@ -246,7 +246,7 @@ contains
         end function gamma_regularized_inc_lower
 
         !Incomplete gamma function
-        real*8 function gamma_inc(p,x)
+        real*8 function gamma_inc(p, x)
             real*8 ,intent(in)::p,x
             real*8::temp,temp2,temp3,temp6
             if(p<1d-15) then!10 significant figures
@@ -330,7 +330,7 @@ contains
 !------------------ Combinatorics -------------------
     !Exact factorial for 0 <= N <= 20, double precision for 21 <= N <= 40, 8 significant figures for N >= 41
     !Optional: Warning: (default = true) if true, throw a warning when using 8 significant figures approximation
-    real*8 function dFactorial(N,Warning)
+    real*8 function dFactorial(N, Warning)
         integer,intent(in)::N
         logical,intent(in),optional::Warning
         integer::i; real*8::temp
@@ -440,7 +440,7 @@ contains
     end function dFactorial2
 
     !Exact permutation for 0 <= M <= 10 or N < 10, depend on factorial otherwise
-    real*8 function dPermutation(M,N)
+    real*8 function dPermutation(M, N)
         integer,intent(in)::M,N
         integer::i
         if(M<2.or.N==0) then
@@ -511,7 +511,7 @@ contains
     end function dPermutation
 
     !Exact combination for 0 <= M <= 11 or ( N = 0 or N = 1 or N = M - 1 or N = M ), depend on permutation and factorial otherwise
-    real*8 function dCombination(M,N)
+    real*8 function dCombination(M, N)
         integer,intent(in)::M,N
         integer::ntemp
         if(M<2.or.N==0.or.N==M) then
@@ -573,7 +573,7 @@ contains
     end function dCombination
 
     !Exact factorial for N <= 23, 8 bits integer cannot represent N >= 24
-    integer*8 function iFactorial(N,Warning)
+    integer*8 function iFactorial(N, Warning)
         integer,intent(in)::N
         logical,intent(in),optional::Warning
         select case(N)
@@ -650,7 +650,7 @@ contains
     end function iFactorial2
 
     !Exact permutation for 0 <= M <= 10 or N < 10, depend on factorial otherwise
-    integer*8 function iPermutation(M,N)
+    integer*8 function iPermutation(M, N)
         integer,intent(in)::M,N
         integer::i
         if(M<2.or.N==0) then
@@ -721,7 +721,7 @@ contains
     end function iPermutation
 
     !Exact combination for 0 <= M <= 11 or ( N = 0 or N = 1 or N = M - 1 or N = M ), depend on permutation and factorial otherwise
-    integer*8 function iCombination(M,N)
+    integer*8 function iCombination(M, N)
         integer,intent(in)::M,N
         integer::ntemp
         if(M<2.or.N==0.or.N==M) then
@@ -789,7 +789,7 @@ contains
     !Here a quaternion is represented by a 4 dimensional vector
 
     !Quaternion multiplication a * b
-    function quamul(a,b)
+    function quamul(a, b)
         real*8,dimension(4),intent(in)::a,b
         real*8,dimension(4)::quamul
         quamul(1)=a(1)*b(1)-a(2)*b(2)-a(3)*b(3)-a(4)*b(4)
@@ -800,7 +800,7 @@ contains
     
     !Rotate each column of 3 x NAtoms matrix r by unit quaternion q
     !q = [ cos(alpha/2), sin(alpha/2) * axis ]
-    subroutine Rotate(q,r,NAtoms)
+    subroutine Rotate(q, r, NAtoms)
         real*8,dimension(4),intent(in)::q
         integer,intent(in)::NAtoms
         real*8,dimension(3,NAtoms),intent(inout)::r
@@ -823,7 +823,7 @@ contains
 
     !Runge Kutta 4 order
     !Double old, new
-    subroutine dRK4(old,new,f,dt,dim)
+    subroutine dRK4(old, new, f, dt, dim)
         integer,intent(in)::dim
         real*8,dimension(dim),intent(in)::old
         real*8,dimension(dim),intent(out)::new
@@ -839,7 +839,7 @@ contains
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine dRK4
     !Complex old, new
-    subroutine zRK4(old,new,f,dt,dim)
+    subroutine zRK4(old, new, f, dt, dim)
         integer,intent(in)::dim
         complex*16,dimension(dim),intent(in)::old
         complex*16,dimension(dim),intent(out)::new
@@ -856,7 +856,7 @@ contains
     end subroutine zRK4
 
     !Perdiction-correction 2 order, predictor = Euler, corrector = backward Euler
-    subroutine dPredictCorrect2(old,new,f,dt,dim,Warning,MaxIteration,Precision)
+    subroutine dPredictCorrect2(old, new, f, dt, dim, Warning, MaxIteration, Precision)
         !Required argument
             integer,intent(in)::dim
             real*8,dimension(dim),intent(in)::old
@@ -909,13 +909,13 @@ contains
 !----------------------- End ------------------------
 
 !------------------- Integration --------------------
-    !Integrate[f(x),{x,low,up}]
+    !Integrate[f(x), {x, low, up}]
     !Optional argument:
     !    MinIteration: (default = 4) numerical integration may fraudulently converge with too few grids
     !                  at least 2^MinIteration grids will be used
     !                  MinIteration >= 4, because Romberg series require at least 16 grids
     !    MaxIteration (default = 25), AbsolutePrecision (default = 1d-15), RelativePrecision (default = 1d-15)
-    real*8 function dRomberg(f,low,up,Warning,MinIteration,MaxIteration,AbsolutePrecision,RelativePrecision)
+    real*8 function dRomberg(f, low, up, Warning, MinIteration, MaxIteration, AbsolutePrecision, RelativePrecision)
         !Required argument
             real*8,external::f
             real*8,intent(in)::low,up

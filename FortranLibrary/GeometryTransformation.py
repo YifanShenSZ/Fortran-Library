@@ -17,8 +17,8 @@ class IntCoordDef:
         # We no longer provide self.NMotions as it = len(self.motion)
         self.motion = []
 
-def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray,\
-    ref=numpy.array([numpy.nan]), grad=numpy.array([numpy.nan])) -> float:
+def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray, \
+ref=numpy.array([numpy.nan]), grad=numpy.array([numpy.nan])) -> float:
     p_geom = array2p(geom); p_mass = array2p(mass)
     diff = c_double(0.0)
     NAtoms = c_int(mass.shape[0])
@@ -53,7 +53,8 @@ def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray,\
 # Fail to fetch GeometryTransformation_IntCoordDef:
 # It depends on class IntCoordDef
 # So we provide a function to load internal coordinate format in python
-def FetchInternalCoordinateDefinition(format:str, file=Path('null')) -> (int, List):
+def FetchInternalCoordinateDefinition(format:str, \
+file=Path('null')) -> (int, List):
     intdim=0; intcoorddef = []
     if format == 'Columbus7':
         # First line is always 'TEXAS'
@@ -120,7 +121,8 @@ def FetchInternalCoordinateDefinition(format:str, file=Path('null')) -> (int, Li
         for j in range(len(intcoorddef[i].motion)): intcoorddef[i].motion[j].coeff /= summation
     return intdim, intcoorddef
 
-def DefineInternalCoordinate(format:str, file=Path('null')) -> int:
+def DefineInternalCoordinate(format:str, \
+file=Path('null')) -> int:
     n1 = len(format)
     f1 = (c_char*n1)(); f1.value = format.encode('ascii')
     if file.exists():
@@ -171,7 +173,8 @@ def WilsonBMatrixAndInternalCoordinate(r:numpy.ndarray, BT:numpy.ndarray, q:nump
 
 # ========== Cartesian <- Internal ==========
 
-def CartesianCoordinate(q:numpy.ndarray, r:numpy.ndarray, r0=numpy.array([numpy.nan])) -> None:
+def CartesianCoordinate(q:numpy.ndarray, r:numpy.ndarray, \
+r0=numpy.array([numpy.nan])) -> None:
     p_q = array2p(q)
     p_r = array2p(r)
     if numpy.isnan(r0[0]): r0=numpy.random.rand(r.shape[0])
@@ -183,7 +186,8 @@ def CartesianCoordinate(q:numpy.ndarray, r:numpy.ndarray, r0=numpy.array([numpy.
 # Due to row- and column-major difference, python
 #     throws:  intgrad^T
 #     fetchs: cartgrad^T
-def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray, r0=numpy.array([numpy.nan])) -> None:
+def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray, \
+r0=numpy.array([numpy.nan])) -> None:
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
     intdim = c_int(q.shape[0]); cartdim = c_int(r.shape[0])
@@ -205,8 +209,8 @@ def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray,
 # Due to row- and column-major difference, python
 #     throws: H^T (H^T = H), B^T
 #     fetchs: intmode^T, (L^-1)^T, cartmode^T
-def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray,\
-    freq:numpy.ndarray, intmodeT:numpy.ndarray, LinvT:numpy.ndarray, cartmodeT:numpy.ndarray) -> None:
+def WilsonGFMethod(H:numpy.ndarray, BT:numpy.ndarray, mass:numpy.ndarray, \
+freq:numpy.ndarray, intmodeT:numpy.ndarray, LinvT:numpy.ndarray, cartmodeT:numpy.ndarray) -> None:
     p_H = array2p(H); p_BT = array2p(BT); p_mass = array2p(mass)
     p_freq = array2p(freq); p_intmodeT = array2p(intmodeT); p_LinvT = array2p(LinvT); p_cartmodeT = array2p(cartmodeT)
     intdim = H.shape[0]; NAtoms = mass.shape[0]

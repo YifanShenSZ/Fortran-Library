@@ -26,7 +26,7 @@ contains
 !                   else initialize centre by K-means++
 !Output: dim x K matrix centre harvests K cluster centres
 !        N order integer vector ascription telling the ascription of each data point
-subroutine Kmeans(N,dim,data,weight,K,centre,ascription,initialized)
+subroutine Kmeans(N, dim, data, weight, K, centre, ascription, initialized)
     integer,intent(in)::N,dim,K
     real*8,dimension(dim,N),intent(in)::data
     real*8,dimension(N),intent(in)::weight
@@ -116,7 +116,8 @@ end subroutine Kmeans
 !        dim x dim x K 3rd-order tensor covariance harvests K cluster covariance matrices
 !        N x K order matrix responsibility telling the responsibility of each data point
 !Fractional weight is interpreted as infinite data set. On exit, weight is normalized
-subroutine GaussianMixtureModel(N,dim,data,weight,K,population,centre,covariance,responsibility,initialized,Precision)
+subroutine GaussianMixtureModel(N, dim, data, weight, K, population, centre, covariance, responsibility, &
+initialized, Precision)
     integer,intent(in)::N,dim,K
     real*8,dimension(dim,N),intent(in)::data
     real*8,dimension(N),intent(inout)::weight
