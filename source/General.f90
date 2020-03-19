@@ -91,12 +91,10 @@ end subroutine dScientificNotation
         call random_seed(size=j)
         allocate(seed(j))
         call date_and_time(values=time)
-        seed=time(8)+37d0*(/(i-1,i=1,j)/)
+        seed=time(8)+37*(/(i-1,i=1,j)/)
         call random_seed(put=seed)
         deallocate(seed)
-        do i=1,time(6)*3600d0+time(7)*60d0+time(8)
-            call random_number(flagd)
-        end do
+        do i=1,time(6)*3600+time(7)*60+time(8); call random_number(flagd); end do
     end subroutine BetterRandomSeed
 
     !Make random_number more random

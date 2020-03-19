@@ -4,10 +4,13 @@
 #                                            #
 ##############################################
 
-prefix = . # Default to install to Fortran-Library
-f90 = ifort
-cpp = icpc
-flag = -ipo -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
+# Default to install to Fortran-Library
+prefix = .
+# Can be intel or gnu
+compiler = gnu
+intelflag = -ipo -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -mkl
+gnuflag = -ffree-line-length-0 -fno-range-check -m64 -march=core-avx2 -mtune=core-avx2 -O3 -I${MKLROOT}/include
+gnumkl = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_gf_lp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
 src = $(addprefix source/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
 Clustering.f90 Statistics.f90 Chemistry.f90 \
@@ -16,18 +19,16 @@ FortranLibrary.f90 )
 RealPrefix = $(realpath $(prefix))
 incdir = $(RealPrefix)/include
 libdir = $(RealPrefix)/lib
-statflag = -I$(incdir) $(libdir)/libFL.a $(flag)
-dynflag = -lFL -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -mkl -parallel -O3
 
 libFL.a libFL.so: $(src)
-ifeq ($(f90),ifort)
-	ifort $(flag) -c $^
-	xiar cr libFL.a *.o
-	ifort $(flag) -shared -fpic $^ -o libFL.so
+ifeq ($(compiler),intel)
+	ifort $(intelflag) -c $^
+	xiar rcs libFL.a *.o
+	ifort $(intelflag) -shared -fpic $^ -o libFL.so
 else
-	gfortran $(flag) -c $^
-	ar cr libFL.a *.o
-	gfortran $(flag) -shared -pic $^ -o libFL.so
+	gfortran $(gnuflag) -c $^
+	ar rcs libFL.a *.o
+	gfortran $(gnuflag) -shared -fpic $^ -o libFL.so
 endif
 	rm *.o
 
@@ -40,7 +41,7 @@ endif
 	mv *.a  $(libdir)
 	mv *.so $(libdir)
 ifneq ($(realpath .),$(RealPrefix))
-        cp -r FortranLibrary $(RealPrefix)
+	cp -r FortranLibrary $(RealPrefix)
 endif
 
 $(incdir):
@@ -51,26 +52,38 @@ $(libdir):
 
 .PHONY: test
 test:
-	$(f90) $(statflag) test/test.f90 -o test/test_static.exe
+ifeq ($(compiler),intel)
+	ifort $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+else
+	gfortran $(gnuflag) -I$(incdir) test/test.f90 -l:libFL.a $(gnumkl) -o test/test_static.exe
+endif
 	test/test_static.exe > test/log_static
-ifneq (,$(findstring $(libdir),$(LIBRARY_PATH)))
-ifneq (,$(findstring $(libdir),$(LD_LIBRARY_PATH)))
-	$(f90) $(dynflag) test/test.f90 -o test/test_dynamic.exe
+
+ifeq (,$(findstring $(libdir),$(LIBRARY_PATH)))
+$(error Please add prefix/lib to LIBRARY_PATH)
+endif
+ifeq (,$(findstring $(libdir),$(LD_LIBRARY_PATH)))
+$(error Please add prefix/lib to LD_LIBRARY_PATH)
+endif
+
+ifeq ($(compiler),intel)
+	ifort $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
+else
+	gfortran $(gnuflag) -I$(incdir) test/test.f90 -lFL $(gnumkl) -o test/test_dynamic.exe
+endif
 	test/test_dynamic.exe > test/log_dynamic
-ifneq (,$(findstring $(incdir),$(CPATH)))
-	$(cpp) $(dynflag) test/test.cpp -o test/test_cpp.exe
+
+ifeq (,$(findstring $(incdir),$(CPATH)))
+$(error Please add prefix/include to CPATH)
+endif
+ifeq ($(compiler),intel)
+	icpc $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
+else
+	g++ $(gnuflag) test/test.cpp -lFL -o test/test_cpp.exe
+endif
 	test/test_cpp.exe > test/log_cpp
-else
-	# Please set CPATH properly before running test
+
+ifeq (,$(findstring $(RealPrefix),$(PYTHONPATH)))
+$(error Please add prefix to PYTHONPATH)
 endif
-ifneq (,$(findstring $(RealPrefix),$(PYTHONPATH)))
 	python test/test.py > test/log_py
-else
-	# Please set PYTHONPATH properly before running test
-endif
-else
-	# Please set LD_LIBRARY_PATH properly before running test
-endif
-else
-	# Please set LIBRARY_PATH properly before running test
-endif

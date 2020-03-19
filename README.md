@@ -46,7 +46,7 @@ Linear algebra:
 * LAPACK wrapper for linear solver, eigensystem, matrix norm
 
 ## Installation
-1. Copy mkl_rci.f90 & mkl_dfti.f90 from MKL installation path to source
+1. Copy mkl_rci.f90 & mkl_dfti.f90 from MKL installation path to source (for gnu compiler, additionally modify `DJACOBI` in mkl_rci.f90 to specify the dimension of `x`, `fjac`, `f` explicitly: `x(n)`, `fjac(m,n)`, `f(m)`)
 2. `make`, `make install`
 3. `export LIBRARY_PATH=Fortran-Library/lib:$LIBRARY_PATH`
 4. `export LD_LIBRARY_PATH=Fortran-Library/lib:$LD_LIBRARY_PATH`

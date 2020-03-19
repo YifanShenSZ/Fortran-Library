@@ -100,7 +100,7 @@ contains
             integer,intent(in)::i
             real*8,intent(in)::sigma
             GaussianIntegral=0d0
-            if(.not.mod(i,2)) then
+            if(mod(i,2)==0) then
                 GaussianIntegral=dFactorial2(i-1)*sigma**i
             end if
         end function GaussianIntegral
@@ -109,7 +109,7 @@ contains
         real*8 function GaussianIntegraldsig(i)
             integer,intent(in)::i
             GaussianIntegraldsig=0d0
-            if(.not.mod(i,2)) then
+            if(mod(i,2)==0) then
                 GaussianIntegraldsig=dFactorial2(i-1)
             end if
         end function GaussianIntegraldsig
@@ -431,7 +431,7 @@ contains
             case(39); dFactorial2=319830986772877770815625d0
             case(40); dFactorial2=2551082656125828464640000d0
             case default
-                if(mod(n,2)) then
+                if(mod(n,2)==1) then
                     dFactorial2=dFactorial(N+1)/(2**((N+1)/2)*dFactorial((N+1)/2))
                 else
                     dFactorial2=2**(N/2)*dFactorial(N/2)

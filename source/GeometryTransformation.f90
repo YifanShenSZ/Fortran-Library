@@ -12,11 +12,11 @@ module GeometryTransformation
 !Derived type
     !Example: type(IntCoordDef),allocatable,dimension(:)::IntCoordDef
     !         IntCoordDef(iIntCoord) stands for the iIntCoord-th internal coordinate
-    !         IntCoordDef(iIntCoord).NMotions is the number of motions involved in this internal coordinate
-    !         IntCoordDef(iIntCoord).motion(iMotion) stands for its iMotion-th motion
-    !         IntCoordDef(iIntCoord).motion(iMotion).type is its type
-    !         IntCoordDef(iIntCoord).motion(iMotion).coeff is its normalized linear combination coefficient
-    !         IntCoordDef(iIntCoord).motion(iMotion).atom(i) is its i-th involved atom
+    !         IntCoordDef(iIntCoord)%NMotions is the number of motions involved in this internal coordinate
+    !         IntCoordDef(iIntCoord)%motion(iMotion) stands for its iMotion-th motion
+    !         IntCoordDef(iIntCoord)%motion(iMotion)%type is its type
+    !         IntCoordDef(iIntCoord)%motion(iMotion)%coeff is its normalized linear combination coefficient
+    !         IntCoordDef(iIntCoord)%motion(iMotion)%atom(i) is its i-th involved atom
     type InvolvedMotion
         !Currently only support stretching, bending, torsion, OutOfPlane
         !stretching: the motion coordinate is bond length atom1_atom2
@@ -322,75 +322,75 @@ contains
                     allocate(GeometryTransformation_IntCoordDef(intdim))
                     k=1; read(99,*)
                     do i=1,intdim
-                        GeometryTransformation_IntCoordDef(i).NMotions=NewLine(i+1)-NewLine(i)
-                        allocate(GeometryTransformation_IntCoordDef(i).motion(GeometryTransformation_IntCoordDef(i).NMotions))
-                        if(GeometryTransformation_IntCoordDef(i).NMotions==1) then
-                            GeometryTransformation_IntCoordDef(i).motion(1).type=MotionType(k)
-                            GeometryTransformation_IntCoordDef(i).motion(1).coeff=1d0
+                        GeometryTransformation_IntCoordDef(i)%NMotions=NewLine(i+1)-NewLine(i)
+                        allocate(GeometryTransformation_IntCoordDef(i)%motion(GeometryTransformation_IntCoordDef(i)%NMotions))
+                        if(GeometryTransformation_IntCoordDef(i)%NMotions==1) then
+                            GeometryTransformation_IntCoordDef(i)%motion(1)%type=MotionType(k)
+                            GeometryTransformation_IntCoordDef(i)%motion(1)%coeff=1d0
                             select case(MotionType(k))
                             case('stretching')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(1).atom(2))
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(1)%atom(2))
                                 read(99,'(A28,I5,1x,I9)')chartemp,&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom
                             case('bending')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(1).atom(3))
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(1)%atom(3))
                                 read(99,'(A28,I6,1x,I9,1x,I9)')chartemp,&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(1),&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(3),&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(2)
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(1),&
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(3),&
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(2)
                             case('torsion')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(1).atom(4))
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(1)%atom(4))
                                 read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom
                             case('OutOfPlane')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(1).atom(4))
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(1)%atom(4))
                                 read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(1),&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(4),&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(2),&
-                                GeometryTransformation_IntCoordDef(i).motion(1).atom(3)
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(1),&
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(4),&
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(2),&
+                                GeometryTransformation_IntCoordDef(i)%motion(1)%atom(3)
                             case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                             end select
                             k=k+1
                         else
                             dbletemp=0d0
-                            do j=1,GeometryTransformation_IntCoordDef(i).NMotions
-                                GeometryTransformation_IntCoordDef(i).motion(j).type=MotionType(k)
+                            do j=1,GeometryTransformation_IntCoordDef(i)%NMotions
+                                GeometryTransformation_IntCoordDef(i)%motion(j)%type=MotionType(k)
                                 select case(MotionType(k))
                                 case('stretching')
-                                    allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(2))
+                                    allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(2))
                                     read(99,'(A10,F10.7,8x,I5,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).coeff,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom
                                 case('bending')
-                                    allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(3))
+                                    allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(3))
                                     read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).coeff,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(1),&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(3),&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(2)
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(1),&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(3),&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(2)
                                 case('torsion')
-                                    allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(4))
+                                    allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(4))
                                     read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).coeff,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom
                                 case('OutOfPlane')
-                                    allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(4))
+                                    allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(4))
                                     read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).coeff,&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(1),&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(4),&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(2),&
-                                    GeometryTransformation_IntCoordDef(i).motion(j).atom(3)
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(1),&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(4),&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(2),&
+                                    GeometryTransformation_IntCoordDef(i)%motion(j)%atom(3)
                                 case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                                 end select
                                 k=k+1
-                                dbletemp=dbletemp+GeometryTransformation_IntCoordDef(i).motion(j).coeff*GeometryTransformation_IntCoordDef(i).motion(j).coeff
+                                dbletemp=dbletemp+GeometryTransformation_IntCoordDef(i)%motion(j)%coeff*GeometryTransformation_IntCoordDef(i)%motion(j)%coeff
                             end do
                             dbletemp=Sqrt(dbletemp)
-                            forall(j=1:GeometryTransformation_IntCoordDef(i).NMotions)
-                                GeometryTransformation_IntCoordDef(i).motion(j).coeff=&
-                                GeometryTransformation_IntCoordDef(i).motion(j).coeff/dbletemp
+                            forall(j=1:GeometryTransformation_IntCoordDef(i)%NMotions)
+                                GeometryTransformation_IntCoordDef(i)%motion(j)%coeff=&
+                                GeometryTransformation_IntCoordDef(i)%motion(j)%coeff/dbletemp
                             end forall
                         end if
                     end do
@@ -434,38 +434,38 @@ contains
                     allocate(GeometryTransformation_IntCoordDef(intdim))
                     k=1
                     do i=1,intdim
-                        GeometryTransformation_IntCoordDef(i).NMotions=NewLine(i+1)-NewLine(i)
-                        allocate(GeometryTransformation_IntCoordDef(i).motion(GeometryTransformation_IntCoordDef(i).NMotions))
+                        GeometryTransformation_IntCoordDef(i)%NMotions=NewLine(i+1)-NewLine(i)
+                        allocate(GeometryTransformation_IntCoordDef(i)%motion(GeometryTransformation_IntCoordDef(i)%NMotions))
                         dbletemp=0d0
-                        do j=1,GeometryTransformation_IntCoordDef(i).NMotions
+                        do j=1,GeometryTransformation_IntCoordDef(i)%NMotions
                             read(99,'(I6)',advance='no')l
-                            GeometryTransformation_IntCoordDef(i).motion(j).type=MotionType(k)
+                            GeometryTransformation_IntCoordDef(i)%motion(j)%type=MotionType(k)
                             select case(MotionType(k))
                             case('stretching')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(2))
-                                read(99,*)GeometryTransformation_IntCoordDef(i).motion(j).coeff,chartemp,&
-                                          GeometryTransformation_IntCoordDef(i).motion(j).atom
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(2))
+                                read(99,*)GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,chartemp,&
+                                          GeometryTransformation_IntCoordDef(i)%motion(j)%atom
                             case('bending')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(3))
-                                read(99,*)GeometryTransformation_IntCoordDef(i).motion(j).coeff,chartemp,&
-                                          GeometryTransformation_IntCoordDef(i).motion(j).atom
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(3))
+                                read(99,*)GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,chartemp,&
+                                          GeometryTransformation_IntCoordDef(i)%motion(j)%atom
                             case('torsion')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(4))
-                                read(99,*)GeometryTransformation_IntCoordDef(i).motion(j).coeff,chartemp,&
-                                          GeometryTransformation_IntCoordDef(i).motion(j).atom
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(4))
+                                read(99,*)GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,chartemp,&
+                                          GeometryTransformation_IntCoordDef(i)%motion(j)%atom
                             case('OutOfPlane')
-                                allocate(GeometryTransformation_IntCoordDef(i).motion(j).atom(4))
-                                read(99,*)GeometryTransformation_IntCoordDef(i).motion(j).coeff,chartemp,&
-                                          GeometryTransformation_IntCoordDef(i).motion(j).atom
+                                allocate(GeometryTransformation_IntCoordDef(i)%motion(j)%atom(4))
+                                read(99,*)GeometryTransformation_IntCoordDef(i)%motion(j)%coeff,chartemp,&
+                                          GeometryTransformation_IntCoordDef(i)%motion(j)%atom
                             case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                             end select
                             k=k+1
-                            dbletemp=dbletemp+GeometryTransformation_IntCoordDef(i).motion(j).coeff*GeometryTransformation_IntCoordDef(i).motion(j).coeff
+                            dbletemp=dbletemp+GeometryTransformation_IntCoordDef(i)%motion(j)%coeff*GeometryTransformation_IntCoordDef(i)%motion(j)%coeff
                         end do
                         dbletemp=Sqrt(dbletemp)
-                        forall(j=1:GeometryTransformation_IntCoordDef(i).NMotions)
-                            GeometryTransformation_IntCoordDef(i).motion(j).coeff=&
-                            GeometryTransformation_IntCoordDef(i).motion(j).coeff/dbletemp
+                        forall(j=1:GeometryTransformation_IntCoordDef(i)%NMotions)
+                            GeometryTransformation_IntCoordDef(i)%motion(j)%coeff=&
+                            GeometryTransformation_IntCoordDef(i)%motion(j)%coeff/dbletemp
                         end forall
                     end do
             close(99)
@@ -482,24 +482,24 @@ contains
             integer::iIntC,iMotion
             q=0d0
             do iIntC=1,intdim
-                do iMotion=1,GeometryTransformation_IntCoordDef(iIntC).NMotions
-                    select case(GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).type)
+                do iMotion=1,GeometryTransformation_IntCoordDef(iIntC)%NMotions
+                    select case(GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%type)
                     case('stretching')
                         q(iIntC)=q(iIntC)&
-                            +GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).coeff&
-                            *stretching(r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *stretching(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
                     case('bending')
                         q(iIntC)=q(iIntC)&
-                            +GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).coeff&
-                            *bending(r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *bending(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
                     case('torsion')
                         q(iIntC)=q(iIntC)&
-                            +GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).coeff&
-                            *torsion(r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *torsion(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
                     case('OutOfPlane')
                         q(iIntC)=q(iIntC)&
-                            +GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).coeff&
-                            *OutOfPlane(r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *OutOfPlane(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
                     end select
                 end do
             end do
@@ -576,15 +576,15 @@ contains
             integer::iIntC,iMotion; real*8::qMotion; real*8,dimension(cartdim)::BRowVector
             B=0d0; q=0d0
             do iIntC=1,intdim
-                do iMotion=1,GeometryTransformation_IntCoordDef(iIntC).NMotions
-                    select case(GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).type)
-                    case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
-                    case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
-                    case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
-                    case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).atom,cartdim)
+                do iMotion=1,GeometryTransformation_IntCoordDef(iIntC)%NMotions
+                    select case(GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%type)
+                    case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
                     end select
-                    B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).coeff*BRowVector
-                    q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCoordDef(iIntC).motion(iMotion).coeff*qMotion
+                    B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff*BRowVector
+                    q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff*qMotion
                 end do
             end do
             contains
