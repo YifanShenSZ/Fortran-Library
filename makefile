@@ -7,7 +7,7 @@
 # Default to install to Fortran-Library
 prefix = .
 # Can be intel or gnu
-compiler = gnu
+compiler = intel
 intelflag = -ipo -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -mkl
 gnuflag = -ffree-line-length-0 -fno-range-check -m64 -march=core-avx2 -mtune=core-avx2 -O3 -I${MKLROOT}/include
 gnumkl = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_gf_lp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
@@ -79,7 +79,7 @@ endif
 ifeq ($(compiler),intel)
 	icpc $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
 else
-	g++ $(gnuflag) test/test.cpp -lFL -o test/test_cpp.exe
+	g++ $(gnuflag) test/test.cpp -lFL $(gnumkl) -o test/test_cpp.exe
 endif
 	test/test_cpp.exe > test/log_cpp
 
