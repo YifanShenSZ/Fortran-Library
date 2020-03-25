@@ -1,7 +1,7 @@
 // c++ interface to Fortran-Library
 // Include this header so that C++ can link to libFL.so
-#ifndef FortranLibrary_HPP__
-#define FortranLibrary_HPP__
+#ifndef FortranLibrary_hpp
+#define FortranLibrary_hpp
 
 // No need to fetch constant, directly provide them in c++
 const double AMUInAU  = 1822.888486192;
