@@ -158,7 +158,7 @@ def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray
     else:
         NStates = c_int(1)
     FL.geometrytransformation_mp_cartesian2internal_\
-        (p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(c_int(NStates)))
+        (p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(NStates))
     p2array(p_q, q); p2array(p_intgradT, intgradT)
 
 # Due to row- and column-major difference, python fetchs B^T
