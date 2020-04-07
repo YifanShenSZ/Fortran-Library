@@ -4,12 +4,15 @@
 #                                            #
 ##############################################
 
+# Flags for user to tune
 # Default to install to Fortran-Library
 prefix = .
-# Can be intel or gnu
+# intel and gnu compilers are supported
 compiler = intel
-intelflag = -ipo -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -mkl
-gnuflag = -ffree-line-length-0 -fno-range-check -m64 -march=core-avx2 -mtune=core-avx2 -O3 -I${MKLROOT}/include
+intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -O3 -no-prec-div -fp-model fast=2 -parallel -ipo
+gnuflag   = -m64 -march=core-avx2 -mtune=core-avx2 -O3
+
+# User does not have to take care of following variables
 gnumkl = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_gf_lp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
 src = $(addprefix source/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
@@ -22,13 +25,15 @@ libdir = $(RealPrefix)/lib
 
 libFL.a libFL.so: $(src)
 ifeq ($(compiler),intel)
-	ifort $(intelflag) -c $^
+	ifort -mkl $(intelflag) -c $^
 	xiar rcs libFL.a *.o
-	ifort $(intelflag) -shared -fpic $^ -o libFL.so
+	ifort -mkl $(intelflag) -shared -fpic $^ -o libFL.so
 else
-	gfortran $(gnuflag) -c $^
+	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
+	$(gnuflag) -c $^
 	ar rcs libFL.a *.o
-	gfortran $(gnuflag) -shared -fpic $^ -o libFL.so
+	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
+	$(gnuflag) -shared -fpic $^ -o libFL.so
 endif
 	rm *.o
 
@@ -36,7 +41,7 @@ endif
 install: | $(incdir) $(libdir)
 	mv *.mod $(incdir)
 ifneq ($(realpath include),$(incdir))
-	cp include/*.h $(incdir)
+	cp include/*.hpp $(incdir)
 endif
 	mv *.a  $(libdir)
 	mv *.so $(libdir)
@@ -53,9 +58,10 @@ $(libdir):
 .PHONY: test
 test:
 ifeq ($(compiler),intel)
-	ifort $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	ifort -mkl $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
 else
-	gfortran $(gnuflag) -I$(incdir) test/test.f90 -l:libFL.a $(gnumkl) -o test/test_static.exe
+	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
+	$(gnuflag) -I$(incdir) test/test.f90 -l:libFL.a $(gnumkl) -o test/test_static.exe
 endif
 	test/test_static.exe > test/log_static
 
@@ -67,9 +73,10 @@ $(error Please add prefix/lib to LD_LIBRARY_PATH)
 endif
 
 ifeq ($(compiler),intel)
-	ifort $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
+	ifort -mkl $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
 else
-	gfortran $(gnuflag) -I$(incdir) test/test.f90 -lFL $(gnumkl) -o test/test_dynamic.exe
+	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
+	$(gnuflag) -I$(incdir) test/test.f90 -lFL $(gnumkl) -o test/test_dynamic.exe
 endif
 	test/test_dynamic.exe > test/log_dynamic
 
@@ -77,9 +84,9 @@ ifeq (,$(findstring $(incdir),$(CPATH)))
 $(error Please add prefix/include to CPATH)
 endif
 ifeq ($(compiler),intel)
-	icpc $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
+	icpc -mkl $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
 else
-	g++ $(gnuflag) test/test.cpp -lFL $(gnumkl) -o test/test_cpp.exe
+	g++ -I${MKLROOT}/include $(gnuflag) test/test.cpp -lFL $(gnumkl) -o test/test_cpp.exe
 endif
 	test/test_cpp.exe > test/log_cpp
 

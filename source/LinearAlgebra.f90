@@ -1,7 +1,8 @@
 !Vector & matrix & high order tensor operation, BLAS & LAPACK routine wrapper
 !
 !Instruction:
-!Naming convention (following LAPACK): s = real*4, d = real*8, c = complex*8, z = complex*16
+!Naming convention (following LAPACK):
+!    (overloaded) s = real*4, d = real*8, c = complex*8, z = complex*16
 !    ge = general matrix, sy = real symmetric matrix, asy = anti symmetric matrix
 !    he = Hermitian matrix, ahe = anti Hermitian matrix
 !    po = real symmetric or Hermitian positive definite matrix
@@ -10,50 +11,95 @@ module LinearAlgebra
     implicit none
 
 !Overload
-    interface My_gesv
-        module procedure My_dgesv, My_dgesvM
-    end interface My_gesv
+    !--------------- Vector ----------------
+        interface cross_product
+            module procedure scross_product, dcross_product
+        end interface cross_product
 
-    interface My_sysv
-        module procedure My_dsysv, My_dsysvM
-    end interface My_sysv
+        interface triple_product
+            module procedure striple_product, dtriple_product
+        end interface triple_product
+    !----------------- End -----------------
 
-    interface My_posv
-        module procedure My_dposv, My_dposvM
-    end interface My_posv
+    !--------------- Matrix ----------------
+        interface syL2U
+            module procedure ssyL2U, dsyL2U
+        end interface syL2U
+    !----------------- End -----------------
+    
+    !------------ Linear solver ------------
+        interface My_gesv
+            module procedure My_dgesv, My_dgesvM
+        end interface My_gesv
 
-    interface My_getri
-        module procedure My_dgetri, My_zgetri
-    end interface My_getri
+        interface My_sysv
+            module procedure My_dsysv, My_dsysvM
+        end interface My_sysv
 
-    interface My_geev
-        module procedure My_dgeev, My_zgeev
-    end interface My_geev
+        interface My_posv
+            module procedure My_dposv, My_dposvM
+        end interface My_posv
 
-    interface norm2ge
-        module procedure dnorm2ge, znorm2ge
-    end interface norm2ge
+        interface My_getri
+            module procedure My_dgetri, My_zgetri
+        end interface My_getri
 
-    interface My_lange
-        module procedure My_dlange, My_zlange
-    end interface My_lange
+        interface My_potri
+            module procedure My_spotri, My_dpotri
+        end interface My_potri
+
+        interface GeneralizedInverseTranspose
+            module procedure sGeneralizedInverseTranspose, dGeneralizedInverseTranspose
+        end interface GeneralizedInverseTranspose
+    !----------------- End -----------------
+
+    !------------- Eigensystem -------------
+        interface My_geev
+            module procedure My_dgeev, My_zgeev
+        end interface My_geev
+    !----------------- End -----------------
+
+    !------------- Matrix norm -------------
+        interface norm2ge
+            module procedure dnorm2ge, znorm2ge
+        end interface norm2ge
+
+        interface My_lange
+            module procedure My_dlange, My_zlange
+        end interface My_lange
+    !----------------- End -----------------
 
 contains
 !--------------- Vector ----------------
     !cross_product(a,b) = a x b
-    function cross_product(a, b)
+    !float a, b
+    function scross_product(a, b)
+        real*4,dimension(3),intent(in)::a,b
+        real*4,dimension(3)::scross_product
+        scross_product(1)=a(2)*b(3)-a(3)*b(2)
+        scross_product(2)=a(3)*b(1)-a(1)*b(3)
+        scross_product(3)=a(1)*b(2)-a(2)*b(1)
+    end function scross_product
+    !double a, b
+    function dcross_product(a, b)
         real*8,dimension(3),intent(in)::a,b
-        real*8,dimension(3)::cross_product
-        cross_product(1)=a(2)*b(3)-a(3)*b(2)
-        cross_product(2)=a(3)*b(1)-a(1)*b(3)
-        cross_product(3)=a(1)*b(2)-a(2)*b(1)
-    end function cross_product
+        real*8,dimension(3)::dcross_product
+        dcross_product(1)=a(2)*b(3)-a(3)*b(2)
+        dcross_product(2)=a(3)*b(1)-a(1)*b(3)
+        dcross_product(3)=a(1)*b(2)-a(2)*b(1)
+    end function dcross_product
     
     !triple_product(a,b,c) = ( a x b ) . c
-    real*8 function triple_product(a, b, c)
+    !float a, b, c
+    real*4 function striple_product(a, b, c)
+        real*4,dimension(3),intent(in)::a,b,c
+        striple_product=c(1)*(a(2)*b(3)-a(3)*b(2))+c(2)*(a(3)*b(1)-a(1)*b(3))+c(3)*(a(1)*b(2)-a(2)*b(1))
+    end function striple_product
+    !double a, b, c
+    real*8 function dtriple_product(a, b, c)
         real*8,dimension(3),intent(in)::a,b,c
-        triple_product=c(1)*(a(2)*b(3)-a(3)*b(2))+c(2)*(a(3)*b(1)-a(1)*b(3))+c(3)*(a(1)*b(2)-a(2)*b(1))
-    end function triple_product
+        dtriple_product=c(1)*(a(2)*b(3)-a(3)*b(2))+c(2)*(a(3)*b(1)-a(1)*b(3))+c(3)*(a(1)*b(2)-a(2)*b(1))
+    end function dtriple_product
     
     !M dimensional vector a, N dimensional vector b, vector_direct_product(a,b) = a b
     function vector_direct_product(a, b, M, N)
@@ -187,14 +233,20 @@ contains
     end subroutine sycp
 
     !N order matrix A, strictly upper triangle is blank, copy strictly lower triangle elements to strictly upper triangle
-    subroutine syL2U(A, N)
+    !float A
+    subroutine ssyL2U(A, N)
+        integer,intent(in)::N
+        real*4,dimension(N,N),intent(inout)::A
+        integer::i,j
+        forall(i=1:N-1,j=2:N,i<j); A(i,j)=A(j,i); end forall
+    end subroutine ssyL2U
+    !double A
+    subroutine dsyL2U(A, N)
         integer,intent(in)::N
         real*8,dimension(N,N),intent(inout)::A
         integer::i,j
-        forall(i=1:N-1,j=2:N,i<j)
-            A(i,j)=A(j,i)
-        end forall
-    end subroutine syL2U
+        forall(i=1:N-1,j=2:N,i<j); A(i,j)=A(j,i); end forall
+    end subroutine dsyL2U
 
     !N order real symmetric matrix A, N order anti symmetric matrix B, return A . B
     function symatmulasy(A, B, N)
@@ -684,6 +736,23 @@ contains
 
         !Optional: info: if A is po, info returns 0; else, the info-th leading minor of A <= 0 and inversing failed
         !A will be overwritten even fail
+        !float A
+        subroutine My_spotri(A, N, info)
+            integer,intent(in)::N
+            real*4,dimension(N,N),intent(inout)::A
+            integer,intent(out),optional::info
+            integer::temp
+            if(present(info)) then
+                call fpotrf('L',N,A,N,info)
+                if(info/=0) return
+                call fpotri('L',N,A,N,info)
+            else
+                call fpotrf('L',N,A,N,temp)
+                if(temp/=0) return
+                call fpotri('L',N,A,N,temp)
+            end if
+        end subroutine My_spotri
+        !double A
         subroutine My_dpotri(A, N, info)
             integer,intent(in)::N
             real*8,dimension(N,N),intent(inout)::A
@@ -701,12 +770,23 @@ contains
         end subroutine My_dpotri
 
         !M x N real matrix A. A harvests the transpose of its generalized inverse
+        !float A
+        subroutine sGeneralizedInverseTranspose(A, M, N)
+            integer,intent(in)::M,N
+            real*4,dimension(M,N),intent(inout)::A
+            real*4,dimension(M,M)::AAT
+            AAT=matmul(A,transpose(A))
+            call My_potri(AAT,M)
+            call syL2U(AAT,M)
+            A=matmul(AAT,A)
+        end subroutine sGeneralizedInverseTranspose
+        !double A
         subroutine dGeneralizedInverseTranspose(A, M, N)
             integer,intent(in)::M,N
             real*8,dimension(M,N),intent(inout)::A
             real*8,dimension(M,M)::AAT
             AAT=matmul(A,transpose(A))
-            call My_dpotri(AAT,M)
+            call My_potri(AAT,M)
             call syL2U(AAT,M)
             A=matmul(AAT,A)
         end subroutine dGeneralizedInverseTranspose

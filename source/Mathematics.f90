@@ -822,7 +822,7 @@ contains
     !Output: new harvests u(dt)
 
     !Runge Kutta 4 order
-    !Double old, new
+    !double old, new
     subroutine dRK4(old, new, f, dt, dim)
         integer,intent(in)::dim
         real*8,dimension(dim),intent(in)::old
@@ -838,7 +838,7 @@ contains
         call f(k4,old+k3*dt,dim)
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine dRK4
-    !Complex old, new
+    !complex old, new
     subroutine zRK4(old, new, f, dt, dim)
         integer,intent(in)::dim
         complex*16,dimension(dim),intent(in)::old
@@ -895,8 +895,8 @@ contains
         do i=1,maxit
             call f(kiter,olditer,dim)
             new=old+dtd2*(k+kiter)
-            absdev=maxval(dAbs(new-olditer))
-            reldev=maxval(dAbs((new-olditer)/new))
+            absdev=maxval(Abs(new-olditer))
+            reldev=maxval(Abs((new-olditer)/new))
             if(absdev<tol.or.reldev<tol) exit
             olditer=new
         end do
@@ -930,9 +930,9 @@ contains
                 else; minit=4; end if
             if(present(MaxIteration)) then; maxit=MaxIteration
                 else; maxit=25; end if
-            if(present(AbsolutePrecision)) then; abstol=dAbs(AbsolutePrecision)
+            if(present(AbsolutePrecision)) then; abstol=Abs(AbsolutePrecision)
                 else; abstol=1d-15; end if
-            if(present(RelativePrecision)) then; reltol=dAbs(RelativePrecision)
+            if(present(RelativePrecision)) then; reltol=Abs(RelativePrecision)
                 else; reltol=1d-15; end if
         dx=(up-low)/2d0!t_0
         t=(f(low)+f(up))*dx

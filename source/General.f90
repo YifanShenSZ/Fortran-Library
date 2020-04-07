@@ -185,7 +185,7 @@ end subroutine dScientificNotation
     !        sort from item(first) to item(last), inclusive
     !Returns: item (modified) contains elements in ascending order
     !         indices(i) is the original index of sorted item(i)
-    !Double item
+    !double item
     recursive subroutine dQuickSort(item, first, last, indices, N)
         integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
@@ -220,7 +220,7 @@ end subroutine dScientificNotation
             indices(low)=indices(right); indices(right)=iPivot
         end subroutine split
     end subroutine dQuickSort
-    !Integer item
+    !integer item
     recursive subroutine iQuickSort(item, first, last, indices, N)
         integer,intent(in)::N,first,last
         integer,dimension(N),intent(inout)::item,indices
@@ -257,7 +257,7 @@ end subroutine dScientificNotation
     !        sort from item(first) to item(last), inclusive
     !Returns: item (modified) contains elements in ascending order
     !         NRP harvests the number of reverse pairs
-    !Double item
+    !double item
     subroutine dMergeSort(item, first, last, NRP, N)
         integer,intent(in)::N,first,last
         real*8,dimension(N),intent(inout)::item
@@ -306,7 +306,7 @@ end subroutine dScientificNotation
             end do
         end subroutine merge
     end subroutine dMergeSort
-    !Integer item
+    !integer item
     subroutine iMergeSort(item, first, last, NRP, N)
         integer,intent(in)::N,first,last
         integer,dimension(N),intent(inout)::item

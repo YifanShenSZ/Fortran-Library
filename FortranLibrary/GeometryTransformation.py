@@ -143,7 +143,7 @@ def InternalCoordinate(r:numpy.ndarray, q:numpy.ndarray) -> None:
     p_r = array2p(r)
     p_q = array2p(q)
     cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
-    FL.geometrytransformation_mp_internalcoordinate_(p_r, p_q, byref(cartdim), byref(intdim))
+    FL.geometrytransformation_mp_dinternalcoordinate_(p_r, p_q, byref(cartdim), byref(intdim))
     p2array(p_q, q)
 
 # Due to row- and column-major difference, python
@@ -157,7 +157,7 @@ def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray
         NStates = c_int(intgradT.shape[0])
     else:
         NStates = c_int(1)
-    FL.geometrytransformation_mp_cartesian2internal_\
+    FL.geometrytransformation_mp_dcartesian2internal_\
         (p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(NStates))
     p2array(p_q, q); p2array(p_intgradT, intgradT)
 
@@ -166,7 +166,7 @@ def WilsonBMatrixAndInternalCoordinate(r:numpy.ndarray, BT:numpy.ndarray, q:nump
     p_r = array2p(r)
     p_BT = array2p(BT); p_q = array2p(q)
     cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
-    FL.geometrytransformation_mp_wilsonbmatrixandinternalcoordinate_(p_r, p_BT, p_q, byref(cartdim), byref(intdim))
+    FL.geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(p_r, p_BT, p_q, byref(cartdim), byref(intdim))
     p2array(p_BT, BT); p2array(p_q, q)
 
 # =================== End ===================

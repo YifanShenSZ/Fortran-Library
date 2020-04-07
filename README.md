@@ -10,7 +10,7 @@ Geometry transformation:
 
 Nonlinear optimization: (all parameters conveniently tunable)
 * Unconstrained optimizer:
-Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yun and Polak-Ribiere+), trust region
+Newton-Raphson, BFGS, limited memory BFGS, conjugate gradient (Dai-Yuan and Polak-Ribiere+), trust region
 * Constrained optimizer: augmented Lagrangian
 
 Integral transform:
@@ -46,26 +46,34 @@ Linear algebra:
 * LAPACK wrapper for linear solver, eigensystem, matrix norm
 
 ## Installation
-1. Copy mkl_rci.f90 & mkl_dfti.f90 from MKL installation path to source (for gnu compiler, additionally modify `DJACOBI` in mkl_rci.f90 to specify the dimension of `x`, `fjac`, `f` explicitly: `x(n)`, `fjac(m,n)`, `f(m)`)
-2. `make`, `make install`
-3. `export LIBRARY_PATH=Fortran-Library/lib:$LIBRARY_PATH`
-4. `export LD_LIBRARY_PATH=Fortran-Library/lib:$LD_LIBRARY_PATH`
-5. `export CPATH=Fortran-Library/include:$CPATH`
-6. `export PYTHONPATH=Fortran-Library:$PYTHONPATH`
+libFL.a, libFL.so, *.mod, FortranLibrary.hpp, FortranLibrary (python package directory) will be installed to your prefix (default = Fortran-Library)
+1. `export LIBRARY_PATH=prefix/lib:$LIBRARY_PATH`
+2. `export LD_LIBRARY_PATH=prefix/lib:$LD_LIBRARY_PATH`
+3. `export CPATH=prefix/include:$CPATH`
+4. `export PYTHONPATH=prefix:$PYTHONPATH`
+5. Copy mkl_rci.f90 & mkl_dfti.f90 from MKL installation path to source (for gnu compiler, additionally modify `DJACOBI` in mkl_rci.f90 to specify the dimension of `x`, `fjac`, `f` explicitly: `x(n)`, `fjac(m,n)`, `f(m)`)
+6. `make`, `make install`
 7. (optional) `make test`, then check the logs
+
+Optional flags to tune make:
+* prefix=
+* compiler= (can be intel or gnu)
+* intelflag=
+* gnuflag=
 
 ## Usage
 * fortran `use FortranLibrary`
-* c++ `#include "FortranLibrary.h"`
-* python `import FortranLibrary`
+* c++ `#include <FortranLibrary.hpp>`
+* python `import FortranLibrary as FL`
 
 ## Source
 To see what this library is capable of in detail, you may open certain source file then fold all: routines are categorized and folded into different sections (VS code is recommended: press ctrl+k+0)
 
 Source code level from bottom to top:
-1. General, Mathematics, LinearAlgebra
-2. (mkl_rci, NonlinearOptimization), (mkl_dfti, IntegralTransform), Clustering, Statistics, Chemistry
-3. GeometryTransformation
+1. General.f90, Mathematics.f90, LinearAlgebra.f90
+2. (mkl_rci.f90, NonlinearOptimization.f90), (mkl_dfti.f90, IntegralTransform.f90), Clustering.f90, Statistics.f90, Chemistry.f90
+3. GeometryTransformation.f90
+4. FortranLibrary.f90
 
 ## Dependency
 * MKL

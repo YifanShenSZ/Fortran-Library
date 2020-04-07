@@ -41,6 +41,19 @@ module GeometryTransformation
 !GeometryTransformation module only variable
     type(IntCoordDef),allocatable,dimension(:)::GeometryTransformation_IntCoordDef!short for INTernal COORDinate DEFinition
 
+!Overload
+    interface InternalCoordinate
+        module procedure sInternalCoordinate, dInternalCoordinate
+    end interface InternalCoordinate
+
+    interface Cartesian2Internal
+        module procedure sCartesian2Internal, dCartesian2Internal
+    end interface Cartesian2Internal
+
+    interface WilsonBMatrixAndInternalCoordinate
+        module procedure sWilsonBMatrixAndInternalCoordinate, dWilsonBMatrixAndInternalCoordinate
+    end interface WilsonBMatrixAndInternalCoordinate
+    
 contains
 !------------ Uniquify geometry -------------
     !Standardize a geometry (and optionally gradient) (optionally to a reference)
@@ -218,9 +231,9 @@ contains
                     qind=[0d0,pid2,pid2]!Arbitrarily let axis = y
                 else
                     qind(1)=dACos(qmin(1))
-                    q(1:3)=qmin(2:4)/dSqrt(1d0-qmin(1)*qmin(1))!Save axis
+                    q(1:3)=qmin(2:4)/Sqrt(1d0-qmin(1)*qmin(1))!Save axis
                     qind(2)=dACos(q(3))
-                    q(1:2)=q(1:2)/dSqrt(1d0-q(3)*q(3))
+                    q(1:2)=q(1:2)/Sqrt(1d0-q(3)*q(3))
                     qind(3)=dACos(q(1)); if(q(2)<0d0) qind(3)=-qind(3)
                 end if
             end if
@@ -475,7 +488,87 @@ contains
 
     !========== Cartesian -> Internal ==========
         !Convert r to q
-        subroutine InternalCoordinate(r, q, cartdim, intdim)
+        !float r, q
+        subroutine sInternalCoordinate(r, q, cartdim, intdim)
+            integer,intent(in)::cartdim,intdim
+            real*4,dimension(cartdim),intent(in)::r
+            real*4,dimension(intdim),intent(out)::q
+            integer::iIntC,iMotion
+            q=0d0
+            do iIntC=1,intdim
+                do iMotion=1,GeometryTransformation_IntCoordDef(iIntC)%NMotions
+                    select case(GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%type)
+                    case('stretching')
+                        q(iIntC)=q(iIntC)&
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *stretching(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('bending')
+                        q(iIntC)=q(iIntC)&
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *bending(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('torsion')
+                        q(iIntC)=q(iIntC)&
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *torsion(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('OutOfPlane')
+                        q(iIntC)=q(iIntC)&
+                            +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff&
+                            *OutOfPlane(r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    end select
+                end do
+            end do
+            contains
+            !Transform from Cartesian coordinate r to a certain motion coordinate q, atom defines which atoms are involved
+            !For stretching, q = bond length
+            real*4 function stretching(r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(2),intent(in)::atom
+                real*4,dimension(3)::r12
+                r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                stretching=Norm2(r12)
+            end function stretching
+            !For bending, q = bond angle
+            real*4 function bending(r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(3),intent(in)::atom
+                real*4,dimension(3)::runit21,runit23
+                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                    runit21=runit21/Norm2(runit21)
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                    runit23=runit23/Norm2(runit23)
+                bending=acos(dot_product(runit21,runit23))
+            end function bending
+            !For torsion, q = dihedral angle
+            real*4 function torsion(r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*4,dimension(3)::r12,r23,r34,n123,n234
+                r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
+                n123=cross_product(r12,r23); n123=n123/Norm2(n123)
+                n234=cross_product(r23,r34); n234=n234/Norm2(n234)
+                torsion=acos(dot_product(n123,n234))
+                if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
+            end function torsion
+            !For out of plane, q = out of plane angle
+            real*4 function OutOfPlane(r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*4,dimension(3)::r21,r23,r24
+                r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
+                r23=cross_product(r23,r24)
+                OutOfPlane=asin(dot_product(r23/Norm2(r23),r21/Norm2(r21)))
+            end function OutOfPlane
+        end subroutine sInternalCoordinate
+        !double r, q
+        subroutine dInternalCoordinate(r, q, cartdim, intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim),intent(out)::q
@@ -550,12 +643,25 @@ contains
                 r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
                 r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
                 r23=cross_product(r23,r24)
-                OutOfPlane=asin(dot_product(r23/norm2(r23),r21/norm2(r21)))
+                OutOfPlane=asin(dot_product(r23/Norm2(r23),r21/Norm2(r21)))
             end function OutOfPlane
-        end subroutine InternalCoordinate
+        end subroutine dInternalCoordinate
 
         !Convert r & cartgrad to q & intgrad
-        subroutine Cartesian2Internal(r, cartgrad, q, intgrad, cartdim, intdim, NStates)
+        !float r, cartgrad, q, intgrad
+        subroutine sCartesian2Internal(r, cartgrad, q, intgrad, cartdim, intdim, NStates)
+            integer,intent(in)::cartdim,intdim,NStates
+            real*4,dimension(cartdim),intent(in)::r
+            real*4,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
+            real*4,dimension(intdim),intent(out)::q
+            real*4,dimension(intdim,NStates,NStates),intent(out)::intgrad
+            integer::i,j; real*4,dimension(intdim,cartdim)::B
+            call WilsonBMatrixAndInternalCoordinate(r,B,q,cartdim,intdim)
+            call GeneralizedInverseTranspose(B,intdim,cartdim)
+            forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
+        end subroutine sCartesian2Internal
+        !double r, cartgrad, q, intgrad
+        subroutine dCartesian2Internal(r, cartgrad, q, intgrad, cartdim, intdim, NStates)
             integer,intent(in)::cartdim,intdim,NStates
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(cartdim,NStates,NStates),intent(in)::cartgrad
@@ -563,12 +669,134 @@ contains
             real*8,dimension(intdim,NStates,NStates),intent(out)::intgrad
             integer::i,j; real*8,dimension(intdim,cartdim)::B
             call WilsonBMatrixAndInternalCoordinate(r,B,q,cartdim,intdim)
-            call dGeneralizedInverseTranspose(B,intdim,cartdim)
+            call GeneralizedInverseTranspose(B,intdim,cartdim)
             forall(i=1:NStates,j=1:NStates); intgrad(:,i,j)=matmul(B,cartgrad(:,i,j)); end forall
-        end subroutine Cartesian2Internal
+        end subroutine dCartesian2Internal
         
         !From r, generate B & q
-        subroutine WilsonBMatrixAndInternalCoordinate(r, B, q, cartdim, intdim)
+        !float r, B, q
+        subroutine sWilsonBMatrixAndInternalCoordinate(r, B, q, cartdim, intdim)
+            integer,intent(in)::cartdim,intdim
+            real*4,dimension(cartdim),intent(in)::r
+            real*4,dimension(intdim,cartdim),intent(out)::B
+            real*4,dimension(intdim),intent(out)::q
+            integer::iIntC,iMotion; real*4::qMotion; real*4,dimension(cartdim)::BRowVector
+            B=0.0; q=0.0
+            do iIntC=1,intdim
+                do iMotion=1,GeometryTransformation_IntCoordDef(iIntC)%NMotions
+                    select case(GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%type)
+                    case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%atom,cartdim)
+                    end select
+                    B(iIntC,:)=B(iIntC,:)+GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff*BRowVector
+                    q(iIntC)  =q(iIntC)  +GeometryTransformation_IntCoordDef(iIntC)%motion(iMotion)%coeff*qMotion
+                end do
+            end do
+            contains
+            !Generate the transformation vector b from dr to dq: b . dr = dq
+            !Transform from Cartesian coordinate r to a certain motion coordinate q
+            !Internal coordinate is the linear combination of several motions,
+            !so b contributes (but not necessarily equals) to one row of Wilson B matrix
+            ! d( i-th internal coordinate ) = ( i-th row vector of B ) . dr
+            !For stretching, q = bond length
+            subroutine bAndStretching(b, q, r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(out)::b
+                real*4,intent(out)::q
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(2),intent(in)::atom
+                real*4,dimension(3)::runit12
+                b=0.0!Initialize
+                runit12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                q=Norm2(runit12)
+                runit12=runit12/q
+                b(3*atom(1)-2:3*atom(1))=-runit12
+                b(3*atom(2)-2:3*atom(2))=runit12
+            end subroutine bAndStretching
+            !For bending, q = bond angle
+            subroutine bAndBending(b, q, r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(out)::b
+                real*4,intent(out)::q
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(3),intent(in)::atom
+                real*4::r21,r23,costheta,sintheta
+                real*4,dimension(3)::runit21,runit23
+                b=0.0!Initialize
+                !Prepare
+                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                    r21=Norm2(runit21); runit21=runit21/r21
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                    r23=Norm2(runit23); runit23=runit23/r23
+                costheta=dot_product(runit21,runit23); sintheta=Sqrt(1d0-costheta*costheta)
+                !Output
+                b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
+                b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
+                b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))
+                q=acos(costheta)
+            end subroutine bAndBending
+            !For torsion, q = dihedral angle
+            subroutine bAndTorsion(b, q, r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(out)::b
+                real*4,intent(out)::q
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*4::r12,r23,r34,sin123,cos123,sin234,cos234
+                real*4,dimension(3)::runit12,runit23,runit34,n123,n234
+                b=0.0!Initialize
+                !Prepare
+                runit12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
+                r12=Norm2(runit12); runit12=runit12/r12
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r23=Norm2(runit23); runit23=runit23/r23
+                runit34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
+                r34=Norm2(runit34); runit34=runit34/r34
+                cos123=-dot_product(runit12,runit23); sin123=Sqrt(1d0-cos123*cos123)
+                n123=cross_product(runit12,runit23)/sin123
+                cos234=-dot_product(runit23,runit34); sin234=Sqrt(1d0-cos234*cos234)
+                n234=cross_product(runit23,runit34)/sin234
+                !Output
+                b(3*atom(1)-2:3*atom(1))=-n123/(r12*sin123)
+                b(3*atom(2)-2:3*atom(2))=(r23-r12*cos123)/(r12*r23*sin123)*n123-cos234/(r23*sin234)*n234
+                b(3*atom(3)-2:3*atom(3))=(r34*cos234-r23)/(r23*r34*sin234)*n234+cos123/(r23*sin123)*n123
+                b(3*atom(4)-2:3*atom(4))= n234/(r34*sin234)
+                q=acos(dot_product(n123,n234))
+                if(triple_product(n123,n234,runit23)<0.0) q=-q
+            end subroutine bAndTorsion
+            !For out of plane, q = out of plane angle
+            subroutine bAndOutOfPlane(b, q, r, atom, cartdim)
+                integer,intent(in)::cartdim
+                real*4,dimension(cartdim),intent(out)::b
+                real*4,intent(out)::q
+                real*4,dimension(cartdim),intent(in)::r
+                integer,dimension(4),intent(in)::atom
+                real*4::r21,r23,r24,sin324,cos324,sin324sq,sintheta,costheta,tantheta
+                real*4,dimension(3)::runit21,runit23,runit24
+                b=0.0!Initialize
+                !Prepare
+                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
+                r21=Norm2(runit21); runit21=runit21/r21
+                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
+                r23=Norm2(runit23); runit23=runit23/r23
+                runit24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
+                r24=Norm2(runit24); runit24=runit24/r24
+                cos324=dot_product(runit23,runit24)
+                sin324=Sqrt(1.0-cos324*cos324); sin324sq=sin324*sin324
+                sintheta=triple_product(runit23,runit24,runit21)/sin324
+                costheta=Sqrt(1.0-sintheta*sintheta); tantheta=sintheta/costheta
+                !Output
+                b(3*atom(1)-2:3*atom(1))=(cross_product(runit23,runit24)/costheta/sin324-tantheta*runit21)/r21
+                b(3*atom(3)-2:3*atom(3))=(cross_product(runit24,runit21)/costheta/sin324-tantheta/sin324sq*(runit23-cos324*runit24))/r23
+                b(3*atom(4)-2:3*atom(4))=(cross_product(runit21,runit23)/costheta/sin324-tantheta/sin324sq*(runit24-cos324*runit23))/r24
+                b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))-b(3*atom(4)-2:3*atom(4))
+                q=asin(sintheta)
+            end subroutine bAndOutOfPlane
+        end subroutine sWilsonBMatrixAndInternalCoordinate
+        !double r, B, q
+        subroutine dWilsonBMatrixAndInternalCoordinate(r, B, q, cartdim, intdim)
             integer,intent(in)::cartdim,intdim
             real*8,dimension(cartdim),intent(in)::r
             real*8,dimension(intdim,cartdim),intent(out)::B
@@ -623,7 +851,7 @@ contains
                     r21=Norm2(runit21); runit21=runit21/r21
                 runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
                     r23=Norm2(runit23); runit23=runit23/r23
-                costheta=dot_product(runit21,runit23); sintheta=dSqrt(1d0-costheta*costheta)
+                costheta=dot_product(runit21,runit23); sintheta=Sqrt(1d0-costheta*costheta)
                 !Output
                 b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
                 b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
@@ -647,9 +875,9 @@ contains
                 r23=Norm2(runit23); runit23=runit23/r23
                 runit34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
                 r34=Norm2(runit34); runit34=runit34/r34
-                cos123=-dot_product(runit12,runit23); sin123=dSqrt(1d0-cos123*cos123)
+                cos123=-dot_product(runit12,runit23); sin123=Sqrt(1d0-cos123*cos123)
                 n123=cross_product(runit12,runit23)/sin123
-                cos234=-dot_product(runit23,runit34); sin234=dSqrt(1d0-cos234*cos234)
+                cos234=-dot_product(runit23,runit34); sin234=Sqrt(1d0-cos234*cos234)
                 n234=cross_product(runit23,runit34)/sin234
                 !Output
                 b(3*atom(1)-2:3*atom(1))=-n123/(r12*sin123)
@@ -677,9 +905,9 @@ contains
                 runit24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
                 r24=Norm2(runit24); runit24=runit24/r24
                 cos324=dot_product(runit23,runit24)
-                sin324=dSqrt(1d0-cos324*cos324); sin324sq=sin324*sin324
+                sin324=Sqrt(1d0-cos324*cos324); sin324sq=sin324*sin324
                 sintheta=triple_product(runit23,runit24,runit21)/sin324
-                costheta=dSqrt(1d0-sintheta*sintheta); tantheta=sintheta/costheta
+                costheta=Sqrt(1d0-sintheta*sintheta); tantheta=sintheta/costheta
                 !Output
                 b(3*atom(1)-2:3*atom(1))=(cross_product(runit23,runit24)/costheta/sin324-tantheta*runit21)/r21
                 b(3*atom(3)-2:3*atom(3))=(cross_product(runit24,runit21)/costheta/sin324-tantheta/sin324sq*(runit23-cos324*runit24))/r23
@@ -687,7 +915,7 @@ contains
                 b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))-b(3*atom(4)-2:3*atom(4))
                 q=asin(sintheta)
             end subroutine bAndOutOfPlane
-        end subroutine WilsonBMatrixAndInternalCoordinate
+        end subroutine dWilsonBMatrixAndInternalCoordinate
     !=================== End ===================
 
     !========== Cartesian <- Internal ==========
@@ -769,7 +997,7 @@ contains
 		integer::i; integer,dimension(3*NAtoms)::indice
 		real*8,dimension(NAtoms)::sqrtmass; real*8,dimension(3*NAtoms)::freqall,freqabs
 		!Obtain freq^2 and normal modes
-		sqrtmass=dSqrt(mass)
+		sqrtmass=Sqrt(mass)
 		forall(i=1:NAtoms)
 			H(:,3*i-2:3*i)=H(:,3*i-2:3*i)/sqrtmass(i)
 			H(3*i-2:3*i,:)=H(3*i-2:3*i,:)/sqrtmass(i)
@@ -777,7 +1005,7 @@ contains
         call My_dsyev('V',H,freqall,3*NAtoms)
         forall(i=1:3*NAtoms); H(3*i-2:3*i,:)=H(3*i-2:3*i,:)/sqrtmass(i); end forall
 		!Rule out 3 * NAtoms - vibdim translations and rotations
-		freqabs=dAbs(freqall)
+		freqabs=Abs(freqall)
 		forall(i=1:3*NAtoms); indice(i)=i; end forall
 		call dQuickSort(freqabs,1,3*NAtoms,indice,3*NAtoms)
 		freqabs=freqall
@@ -786,8 +1014,8 @@ contains
 			mode(:,i)=H(:,indice(i+3*NAtoms-vibdim))
         end forall
 		do i=1,vibdim!freq^2 -> freq
-			if(freqall(i)<0d0) then; freq(i)=-dSqrt(-freqall(i))
-            else; freq(i)=dSqrt(freqall(i)); end if
+			if(freqall(i)<0d0) then; freq(i)=-Sqrt(-freqall(i))
+            else; freq(i)=Sqrt(freqall(i)); end if
 		end do
 		!Sort freq ascendingly, then sort normal modes accordingly
 		forall(i=1:vibdim); indice(i)=i; end forall
@@ -826,17 +1054,17 @@ contains
         if(i==0) then!H is positive definite, freq^2 and raw normal modes are normally obtained: convert w^2 to w and l to L
             Linv=matmul(transpose(intmode),H)
             forall(i=1:intdim)
-                freq(i)=dSqrt(freq(i))
+                freq(i)=Sqrt(freq(i))
                 intmode(:,i)=intmode(:,i)*freq(i); Linv(i,:)=Linv(i,:)/freq(i)
             end forall
         else!resolve (G . H) . l = l . w^2 by general eigensolver then convert w^2 to w and l to L
             Htemp=matmul(intmode,H); call My_dgeev('V',Htemp,freq,freqtemp,intmode,intdim)
             forall(i=1:intdim)!Raw normal modes -> normal modes
-                intmode(:,i)=intmode(:,i)*dSqrt(freq(i)/dot_product(intmode(:,i),matmul(H,intmode(:,i))))
+                intmode(:,i)=intmode(:,i)*Sqrt(freq(i)/dot_product(intmode(:,i),matmul(H,intmode(:,i))))
             end forall
             do i=1,intdim!freq^2 -> freq
-                if(freq(i)<0d0) then; freq(i)=-dSqrt(-freq(i))
-                else; freq(i)=dSqrt(freq(i)); end if
+                if(freq(i)<0d0) then; freq(i)=-Sqrt(-freq(i))
+                else; freq(i)=Sqrt(freq(i)); end if
             end do
             forall(i=1:intdim); indice(i)=i; end forall!Sort freq ascendingly, then sort normal modes accordingly
             call dQuickSort(freq,1,intdim,indice,intdim)
