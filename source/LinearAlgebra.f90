@@ -743,13 +743,13 @@ contains
             integer,intent(out),optional::info
             integer::temp
             if(present(info)) then
-                call fpotrf('L',N,A,N,info)
+                call spotrf('L',N,A,N,info)
                 if(info/=0) return
-                call fpotri('L',N,A,N,info)
+                call spotri('L',N,A,N,info)
             else
-                call fpotrf('L',N,A,N,temp)
+                call spotrf('L',N,A,N,temp)
                 if(temp/=0) return
-                call fpotri('L',N,A,N,temp)
+                call spotri('L',N,A,N,temp)
             end if
         end subroutine My_spotri
         !double A
