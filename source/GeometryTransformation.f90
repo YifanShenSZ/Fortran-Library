@@ -534,11 +534,18 @@ contains
                 real*4,dimension(cartdim),intent(in)::r
                 integer,dimension(3),intent(in)::atom
                 real*4,dimension(3)::runit21,runit23
-                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                    runit21=runit21/Norm2(runit21)
-                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                    runit23=runit23/Norm2(runit23)
-                bending=acos(dot_product(runit21,runit23))
+                runit21 = r(3*atom(1)-2:3*atom(1)) - r(3*atom(2)-2:3*atom(2))
+                runit21 = runit21 / Norm2(runit21)
+                runit23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                runit23 = runit23 / Norm2(runit23)
+                bending = dot_product(runit21, runit23)
+                if (bending > 1.0) then
+                    bending = 0.0
+                else if (bending < -1.0) then
+                    bending = 3.141592653589793
+                else
+                    bending = acos(bending)
+                end if
             end function bending
             !For torsion, q = dihedral angle
             real*4 function torsion(r, atom, cartdim)
@@ -546,25 +553,39 @@ contains
                 real*4,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
                 real*4,dimension(3)::r12,r23,r34,n123,n234
-                r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
-                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                r34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
-                n123=cross_product(r12,r23); n123=n123/Norm2(n123)
-                n234=cross_product(r23,r34); n234=n234/Norm2(n234)
-                torsion=acos(dot_product(n123,n234))
-                if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
+                r12 = r(3*atom(2)-2:3*atom(2)) - r(3*atom(1)-2:3*atom(1))
+                r23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                r34 = r(3*atom(4)-2:3*atom(4)) - r(3*atom(3)-2:3*atom(3))
+                n123 = cross_product(r12, r23); n123 = n123 / Norm2(n123)
+                n234 = cross_product(r23, r34); n234 = n234 / Norm2(n234)
+                torsion = dot_product(n123, n234)
+                if (torsion > 1.0) then
+                    torsion = 0.0
+                else if (torsion < -1.0) then
+                    torsion = 3.141592653589793
+                else
+                    torsion = acos(torsion)
+                end if
+                if(triple_product(n123, n234, r23) < 0.0) torsion = -torsion
             end function torsion
             !For out of plane, q = out of plane angle
             real*4 function OutOfPlane(r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*4,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
-                real*4,dimension(3)::r21,r23,r24
-                r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
-                r23=cross_product(r23,r24)
-                OutOfPlane=asin(dot_product(r23/Norm2(r23),r21/Norm2(r21)))
+                real*4,dimension(3)::r21, r23, r24
+                r21 = r(3*atom(1)-2:3*atom(1)) - r(3*atom(2)-2:3*atom(2))
+                r23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                r24 = r(3*atom(4)-2:3*atom(4)) - r(3*atom(2)-2:3*atom(2))
+                r23 = cross_product(r23, r24)
+                OutOfPlane = dot_product(r23/Norm2(r23), r21/Norm2(r21))
+                if (OutOfPlane > 1.0) then
+                    OutOfPlane = 1.5707963267948966
+                else if (OutOfPlane < -1.0) then
+                    OutOfPlane = -1.5707963267948966
+                else
+                    OutOfPlane = asin(OutOfPlane)
+                end if
             end function OutOfPlane
         end subroutine sInternalCoordinate
         !double r, q
@@ -613,11 +634,18 @@ contains
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(3),intent(in)::atom
                 real*8,dimension(3)::runit21,runit23
-                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                    runit21=runit21/Norm2(runit21)
-                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                    runit23=runit23/Norm2(runit23)
-                bending=acos(dot_product(runit21,runit23))
+                runit21 = r(3*atom(1)-2:3*atom(1)) - r(3*atom(2)-2:3*atom(2))
+                runit21 = runit21 / Norm2(runit21)
+                runit23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                runit23 = runit23 / Norm2(runit23)
+                bending = dot_product(runit21, runit23)
+                if (bending > 1d0) then
+                    bending = 0d0
+                else if (bending < -1d0) then
+                    bending = 3.141592653589793d0
+                else
+                    bending = acos(bending)
+                end if
             end function bending
             !For torsion, q = dihedral angle
             real*8 function torsion(r, atom, cartdim)
@@ -625,25 +653,39 @@ contains
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
                 real*8,dimension(3)::r12,r23,r34,n123,n234
-                r12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
-                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                r34=r(3*atom(4)-2:3*atom(4))-r(3*atom(3)-2:3*atom(3))
-                n123=cross_product(r12,r23); n123=n123/Norm2(n123)
-                n234=cross_product(r23,r34); n234=n234/Norm2(n234)
-                torsion=acos(dot_product(n123,n234))
-                if(triple_product(n123,n234,r23)<0d0) torsion=-torsion
+                r12 = r(3*atom(2)-2:3*atom(2)) - r(3*atom(1)-2:3*atom(1))
+                r23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                r34 = r(3*atom(4)-2:3*atom(4)) - r(3*atom(3)-2:3*atom(3))
+                n123 = cross_product(r12, r23); n123 = n123 / Norm2(n123)
+                n234 = cross_product(r23, r34); n234 = n234 / Norm2(n234)
+                torsion = dot_product(n123, n234)
+                if (torsion > 1d0) then
+                    torsion = 0d0
+                else if (torsion < -1d0) then
+                    torsion = 3.141592653589793d0
+                else
+                    torsion = acos(torsion)
+                end if
+                if(triple_product(n123, n234, r23) < 0d0) torsion = -torsion
             end function torsion
             !For out of plane, q = out of plane angle
             real*8 function OutOfPlane(r, atom, cartdim)
                 integer,intent(in)::cartdim
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(4),intent(in)::atom
-                real*8,dimension(3)::r21,r23,r24
-                r21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                r23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                r24=r(3*atom(4)-2:3*atom(4))-r(3*atom(2)-2:3*atom(2))
-                r23=cross_product(r23,r24)
-                OutOfPlane=asin(dot_product(r23/Norm2(r23),r21/Norm2(r21)))
+                real*8,dimension(3)::r21, r23, r24
+                r21 = r(3*atom(1)-2:3*atom(1)) - r(3*atom(2)-2:3*atom(2))
+                r23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                r24 = r(3*atom(4)-2:3*atom(4)) - r(3*atom(2)-2:3*atom(2))
+                r23 = cross_product(r23, r24)
+                OutOfPlane = dot_product(r23/Norm2(r23), r21/Norm2(r21))
+                if (OutOfPlane > 1d0) then
+                    OutOfPlane = 1.5707963267948966d0
+                else if (OutOfPlane < -1d0) then
+                    OutOfPlane = -1.5707963267948966d0
+                else
+                    OutOfPlane = asin(OutOfPlane)
+                end if
             end function OutOfPlane
         end subroutine dInternalCoordinate
 
@@ -722,20 +764,27 @@ contains
                 real*4,intent(out)::q
                 real*4,dimension(cartdim),intent(in)::r
                 integer,dimension(3),intent(in)::atom
-                real*4::r21,r23,costheta,sintheta
-                real*4,dimension(3)::runit21,runit23
+                real*4::r21, r23, costheta, sintheta
+                real*4,dimension(3)::runit21, runit23
                 b=0.0!Initialize
                 !Prepare
-                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                    r21=Norm2(runit21); runit21=runit21/r21
-                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                    r23=Norm2(runit23); runit23=runit23/r23
-                costheta=dot_product(runit21,runit23); sintheta=Sqrt(1d0-costheta*costheta)
+                runit21 = r(3*atom(1)-2:3*atom(1)) - r(3*atom(2)-2:3*atom(2))
+                r21 = Norm2(runit21); runit21 = runit21 / r21
+                runit23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                r23 = Norm2(runit23); runit23 = runit23 / r23
+                costheta = dot_product(runit21, runit23)
+                sintheta = Sqrt(1.0 - costheta*costheta)
                 !Output
-                b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
-                b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
-                b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))
-                q=acos(costheta)
+                b(3*atom(1)-2:3*atom(1)) = (costheta*runit21 - runit23) / (sintheta*r21)
+                b(3*atom(3)-2:3*atom(3)) = (costheta*runit23 - runit21) / (sintheta*r23)
+                b(3*atom(2)-2:3*atom(2)) = -b(3*atom(1)-2:3*atom(1)) - b(3*atom(3)-2:3*atom(3))
+                if (costheta > 1.0) then
+                    q = 0.0
+                else if (costheta < -1.0) then
+                    q = 3.141592653589793
+                else
+                    q = acos(costheta)
+                end if
             end subroutine bAndBending
             !For torsion, q = dihedral angle
             subroutine bAndTorsion(b, q, r, atom, cartdim)
@@ -763,8 +812,15 @@ contains
                 b(3*atom(2)-2:3*atom(2))=(r23-r12*cos123)/(r12*r23*sin123)*n123-cos234/(r23*sin234)*n234
                 b(3*atom(3)-2:3*atom(3))=(r34*cos234-r23)/(r23*r34*sin234)*n234+cos123/(r23*sin123)*n123
                 b(3*atom(4)-2:3*atom(4))= n234/(r34*sin234)
-                q=acos(dot_product(n123,n234))
-                if(triple_product(n123,n234,runit23)<0.0) q=-q
+                q = dot_product(n123, n234)
+                if (q > 1.0) then
+                    q = 0.0
+                else if (q < -1.0) then
+                    q = 3.141592653589793
+                else
+                    q = acos(q)
+                end if
+                if(triple_product(n123, n234, runit23) < 0.0) q = -q
             end subroutine bAndTorsion
             !For out of plane, q = out of plane angle
             subroutine bAndOutOfPlane(b, q, r, atom, cartdim)
@@ -792,7 +848,13 @@ contains
                 b(3*atom(3)-2:3*atom(3))=(cross_product(runit24,runit21)/costheta/sin324-tantheta/sin324sq*(runit23-cos324*runit24))/r23
                 b(3*atom(4)-2:3*atom(4))=(cross_product(runit21,runit23)/costheta/sin324-tantheta/sin324sq*(runit24-cos324*runit23))/r24
                 b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))-b(3*atom(4)-2:3*atom(4))
-                q=asin(sintheta)
+                if (sintheta > 1.0) then
+                    q = 1.5707963267948966
+                else if (sintheta < -1.0) then
+                    q = -1.5707963267948966
+                else
+                    q = asin(sintheta)
+                end if
             end subroutine bAndOutOfPlane
         end subroutine sWilsonBMatrixAndInternalCoordinate
         !double r, B, q
@@ -843,20 +905,27 @@ contains
                 real*8,intent(out)::q
                 real*8,dimension(cartdim),intent(in)::r
                 integer,dimension(3),intent(in)::atom
-                real*8::r21,r23,costheta,sintheta
-                real*8,dimension(3)::runit21,runit23
-                b=0d0!Initialize
+                real*8::r21, r23, costheta, sintheta
+                real*8,dimension(3)::runit21, runit23
+                b = 0d0 !Initialize
                 !Prepare
-                runit21=r(3*atom(1)-2:3*atom(1))-r(3*atom(2)-2:3*atom(2))
-                    r21=Norm2(runit21); runit21=runit21/r21
-                runit23=r(3*atom(3)-2:3*atom(3))-r(3*atom(2)-2:3*atom(2))
-                    r23=Norm2(runit23); runit23=runit23/r23
-                costheta=dot_product(runit21,runit23); sintheta=Sqrt(1d0-costheta*costheta)
+                runit21 = r(3*atom(1)-2:3*atom(1)) - r(3*atom(2)-2:3*atom(2))
+                r21 = Norm2(runit21); runit21 = runit21 / r21
+                runit23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
+                r23 = Norm2(runit23); runit23 = runit23 / r23
+                costheta = dot_product(runit21, runit23)
+                sintheta = Sqrt(1d0 - costheta*costheta)
                 !Output
-                b(3*atom(1)-2:3*atom(1))=(costheta*runit21-runit23)/(sintheta*r21)
-                b(3*atom(3)-2:3*atom(3))=(costheta*runit23-runit21)/(sintheta*r23)
-                b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))
-                q=acos(costheta)
+                b(3*atom(1)-2:3*atom(1)) = (costheta*runit21 - runit23) / (sintheta*r21)
+                b(3*atom(3)-2:3*atom(3)) = (costheta*runit23 - runit21) / (sintheta*r23)
+                b(3*atom(2)-2:3*atom(2)) = -b(3*atom(1)-2:3*atom(1)) - b(3*atom(3)-2:3*atom(3))
+                if (costheta > 1d0) then
+                    q = 0d0
+                else if (costheta < -1d0) then
+                    q = 3.141592653589793d0
+                else
+                    q = acos(costheta)
+                end if
             end subroutine bAndBending
             !For torsion, q = dihedral angle
             subroutine bAndTorsion(b, q, r, atom, cartdim)
@@ -867,7 +936,7 @@ contains
                 integer,dimension(4),intent(in)::atom
                 real*8::r12,r23,r34,sin123,cos123,sin234,cos234
                 real*8,dimension(3)::runit12,runit23,runit34,n123,n234
-                b=0d0!Initialize
+                b = 0d0 !Initialize
                 !Prepare
                 runit12=r(3*atom(2)-2:3*atom(2))-r(3*atom(1)-2:3*atom(1))
                 r12=Norm2(runit12); runit12=runit12/r12
@@ -884,8 +953,15 @@ contains
                 b(3*atom(2)-2:3*atom(2))=(r23-r12*cos123)/(r12*r23*sin123)*n123-cos234/(r23*sin234)*n234
                 b(3*atom(3)-2:3*atom(3))=(r34*cos234-r23)/(r23*r34*sin234)*n234+cos123/(r23*sin123)*n123
                 b(3*atom(4)-2:3*atom(4))= n234/(r34*sin234)
-                q=acos(dot_product(n123,n234))
-                if(triple_product(n123,n234,runit23)<0d0) q=-q
+                q = dot_product(n123, n234)
+                if (q > 1d0) then
+                    q = 0d0
+                else if (q < -1d0) then
+                    q = 3.141592653589793d0
+                else
+                    q = acos(q)
+                end if
+                if(triple_product(n123, n234, runit23) < 0d0) q = -q
             end subroutine bAndTorsion
             !For out of plane, q = out of plane angle
             subroutine bAndOutOfPlane(b, q, r, atom, cartdim)
@@ -913,7 +989,13 @@ contains
                 b(3*atom(3)-2:3*atom(3))=(cross_product(runit24,runit21)/costheta/sin324-tantheta/sin324sq*(runit23-cos324*runit24))/r23
                 b(3*atom(4)-2:3*atom(4))=(cross_product(runit21,runit23)/costheta/sin324-tantheta/sin324sq*(runit24-cos324*runit23))/r24
                 b(3*atom(2)-2:3*atom(2))=-b(3*atom(1)-2:3*atom(1))-b(3*atom(3)-2:3*atom(3))-b(3*atom(4)-2:3*atom(4))
-                q=asin(sintheta)
+                if (sintheta > 1d0) then
+                    q = 1.5707963267948966d0
+                else if (sintheta < -1d0) then
+                    q = -1.5707963267948966d0
+                else
+                    q = asin(sintheta)
+                end if
             end subroutine bAndOutOfPlane
         end subroutine dWilsonBMatrixAndInternalCoordinate
     !=================== End ===================
