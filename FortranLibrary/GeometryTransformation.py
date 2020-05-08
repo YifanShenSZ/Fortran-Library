@@ -46,6 +46,7 @@ ref=numpy.array([numpy.nan]), grad=numpy.array([numpy.nan])) -> float:
             FL.geometrytransformation_mp_standardizegeometry_\
                 (p_geom, p_mass, byref(NAtoms), byref(NStates), p_ref, byref(diff), p_grad)
             p2array(p_grad, grad)
+    p2array(p_geom, geom)
     return diff.value
 
 # ---------- Cartesian <-> Internal ----------

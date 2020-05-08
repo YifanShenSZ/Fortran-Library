@@ -1124,29 +1124,30 @@ contains
         real*8,dimension(3*NAtoms,intdim),intent(out)::cartmode
         integer::i; integer,dimension(intdim)::indice
         real*8,dimension(intdim)::freqtemp!For imaginary frequency case
-        real*8,dimension(intdim,intdim)::Htemp
+        real*8,dimension(intdim,intdim)::Htemp, Hfull
         real*8,dimension(intdim,3*NAtoms)::Btemp
         !Try solving G . H . l = l . w^2 in generalized eigenvalue manner
         !LAPACK will normalized l by l(:,i)^T . H . l(:,j) = delta_ij,
         !but the true solution is L(:,i) . H . L(:,j) = w^2
         !This is why I call l raw normal mode. w is freq
-        Htemp=H!Save Hessian, since it may still be needed if not positive definite
+        Htemp = H
         forall(i=1:NAtoms); Btemp(:,3*i-2:3*i)=B(:,3*i-2:3*i)/mass(i); end forall
         intmode=matmul(Btemp,transpose(B)); call My_dsygv(2,'V',intmode,Htemp,freq,intdim,info=i)
+        Hfull = H; call syL2U(Hfull, intdim) ! For multiplication
         if(i==0) then!H is positive definite, freq^2 and raw normal modes are normally obtained: convert w^2 to w and l to L
-            Linv=matmul(transpose(intmode),H)
+            Linv=matmul(transpose(intmode), Hfull)
             forall(i=1:intdim)
-                freq(i)=Sqrt(freq(i))
+                freq(i)=dSqrt(freq(i))
                 intmode(:,i)=intmode(:,i)*freq(i); Linv(i,:)=Linv(i,:)/freq(i)
             end forall
         else!resolve (G . H) . l = l . w^2 by general eigensolver then convert w^2 to w and l to L
-            Htemp=matmul(intmode,H); call My_dgeev('V',Htemp,freq,freqtemp,intmode,intdim)
+            Htemp=matmul(intmode, Hfull); call My_dgeev('V',Htemp,freq,freqtemp,intmode,intdim)
             forall(i=1:intdim)!Raw normal modes -> normal modes
-                intmode(:,i)=intmode(:,i)*Sqrt(freq(i)/dot_product(intmode(:,i),matmul(H,intmode(:,i))))
+                intmode(:,i)=intmode(:,i)*dSqrt(freq(i)/dot_product(intmode(:,i),matmul(Hfull,intmode(:,i))))
             end forall
             do i=1,intdim!freq^2 -> freq
-                if(freq(i)<0d0) then; freq(i)=-Sqrt(-freq(i))
-                else; freq(i)=Sqrt(freq(i)); end if
+                if(freq(i)<0d0) then; freq(i)=-dSqrt(-freq(i))
+                else; freq(i)=dSqrt(freq(i)); end if
             end do
             forall(i=1:intdim); indice(i)=i; end forall!Sort freq ascendingly, then sort normal modes accordingly
             call dQuickSort(freq,1,intdim,indice,intdim)
