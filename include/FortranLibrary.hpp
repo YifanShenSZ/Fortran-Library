@@ -21,61 +21,61 @@ namespace FL {
 extern "C" {
     // General
     void general_mp_showtime_();
-    void general_mp_dscientificnotation_(double & x, int32_t & i);
+    void general_mp_dscientificnotation_(double & x, int & i);
     // Chemistry
-    void chemistry_mp_initializephasefixing_(const int32_t & NStates);
+    void chemistry_mp_initializephasefixing_(const int & NStates);
     // GeometryTransformation
-    int32_t geometrytransformation_mp_defineinternalcoordinate_(
-        const char * format, const char * file, int32_t len_format, int32_t len_file
+    int geometrytransformation_mp_defineinternalcoordinate_(
+        const char * format, const char * file, int len_format, int len_file
     );
     void geometrytransformation_mp_sinternalcoordinate_(
-        const float * r, float * q, const int32_t & cartdim, const int32_t & intdim
+        const float * r, float * q, const int & cartdim, const int & intdim
     );
     void geometrytransformation_mp_dinternalcoordinate_(
-        const double * r, double * q, const int32_t & cartdim, const int32_t & intdim
+        const double * r, double * q, const int & cartdim, const int & intdim
     );
     void geometrytransformation_mp_scartesian2internal_(
-        const float * r, const float * cartgradT, float * q, float * intgradT, const int32_t & cartdim, const int32_t & intdim
+        const float * r, const float * cartgradT, float * q, float * intgradT, const int & cartdim, const int & intdim
     );
     void geometrytransformation_mp_dcartesian2internal_(
-        const double * r, const double * cartgradT, double * q, double * intgradT, const int32_t & cartdim, const int32_t & intdim
+        const double * r, const double * cartgradT, double * q, double * intgradT, const int & cartdim, const int & intdim
     );
     void geometrytransformation_mp_swilsonbmatrixandinternalcoordinate_(
-        const float * r, float * BT, float * q, const int32_t & cartdim, const int32_t & intdim
+        const float * r, float * BT, float * q, const int & cartdim, const int & intdim
     );
     void geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(
-        const double * r, double * BT, double * q, const int32_t & cartdim, const int32_t & intdim
+        const double * r, double * BT, double * q, const int & cartdim, const int & intdim
     );
 }
 namespace General {
     inline void ShowTime() {general_mp_showtime_();}
-    inline void dScientificNotation(double & x, int32_t & i) {general_mp_dscientificnotation_(x, i);}
+    inline void dScientificNotation(double & x, int & i) {general_mp_dscientificnotation_(x, i);}
 }
 namespace Chemistry {
-    inline void InitializePhaseFixing(const int32_t & NStates) {chemistry_mp_initializephasefixing_(NStates);}
+    inline void InitializePhaseFixing(const int & NStates) {chemistry_mp_initializephasefixing_(NStates);}
 }
 namespace GeometryTransformation {
-    inline int32_t DefineInternalCoordinate(std::string format, std::string file) {
+    inline int DefineInternalCoordinate(std::string format, std::string file) {
         return geometrytransformation_mp_defineinternalcoordinate_(
             format.c_str(), file.c_str(), format.size(), file.size()
         );
     }
-    inline void InternalCoordinate(const float * r, float * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void InternalCoordinate(const float * r, float * q, const int & cartdim, const int & intdim) {
         geometrytransformation_mp_sinternalcoordinate_(r, q, cartdim, intdim);
     }
-    inline void InternalCoordinate(const double * r, double * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void InternalCoordinate(const double * r, double * q, const int & cartdim, const int & intdim) {
         geometrytransformation_mp_dinternalcoordinate_(r, q, cartdim, intdim);
     }
-    inline void Cartesian2Internal(const float * r, const float * cartgradT, float * q, float * intgradT, const int32_t & cartdim, const int32_t & intdim) {
+    inline void Cartesian2Internal(const float * r, const float * cartgradT, float * q, float * intgradT, const int & cartdim, const int & intdim) {
         geometrytransformation_mp_scartesian2internal_(r, cartgradT, q, intgradT, cartdim, intdim);
     }
-    inline void Cartesian2Internal(const double * r, const double * cartgradT, double * q, double * intgradT, const int32_t & cartdim, const int32_t & intdim) {
+    inline void Cartesian2Internal(const double * r, const double * cartgradT, double * q, double * intgradT, const int & cartdim, const int & intdim) {
         geometrytransformation_mp_dcartesian2internal_(r, cartgradT, q, intgradT, cartdim, intdim);
     }
-    inline void WilsonBMatrixAndInternalCoordinate(const float * r, float * BT, float * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void WilsonBMatrixAndInternalCoordinate(const float * r, float * BT, float * q, const int & cartdim, const int & intdim) {
         geometrytransformation_mp_swilsonbmatrixandinternalcoordinate_(r, BT, q, cartdim, intdim);
     }
-    inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int & cartdim, const int & intdim) {
         geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(r, BT, q, cartdim, intdim);
     }
 }
@@ -83,59 +83,59 @@ namespace GeometryTransformation {
 extern "C" {
     // General
     void __general_MOD_showtime();
-    void __general_MOD_dscientificnotation(double & x, int32_t & i);
+    void __general_MOD_dscientificnotation(double & x, int & i);
     // Chemistry
-    void __chemistry_MOD_initializephasefixing(const int32_t & NStates);
+    void __chemistry_MOD_initializephasefixing(const int & NStates);
     // GeometryTransformation
-    int32_t __geometrytransformation_MOD_defineinternalcoordinate(const char * format, const char * file, int32_t len_format, int32_t len_file);
+    int __geometrytransformation_MOD_defineinternalcoordinate(const char * format, const char * file, int len_format, int len_file);
     void __geometrytransformation_MOD_sinternalcoordinate(
-        const float * r, float * q, const int32_t & cartdim, const int32_t & intdim
+        const float * r, float * q, const int & cartdim, const int & intdim
     );
     void __geometrytransformation_MOD_dinternalcoordinate(
-        const double * r, double * q, const int32_t & cartdim, const int32_t & intdim
+        const double * r, double * q, const int & cartdim, const int & intdim
     );
     void __geometrytransformation_MOD_scartesian2internal(
-        const float * r, const float * cartgradT, float * q, float * intgradT, const int32_t & cartdim, const int32_t & intdim
+        const float * r, const float * cartgradT, float * q, float * intgradT, const int & cartdim, const int & intdim
     );
     void __geometrytransformation_MOD_dcartesian2internal(
-        const double * r, const double * cartgradT, double * q, double * intgradT, const int32_t & cartdim, const int32_t & intdim
+        const double * r, const double * cartgradT, double * q, double * intgradT, const int & cartdim, const int & intdim
     );
     void __geometrytransformation_MOD_swilsonbmatrixandinternalcoordinate(
-        const float * r, float * BT, float * q, const int32_t & cartdim, const int32_t & intdim
+        const float * r, float * BT, float * q, const int & cartdim, const int & intdim
     );
     void __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(
-        const double * r, double * BT, double * q, const int32_t & cartdim, const int32_t & intdim
+        const double * r, double * BT, double * q, const int & cartdim, const int & intdim
     );
 }
 namespace General {
     inline void ShowTime() {__general_MOD_showtime();}
-    inline void dScientificNotation(double & x, int32_t & i) {__general_MOD_dscientificnotation(x, i);}
+    inline void dScientificNotation(double & x, int & i) {__general_MOD_dscientificnotation(x, i);}
 }
 namespace Chemistry {
-    inline void InitializePhaseFixing(const int32_t & NStates) {__chemistry_MOD_initializephasefixing(NStates);}
+    inline void InitializePhaseFixing(const int & NStates) {__chemistry_MOD_initializephasefixing(NStates);}
 }
 namespace GeometryTransformation {
-    inline int32_t DefineInternalCoordinate(std::string format, std::string file) {
+    inline int DefineInternalCoordinate(std::string format, std::string file) {
         return __geometrytransformation_MOD_defineinternalcoordinate(
             format.c_str(), file.c_str(), format.size(), file.size()
         );
     }
-    inline void InternalCoordinate(const float * r, float * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void InternalCoordinate(const float * r, float * q, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_sinternalcoordinate(r, q, cartdim, intdim);
     }
-    inline void InternalCoordinate(const double * r, double * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void InternalCoordinate(const double * r, double * q, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_dinternalcoordinate(r, q, cartdim, intdim);
     }
-    inline void Cartesian2Internal(const float * r, const float * cartgradT, float * q, float * intgradT, const int32_t & cartdim, const int32_t & intdim) {
+    inline void Cartesian2Internal(const float * r, const float * cartgradT, float * q, float * intgradT, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_scartesian2internal(r, cartgradT, q, intgradT, cartdim, intdim);
     }
-    inline void Cartesian2Internal(const double * r, const double * cartgradT, double * q, double * intgradT, const int32_t & cartdim, const int32_t & intdim) {
+    inline void Cartesian2Internal(const double * r, const double * cartgradT, double * q, double * intgradT, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_dcartesian2internal(r, cartgradT, q, intgradT, cartdim, intdim);
     }
-    inline void WilsonBMatrixAndInternalCoordinate(const float * r, float * BT, float * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void WilsonBMatrixAndInternalCoordinate(const float * r, float * BT, float * q, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_swilsonbmatrixandinternalcoordinate(r, BT, q, cartdim, intdim);
     }
-    inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int32_t & cartdim, const int32_t & intdim) {
+    inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(r, BT, q, cartdim, intdim);
     }
 }
