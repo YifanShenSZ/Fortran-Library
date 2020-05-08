@@ -9,7 +9,7 @@
 prefix = .
 # intel and gnu compilers are supported
 compiler = intel
-intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -O3 -no-prec-div -fp-model fast=2 -parallel -ipo
+intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -ipo
 gnuflag   = -m64 -march=core-avx2 -mtune=core-avx2 -O3
 
 # User does not have to take care of following variables
