@@ -9,7 +9,7 @@
 prefix = .
 # intel and gnu compilers are supported
 compiler = intel
-intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3 -ipo
+intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3
 gnuflag   = -m64 -march=core-avx2 -mtune=core-avx2 -O3
 
 # User does not have to take care of following variables
@@ -25,9 +25,9 @@ libdir = $(RealPrefix)/lib
 
 libFL.a libFL.so: $(src)
 ifeq ($(compiler),intel)
-	ifort -mkl $(intelflag) -c $^
+	ifort -mkl -ipo $(intelflag) -c $^
 	xiar rcs libFL.a *.o
-	ifort -mkl $(intelflag) -shared -fpic $^ -o libFL.so
+	ifort -mkl -ipo $(intelflag) -shared -fpic $^ -o libFL.so
 else
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -c $^
@@ -58,7 +58,7 @@ $(libdir):
 .PHONY: test
 test:
 ifeq ($(compiler),intel)
-	ifort -mkl $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	ifort -mkl -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
 else
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -I$(incdir) test/test.f90 -l:libFL.a $(gnumkl) -o test/test_static.exe
@@ -73,7 +73,7 @@ $(error Please add prefix/lib to LD_LIBRARY_PATH)
 endif
 
 ifeq ($(compiler),intel)
-	ifort -mkl $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
+	ifort -mkl -ipo $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
 else
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -I$(incdir) test/test.f90 -lFL $(gnumkl) -o test/test_dynamic.exe
