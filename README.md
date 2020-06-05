@@ -79,6 +79,9 @@ Source code level from bottom to top:
 * MKL
 * mkl_rci.f90 & mkl_dfti.f90 (can be found in MKL installation path)
 
+## Publications based on this work
+> Y. Shen and D. R. Yarkony, J. Phys. Chem. A acs.jpca.0c02763 (2020) https://doi.org/10.1021/acs.jpca.0c02763
+
 ## Reference
 > 1. J. Nocedal, S. J. Wright, *Numerical Optimization 2nd edition* (Springer, 2006)
 > 2. E. B. Wilson, J. C. Decius, P. C. Cross, *Molecular viobrations: the theory of infrared and Raman vibrational spectra* (Dover, 1980)
