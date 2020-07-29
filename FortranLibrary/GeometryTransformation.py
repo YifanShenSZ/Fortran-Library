@@ -18,7 +18,7 @@ class IntCoordDef:
         self.motion = []
 
 def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray, \
-ref=numpy.array([numpy.nan]), grad=numpy.array([numpy.nan])) -> float:
+ref:numpy.ndarray=numpy.array([numpy.nan]), grad:numpy.ndarray=numpy.array([numpy.nan])) -> float:
     p_geom = array2p(geom); p_mass = array2p(mass)
     diff = c_double(0.0)
     NAtoms = c_int(mass.shape[0])
@@ -28,19 +28,17 @@ ref=numpy.array([numpy.nan]), grad=numpy.array([numpy.nan])) -> float:
         NStates = c_int(1)
     if numpy.isnan(ref[0]):
         if numpy.isnan(grad[0]):
-            FL.geometrytransformation_mp_py_standardizegeometry_(p_geom, p_mass, byref(NAtoms))
+            FL.geometrytransformation_mp_standardizegeometry_basic_(p_geom, p_mass, byref(NAtoms))
         else:
             p_grad = array2p(grad)
-            FL.geometrytransformation_mp_py_standardizegeometry_grad_\
+            FL.geometrytransformation_mp_standardizegeometry_grad_\
                 (p_geom, p_mass, byref(NAtoms), byref(NStates), p_grad)
             p2array(p_grad, grad)
     else:
         p_ref = array2p(ref)
         if numpy.isnan(grad[0]):
-            grad = numpy.zeros(geom.shape)
-            p_grad = array2p(grad)
-            FL.geometrytransformation_mp_standardizegeometry_\
-                (p_geom, p_mass, byref(NAtoms), byref(NStates), p_ref, byref(diff), p_grad)
+            FL.geometrytransformation_mp_standardizegeometry_ref_\
+                (p_geom, p_mass, byref(NAtoms), p_ref, byref(diff))
         else:
             p_grad = array2p(grad)
             FL.geometrytransformation_mp_standardizegeometry_\

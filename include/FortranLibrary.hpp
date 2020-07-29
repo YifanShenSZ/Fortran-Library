@@ -22,34 +22,106 @@ extern "C" {
     // General
     void general_mp_showtime_();
     void general_mp_dscientificnotation_(double & x, int & i);
+    // NonlinearOptimization
+    void nonlinearoptimization_mp_conjugategradient_basic_(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const char * Method,
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
+        int len_Method);
+    void nonlinearoptimization_mp_conjugategradient_(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const char * Method,
+        int (*f_fd)(double &, double *, const double *, const int &),
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
+        int len_Method);
+    void nonlinearoptimization_mp_trustregion_basic_(
+        void (*fd)(double *, const double *, const int &, const int &),
+        void (*Jacobian)(double *, const double *, const int &, const int &),
+        double * x, const int & M, const int & N,
+        const bool & Warning,
+        const int & MaxIteration, const int & MaxStepIteration,
+        const double & Precision, const double & MinStepLength);
     // Chemistry
     void chemistry_mp_initializephasefixing_(const int & NStates);
     // GeometryTransformation
     int geometrytransformation_mp_defineinternalcoordinate_(
-        const char * format, const char * file, int len_format, int len_file
-    );
+        const char * format, const char * file, int len_format, int len_file);
     void geometrytransformation_mp_sinternalcoordinate_(
-        const float * r, float * q, const int & cartdim, const int & intdim
-    );
+        const float * r, float * q, const int & cartdim, const int & intdim);
     void geometrytransformation_mp_dinternalcoordinate_(
-        const double * r, double * q, const int & cartdim, const int & intdim
-    );
+        const double * r, double * q, const int & cartdim, const int & intdim);
     void geometrytransformation_mp_scartesian2internal_(
-        const float * r, const float * cartgradT, float * q, float * intgradT, const int & cartdim, const int & intdim
-    );
+        const float * r, const float * cartgradT, float * q, float * intgradT, const int & cartdim, const int & intdim);
     void geometrytransformation_mp_dcartesian2internal_(
-        const double * r, const double * cartgradT, double * q, double * intgradT, const int & cartdim, const int & intdim
-    );
+        const double * r, const double * cartgradT, double * q, double * intgradT, const int & cartdim, const int & intdim);
     void geometrytransformation_mp_swilsonbmatrixandinternalcoordinate_(
-        const float * r, float * BT, float * q, const int & cartdim, const int & intdim
-    );
+        const float * r, float * BT, float * q, const int & cartdim, const int & intdim);
     void geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(
-        const double * r, double * BT, double * q, const int & cartdim, const int & intdim
-    );
+        const double * r, double * BT, double * q, const int & cartdim, const int & intdim);
+    // FortranLibrary
+    void fortranlibrary_mp_testfortranlibrary_();
 }
 namespace General {
     inline void ShowTime() {general_mp_showtime_();}
     inline void dScientificNotation(double & x, int & i) {general_mp_dscientificnotation_(x, i);}
+}
+namespace NonlinearOptimization {
+    inline void ConjugateGradient(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        std::string Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
+        const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
+        const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
+    ) {
+        nonlinearoptimization_mp_conjugategradient_basic_(
+            f, fd, x, dim,
+            Method.c_str(),
+            Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment,
+            Method.size());
+    }
+    inline void ConjugateGradient(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        int (*f_fd)(double &, double *, const double *, const int &),
+        double * x, const int & dim,
+        std::string Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
+        const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
+        const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
+    ) {
+        nonlinearoptimization_mp_conjugategradient_(
+            f, fd, x, dim,
+            Method.c_str(),
+            f_fd,
+            Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment,
+            Method.size());
+    }
+    inline void TrustRegion(
+        void (*fd)(double *, const double *, const int &, const int &),
+        void (*Jacobian)(double *, const double *, const int &, const int &),
+        double * x, const int & M, const int & N,
+        const bool & Warning=true,
+        const int & MaxIteration=1000, const int & MaxStepIteration=100,
+        const double & Precision=1e-15, const double & MinStepLength=1e-15
+    ) {
+        nonlinearoptimization_mp_trustregion_basic_(
+            fd, Jacobian, x, M, N,
+            Warning,
+            MaxIteration, MaxStepIteration,
+            Precision, MinStepLength);
+    }
 }
 namespace Chemistry {
     inline void InitializePhaseFixing(const int & NStates) {chemistry_mp_initializephasefixing_(NStates);}
@@ -79,6 +151,9 @@ namespace GeometryTransformation {
         geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(r, BT, q, cartdim, intdim);
     }
 }
+namespace FortranLibrary {
+    inline void TestFortranLibrary() {fortranlibrary_mp_testfortranlibrary_();};
+}
 #elif __GNUC__
 extern "C" {
     // General
@@ -106,6 +181,8 @@ extern "C" {
     void __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(
         const double * r, double * BT, double * q, const int & cartdim, const int & intdim
     );
+    // FortranLibrary
+    void __fortranlibrary_MOD_testfortranlibrary();
 }
 namespace General {
     inline void ShowTime() {__general_MOD_showtime();}
@@ -138,6 +215,11 @@ namespace GeometryTransformation {
     inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int & cartdim, const int & intdim) {
         __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(r, BT, q, cartdim, intdim);
     }
+}
+namespace FortranLibrary {
+    inline void TestFortranLibrary() {
+        __fortranlibrary_MOD_testfortranlibrary();
+    };
 }
 #endif
 

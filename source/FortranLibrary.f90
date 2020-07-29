@@ -401,12 +401,12 @@ subroutine TestFortranLibrary()
             write(*,*)
             write(*,*)'DY'
                 call random_number(x)
-                call ConjugateGradient(f,fd,x,dim)
+                call ConjugateGradient(f,fd,x,dim,Strong=.false.)
                 write(*,*)norm2(x)
             write(*,*)
             write(*,*)'DY_S'
                 call random_number(x)
-                call ConjugateGradient(f,fd,x,dim,Strong=.true.)
+                call ConjugateGradient(f,fd,x,dim)
                 write(*,*)norm2(x)
             write(*,*)
             write(*,*)'DY_S_fdwithf'
@@ -678,7 +678,7 @@ subroutine TestFortranLibrary()
         real*8,dimension(M),intent(out)::fdx
         real*8,dimension(N),intent(in)::x
         integer::i
-        forall(i=1:dim)
+        forall(i=1:M)
             fdx(i)=4d0*x(i)**3
         end forall
     end subroutine fd_tr
@@ -689,7 +689,7 @@ subroutine TestFortranLibrary()
         real*8,dimension(N),intent(in)::x
         integer::i
         fddx=0d0
-        forall(i=1:dim)
+        forall(i=1:M)
             fddx(i,i)=12d0*x(i)*x(i)
         end forall
         fdd_tr=0!return 0

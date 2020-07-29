@@ -255,7 +255,6 @@ contains
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
                     write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
@@ -277,7 +276,6 @@ contains
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
                     write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
@@ -378,7 +376,6 @@ contains
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     return
@@ -616,7 +613,6 @@ contains
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.; return
@@ -647,7 +643,6 @@ contains
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.; return
@@ -679,7 +674,6 @@ contains
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.; return
@@ -769,7 +763,6 @@ contains
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
                     write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 return
@@ -808,7 +801,6 @@ contains
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     return
@@ -923,7 +915,6 @@ contains
                 if(dot_product(p,p)*a*a<minstep) then
                     if(warn) then
                         write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                         write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                     end if
                     terminate=.true.; return
@@ -934,7 +925,7 @@ contains
     end subroutine LBFGS
 
     !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
-    !Available methods: DY (Dai-Yun), PR (Polak-Ribiere+)
+    !Available methods: DY (Dai-Yuan), PR (Polak-Ribiere+)
     !Optional: Method: (default = DY) which conjugate gradient method to use
     subroutine ConjugateGradient(f, fd, x, dim, &
     Method, &
@@ -944,13 +935,13 @@ contains
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
         !Optional argument
-            character*32,intent(in),optional::Method
+            character(*),intent(in),optional::Method
             integer,external,optional::f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration
             real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
-        character*32::type
+        character*2::type
         integer::maxit,iIteration,info
         real*8::tol,minstep,c1,c2,a,fnew,fold,phidnew,phidold
         real*8,dimension(dim)::p,fdnew,fdold
@@ -1003,7 +994,7 @@ contains
                         end do
                     end if
                 else
-                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
                         do iIteration=1,maxit!Main loop
                             fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
@@ -1037,7 +1028,7 @@ contains
                         end do
                     end if
                 else
-                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yun requires strong Wolfe condition
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
                         do iIteration=1,maxit!Main loop
                             fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
@@ -1103,8 +1094,7 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
-                    write(*,'(1x,A106)')'Dai-Yun conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
+                    write(*,'(1x,A106)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
@@ -1126,7 +1116,6 @@ contains
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
                     write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,'(1x,A56)')'A best estimation rather than exact solution is returned'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
@@ -1584,6 +1573,7 @@ contains
     !    subroutine fd(f'(x), x, M, N)
     !    integer function Jacobian(J(x), x, M, N)
     !    M dimensional vector f'(x), N dimensional vector x, M x N matrix J(x)
+    !    M >= N
     !Required argument:
     !    subroutine fd, N dimensional vector x, integer M & N
     !Optional argument:
@@ -1613,7 +1603,7 @@ contains
             type(handle_tr)::handle!Trust-region solver handle
         !Job control
             logical::warn
-            integer::maxit=1000,maxstepit=1000
+            integer::maxit,maxstepit
             !tol(1:5) contains the stopping criteria for solving f'(x) = 0:
             !    1, trust region radius < tol(1)
             !    2, || f'(x) ||_2 < tol(2)
@@ -1750,25 +1740,13 @@ contains
                 end if
         end if
         call mkl_free_buffers
-        if(StopReason/=3) then
+        if(StopReason/=3.and.warn) then
             select case(StopReason)
-            case(1)
-                if(warn) then
-                    write(*,*)'Failed trust region: max iteration exceeded!'
-                    write(*,*)'Final residual =',FinalResidual
-                end if
-            case(4)
-                if(warn) then
-                    write(*,*)'Failed trust region: singular Jacobian encountered!'
-                    write(*,*)'Final residual =',FinalResidual
-                end if
-            case default
-                if(warn) then
-                    write(*,*)'Trust region warning: step length has converged, but residual has not met accuracy goal'
-                    write(*,*)'A best estimation rather than exact solution is returned'
-                    write(*,*)'Final residual =',FinalResidual
-                end if
+            case(1); write(*,*)'Failed trust region: max iteration exceeded!'
+            case(4); write(*,*)'Failed trust region: singular Jacobian encountered!'
+            case default; write(*,*)'Trust region warning: step length has converged, but residual has not met accuracy goal'
             end select
+            write(*,*)'Final residual =',FinalResidual
         end if
         contains
             subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
@@ -2116,6 +2094,182 @@ contains
 
 !--------------- Heuristic ---------------
     !Not implemented, because I cannot figure out a way to implement these algorithms as black box
+!------------------ End ------------------
+
+!----------- Interoperability ------------
+    subroutine ConjugateGradient_basic(f, fd, x, dim, &
+    Method, &
+    Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
+        external::f,fd
+        integer,intent(in)::dim
+        real*8,dimension(dim),intent(inout)::x
+        character(*),intent(in)::Method
+        logical,intent(in)::Strong, Warning
+        integer,intent(in)::MaxIteration
+        real*8,intent(in)::Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment
+        logical::terminate
+        integer::iIteration
+        real*8::tol, minstep, a, fnew, fold, phidnew, phidold
+        real*8,dimension(dim)::p, fdnew, fdold
+        !Initialize
+            terminate=.false.
+            tol=Precision*Precision!To save sqrt cost, precision is squared
+            minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+            call f(fnew,x,dim); call fd(fdnew,x,dim)
+            !Initial direction & step length
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            if(-phidnew<tol) return
+            if(fnew==0d0) then; a=1d0
+            else; a=-fnew/phidnew; end if
+        select case(Method)
+        case('DY')!Require Wolfe condition
+            if(Strong) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
+                do iIteration=1,MaxIteration!Main loop
+                    fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                    call StrongWolfe(WolfeConst1,WolfeConst2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                    call DY()!After search
+                    if(terminate) return
+                end do
+            else
+                do iIteration=1,MaxIteration!Main loop
+                    fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                    call Wolfe(WolfeConst1,WolfeConst2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                    call DY()!After search
+                    if(terminate) return
+                end do
+            end if
+        case('PR')!Require strong Wolfe condition
+            do iIteration=1,MaxIteration!Main loop
+                fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                call StrongWolfe(WolfeConst1,WolfeConst2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                call PR()!After search
+                if(terminate) return
+            end do
+        case default; write(*,*)'Program abort: unsupported conjugate gradient method '//trim(adjustl(Method)); stop
+        end select
+        if(iIteration>MaxIteration.and.Warning) then
+            write(*,'(1x,A50)')'Failed conjugate gradient: max iteration exceeded!'
+            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
+        end if
+        contains
+        subroutine DY()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(Warning) then
+                    write(*,'(1x,A106)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
+            phidnew=dot_product(fdnew,p)
+            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            end if
+            a=a*phidold/phidnew
+        end subroutine DY
+        subroutine PR()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(Warning) then
+                    write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
+            phidnew=dot_product(fdnew,p)
+            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            end if
+            a=a*phidold/phidnew
+        end subroutine PR
+    end subroutine ConjugateGradient_basic
+
+    subroutine TrustRegion_basic(fd, Jacobian, x, M, N, &
+    Warning, MaxIteration, MaxStepIteration, Precision, MinStepLength)
+        external::fd, Jacobian
+        integer,intent(in)::M,N
+        real*8,dimension(N),intent(inout)::x
+        logical,intent(in)::Warning
+        integer,intent(in)::MaxIteration,MaxStepIteration
+        real*8 ,intent(in)::Precision,MinStepLength
+        !Reverse communication interface (RCI)
+        integer::RCI_request!Recieve job request
+        integer,dimension(6)::info!Results of input parameter checking
+        type(handle_tr)::handle!Trust-region solver handle
+        !Job control
+        !tol(1:5) contains the stopping criteria for solving f'(x) = 0:
+        !    1, trust region radius < tol(1)
+        !    2, || f'(x) ||_2 < tol(2)
+        !    3, || Jacobian ||_1 < tol(3) 
+        !    4, || s ||_2 < tol(4), where s is the trial step
+        !    5, || f'(x) ||_2 - || f'(x) - Jacobian . s ||_2 < tol(5)
+        !tol(6) is the precision of s calculation
+        real*8,dimension(6)::tol
+        !TotalIteration harvests the solver stops after how many iterations
+        !StopReason harvests why the solver has stopped:
+        !    1,   max iteration exceeded
+        !    2-6, tol(StopReason-1) is met
+        integer::TotalIteration,StopReason
+        real*8::InitialResidual,FinalResidual,StepBound
+        real*8,dimension(M)::fdx
+        real*8,dimension(M,N)::J
+        !Initialize
+        tol=[MinStepLength,Precision,1d-15,MinStepLength,MinStepLength,1d-15]
+        fdx=0d0; J=0d0; StepBound=100d0; RCI_request=0
+        if(dtrnlsp_init(handle,N,M,x,tol,MaxIteration,MaxStepIteration,StepBound)/=TR_SUCCESS) then
+            write(*,*)'Trust region abort: invalid initialization'
+            call mkl_free_buffers; return
+        end if
+        if(dtrnlsp_check(handle,N,M,J,fdx,tol,info)/=TR_SUCCESS) then
+            write(*,*)'Trust region abort: check failed'
+            call mkl_free_buffers; return
+        else
+            if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
+                write(*,*)'Trust region abort: check was not passed, the information is:'
+                write(*,*)info
+                call mkl_free_buffers; return
+            end if
+        end if
+        do!Main loop
+            if (dtrnlsp_solve(handle,fdx,J,RCI_request)/=TR_SUCCESS) then
+                call mkl_free_buffers; return
+            end if
+            select case (RCI_request)
+            case (-1,-2,-3,-4,-5,-6); exit
+            case (1); call fd(fdx,x,M,N)
+            case (2); call Jacobian(J,x,M,N)
+            end select
+        end do
+        !Clean up
+        if (dtrnlsp_get(handle,TotalIteration,StopReason,InitialResidual,FinalResidual)/=TR_SUCCESS) then
+            call mkl_free_buffers; return
+        end if
+        if (dtrnlsp_delete(handle)/=TR_SUCCESS) then
+            call mkl_free_buffers; return
+        end if
+        call mkl_free_buffers
+        !Warn
+        if(StopReason/=3.and.Warning) then
+            select case(StopReason)
+            case(1); write(*,*)'Failed trust region: max iteration exceeded!'
+            case(4); write(*,*)'Failed trust region: singular Jacobian encountered!'
+            case default; write(*,*)'Trust region warning: step length has converged, but residual has not met accuracy goal'
+            end select
+            write(*,*)'Final residual =',FinalResidual
+        end if
+    end subroutine TrustRegion_basic
 !------------------ End ------------------
 
 end module NonlinearOptimization

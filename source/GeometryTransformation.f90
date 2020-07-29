@@ -1013,6 +1013,11 @@ contains
                 real*8,dimension(cartdim),intent(in),optional::r0
             if(present(r0)) then; r=r0!Initial guess
             else; call random_number(r); end if
+            !The dimensionality of the true residue is intdim < cartdim,
+            !so the trust region solver would refuse to work
+            !To cheat the solver we add 0 to the end of residue,
+            !consequently the corresponding rows in Jacobian are all 0
+            !Fortunately the solver does not check Jacobian singularity by row (doge)
             call TrustRegion(Residue,r,cartdim,cartdim,Jacobian=Jacobian,Precision=1d-10)
             contains
             subroutine Residue(res,r,dim,cartdim)
@@ -1164,8 +1169,8 @@ contains
     end subroutine WilsonGFMethod
 !------------------- End --------------------
 
-!-------------- Python special --------------
-    subroutine py_StandardizeGeometry(geom, mass, NAtoms)
+!------------- Interoperability -------------
+    subroutine StandardizeGeometry_basic(geom, mass, NAtoms)
         integer,intent(in)::NAtoms
         real*8,dimension(3,NAtoms),intent(inout)::geom
         real*8,dimension(NAtoms),intent(in)::mass
@@ -1186,9 +1191,70 @@ contains
         UT=transpose(moi)
         !Transform geometry to principle axes frame
         forall(i=1:NAtoms); geom(:,i)=matmul(UT,geom(:,i)); end forall
-    end subroutine py_StandardizeGeometry
+    end subroutine StandardizeGeometry_basic
 
-    subroutine py_StandardizeGeometry_grad(geom, mass, NAtoms, NStates, grad)
+    subroutine StandardizeGeometry_ref(geom, mass, NAtoms, ref, diff)
+        integer,intent(in)::NAtoms
+        real*8,dimension(3,NAtoms),intent(inout)::geom
+        real*8,dimension(NAtoms),intent(in)::mass
+        real*8,dimension(3,NAtoms),intent(in)::ref
+        real*8,intent(out)::diff
+        integer::indicemin,i,istate,jstate
+        real*8::mindiff,dbletemp
+        real*8,dimension(3)::com!centre of mass
+        real*8,dimension(3,3)::UT,moi!moment of inertia
+        real*8,dimension(3,NAtoms,4)::r!To store 4 legal geometries
+        !Shift centre of mass to origin, then get momentum of inertia in centre of mass frame
+            com=matmul(geom,mass)/sum(mass); moi=0d0
+            do i=1,NAtoms
+                geom(:,i)=geom(:,i)-com
+                moi=moi+mass(i)*(dot_product(geom(:,i),geom(:,i))*UnitMatrix(3)-vector_direct_product(geom(:,i),geom(:,i),3,3))
+            end do
+        !Diagonalize momentum of inertia
+            call My_dsyev('V',moi,com,3)
+            if(triple_product(moi(:,1),moi(:,2),moi(:,3))<0d0) moi(:,1)=-moi(:,1)!Should be rotation rather than reflection
+            UT=transpose(moi)
+        !Transform geometry to principle axes frame
+        !The positive direction has 4 legal choices, determine it by comparing difference to the reference
+        forall(i=1:NAtoms)
+            r(:,i,1)=matmul(UT,geom(:,i))
+            !Flip x and y positive directions
+            r(1:2,i,2)=-r(1:2,i,1)
+            r(  3,i,2)= r(  3,i,1)
+            !Flip x and z positive directions
+            r(1,i,3)=-r(1,i,1)
+            r(2,i,3)= r(2,i,1)
+            r(3,i,3)=-r(3,i,1)
+            !Flip y and z positive directions
+            r(  1,i,4)= r(  1,i,1)
+            r(2:3,i,4)=-r(2:3,i,1)
+        end forall
+        !Which one has smallest difference?
+        indicemin=1; mindiff=difference(r(:,:,1))
+        do i=2,4
+            dbletemp=difference(r(:,:,i))
+            if(dbletemp<mindiff) then
+                indicemin=i; mindiff=dbletemp
+            end if
+        end do
+        diff=mindiff!Harvest mass^2 weighted || geom - ref ||_2^2
+        geom=r(:,:,indicemin)!Determine the unique geometry
+        select case(indicemin)!Determine the principle axes
+        case(2); moi(:,1:2)=-moi(:,1:2)
+        case(3); moi(:,1)=-moi(:,1); moi(:,3)=-moi(:,3)
+        case(4); moi(:,2:3)=-moi(:,2:3)
+        end select
+        contains
+        real*8 function difference(geom)
+            real*8,dimension(3,NAtoms),intent(in)::geom
+            integer::i; real*8,dimension(3,NAtoms)::temp
+            temp=geom-ref
+            forall(i=1:NAtoms); temp(:,i)=temp(:,i)*mass(i); end forall
+            difference=dgeFrobeniusSquare(temp,3,NAtoms)
+        end function difference
+    end subroutine StandardizeGeometry_ref
+
+    subroutine StandardizeGeometry_grad(geom, mass, NAtoms, NStates, grad)
         integer,intent(in)::NAtoms,NStates
         real*8,dimension(3,NAtoms),intent(inout)::geom
         real*8,dimension(NAtoms),intent(in)::mass
@@ -1213,7 +1279,7 @@ contains
         forall(i=1:NAtoms,istate=1:NStates,jstate=1:NStates,istate>=jstate)
             grad(:,i,istate,jstate)=matmul(UT,grad(:,i,istate,jstate))
         end forall
-    end subroutine py_StandardizeGeometry_grad
+    end subroutine StandardizeGeometry_grad
 !------------------- End --------------------
 
 end module GeometryTransformation
