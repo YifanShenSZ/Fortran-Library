@@ -40,9 +40,9 @@ endif
 .PHONY: install
 install: | $(incdir) $(libdir)
 	mv *.mod $(incdir)
-	cp cpp/*.hpp $(incdir)
 	mv *.a  $(libdir)
 	mv *.so $(libdir)
+	cp cpp/*.hpp $(incdir)
 ifneq ($(realpath .),$(RealPrefix))
 	cp -r FortranLibrary $(RealPrefix)
 endif

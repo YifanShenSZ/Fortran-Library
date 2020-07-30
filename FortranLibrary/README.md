@@ -1,6 +1,7 @@
 # Python interface for Fortran-Library
 Fortran-Library routines can be called in almost the same manner to fortran. Occasional difference does exist due to python-fortran discrepancy, see details below.
 
+## Routines
 Python interface wraps fortran routines, because:
 1. Python recognizes fortran functions by their compiled names:
 * Fortran function Func contained in module Mod will be renamed as mod_mp_func_ by intel compiler or __mod_MOD_func by GNU compiler
@@ -36,5 +37,8 @@ The fortran side also provides some help in 'Interoperability' section:
 * As noted above, when called from python, only the 'all present' case will be run
 * So other cases now are provided as specific fortran routines
 
-Weird issue:
-1. When a fortran variable length string argument receives a long python string, it will keep only leading 10 characters
+## Derived types
+Python interface reproduces fortran types with python classes other than fetches them
+
+# Weird issue
+When a fortran variable length string argument receives a long python string, it will keep only leading 10 characters

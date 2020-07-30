@@ -1,20 +1,13 @@
 from .basic import *
 
-# Fail to fetch type InvolvedMotion:
-# InvolvedMotion.atom is an intel fortran array descriptor without c coutner part
-# So we provide a similar python class
 class InvolvedMotion:
     def __init__(self, MotionType:str, coeff:float, atom:List):
         self.type  = MotionType
         self.coeff = coeff
         self.atom  = atom.copy()
 
-# Fail to fetch type IntCoordDef:
-# It depends on type InvolvedMotion
-# So we provide a similar python class
 class IntCoordDef:
     def __init__(self):
-        # We no longer provide self.NMotions as it = len(self.motion)
         self.motion = []
 
 def StandardizeGeometry(geom:numpy.ndarray, mass:numpy.ndarray, \
@@ -49,9 +42,8 @@ ref:numpy.ndarray=numpy.array([numpy.nan]), grad:numpy.ndarray=numpy.array([nump
 
 # ---------- Cartesian <-> Internal ----------
 
-# Fail to fetch GeometryTransformation_IntCoordDef:
-# It depends on class IntCoordDef
-# So we provide a function to load internal coordinate format in python
+# We provide a function to load internal coordinate format in python
+# instead of fetching GeometryTransformation_IntCoordDef
 def FetchInternalCoordinateDefinition(format:str, \
 file=Path('null')) -> (int, List):
     intdim=0; intcoorddef = []
@@ -96,28 +88,28 @@ file=Path('null')) -> (int, List):
         else:
             with open('IntCoordDef','r') as f: lines=f.readlines()
         for i in range(len(lines)):
-            temp = lines[i].split()
+            strs = lines[i].split()
             if lines[i][0:6] != '      ':
                 intdim += 1
                 intcoorddef.append(IntCoordDef())
-                temp.pop(0)
-            coeff = float(temp[0])
-            MotionType = temp[1]
+                strs.pop(0)
+            coeff = float(strs[0])
+            MotionType = strs[1]
             if MotionType == 'stretching':
-                atom = [int(temp[2]), int(temp[3])]
+                atom = [int(strs[2]), int(strs[3])]
             elif MotionType == 'bending':
-                atom = [int(temp[2]), int(temp[3]), int(temp[4])]
+                atom = [int(strs[2]), int(strs[3]), int(strs[4])]
             elif MotionType == 'torsion':
-                atom = [int(temp[2]), int(temp[3]), int(temp[4]), int(temp[5])]
+                atom = [int(strs[2]), int(strs[3]), int(strs[4]), int(strs[5])]
             elif MotionType == 'OutOfPlane':
-                atom = [int(temp[2]), int(temp[3]), int(temp[4]), int(temp[5])]
+                atom = [int(strs[2]), int(strs[3]), int(strs[4]), int(strs[5])]
             intcoorddef[intdim-1].motion.append(InvolvedMotion(MotionType,coeff,atom))
     # Normalized linear combination coefficient
     for i in range(intdim):
-        summation = 0.0
-        for j in range(len(intcoorddef[i].motion)): summation += intcoorddef[i].motion[j].coeff * intcoorddef[i].motion[j].coeff
-        summation = numpy.sqrt(summation)
-        for j in range(len(intcoorddef[i].motion)): intcoorddef[i].motion[j].coeff /= summation
+        norm2 = 0.0
+        for j in range(len(intcoorddef[i].motion)): norm2 += intcoorddef[i].motion[j].coeff * intcoorddef[i].motion[j].coeff
+        norm2 = numpy.sqrt(norm2)
+        for j in range(len(intcoorddef[i].motion)): intcoorddef[i].motion[j].coeff /= norm2
     return intdim, intcoorddef
 
 def DefineInternalCoordinate(format:str, \

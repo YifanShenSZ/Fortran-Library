@@ -1,6 +1,7 @@
 # C++ interface for Fortran-Library
 Fortran-Library routines can be called in almost the same manner to fortran. Occasional difference does exist due to c++-fortran discrepancy, see details below.
 
+## Routines
 C++ interface wraps fortran routines, because:
 1. C++ recognizes fortran functions by their compiled names:
 * Fortran function Func contained in module Mod will be renamed as mod_mp_func_ by intel compiler or __mod_MOD_func by GNU compiler
@@ -20,5 +21,5 @@ The fortran side also provides some help in 'Interoperability' section:
 * As noted above, when called from c++, only the 'all present' case will be run
 * So other cases now are provided as specific fortran routines
 
-Weird issue:
-1. When a fortran variable length string argument receives a long c++ string, it will keep only leading 10 characters
+## Derived types
+C++ interface reproduces fortran types with c++ structs other than fetches them

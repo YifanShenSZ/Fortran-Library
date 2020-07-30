@@ -4,6 +4,15 @@
 #ifndef FortranLibrary_hpp
 #define FortranLibrary_hpp
 
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <vector>
+#include <forward_list>
+#include <tuple>
+#include <iterator>
+#include <cmath>
+
 namespace FL {
 
 // No need to fetch constant, directly provide them in c++
@@ -222,6 +231,132 @@ namespace FortranLibrary {
     };
 }
 #endif
+
+namespace GeometryTransformation {
+    struct InvolvedMotion {
+        std::string type;
+        double coeff;
+        std::vector<int> atom;
+    
+        inline InvolvedMotion(const std::string & MotionType, const double & coeff, const std::vector<int> & atom) {
+            this->type  = MotionType;
+            this->coeff = coeff;
+            this->atom  = atom;
+        }
+        ~InvolvedMotion() {}
+    };
+    struct IntCoordDef {
+        std::vector<InvolvedMotion> motion;
+    
+        IntCoordDef() {}
+        ~IntCoordDef() {}
+    };
+    // We provide a function to load internal coordinate format in c++
+    // instead of fetching GeometryTransformation_IntCoordDef
+    inline std::tuple<size_t, std::vector<IntCoordDef>> 
+    FetchInternalCoordinateDefinition(const std::string & format, const std::string & file) {
+        size_t intdim;
+        std::vector<IntCoordDef> intcoorddef;
+        std::ifstream ifs;
+        std::string line, MotionType;
+        double coeff;
+        std::vector<int> atom;
+    
+        intdim = 0;
+        if (format == "Columbus7") {
+            // First line is always "TEXAS"
+            // New internal coordinate line starts with 'K'
+            ifs.open(file);
+            if (not ifs.good()) {
+                ifs.close();
+                ifs.open("intcfl");
+            }
+            std::getline(ifs, line);
+            while (ifs.good()) {
+                std::getline(ifs, line);
+                if (line[0] == 'K') {
+                    intdim++;
+                    intcoorddef.push_back(IntCoordDef());
+                }
+                if (line.substr(20,4) == "STRE") {
+                    MotionType = "stretching";
+                    atom = {std::stoi(line.substr(28, 5)), std::stoi(line.substr(34, 9))};
+                } else if (line.substr(20,4) == "BEND") {
+                    MotionType = "bending";
+                    atom = {std::stoi(line.substr(28, 6)), std::stoi(line.substr(45, 9)), std::stoi(line.substr(35, 9))};
+                } else if (line.substr(20,4) == "TORS") {
+                    MotionType = "torsion";
+                    atom = {std::stoi(line.substr(28, 6)), std::stoi(line.substr(35, 9)), std::stoi(line.substr(45, 9)), std::stoi(line.substr(55, 9))};
+                } else if (line.substr(20,3) == "OUT") {
+                    MotionType = "OutOfPlane";
+                    atom = {std::stoi(line.substr(28, 6)), std::stoi(line.substr(45, 9)), std::stoi(line.substr(55, 9)), std::stoi(line.substr(35, 9))};
+                }
+                if (line.substr(10, 10) == "          ") coeff = 1.0;
+                else coeff = std::stod(line.substr(10, 10));
+                intcoorddef[intdim-1].motion.push_back(InvolvedMotion(MotionType, coeff, atom));
+            }
+        } else {
+            // First 6 spaces of a line are reserved to indicate the start of new internal coordinate
+            // Example:
+            //  coor |   coeff   |    type     |      atom
+            // --------------------------------------------------
+            //      1    1.000000    stretching     1     2          # Comment
+            //           1.000000    stretching     1     3
+            //      2    1.000000    stretching     1     2
+            //          -1.000000    stretching     1     3
+            //      3    1.000000       bending     2     1     3
+            ifs.open(file);
+            if (not ifs.good()) {
+                ifs.close();
+                ifs.open("IntCoordDef");
+            }
+            while (ifs.good()) {
+                std::getline(ifs, line);
+                std::istringstream iss(line);
+                std::forward_list<std::string> strs(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>());
+                if (line.substr(0, 6) != "      ") {
+                    intdim++;
+                    intcoorddef.push_back(IntCoordDef());
+                    strs.pop_front();
+                }
+                coeff = std::stod(strs.front()); strs.pop_front();
+                MotionType = strs.front(); strs.pop_front();
+                if (MotionType == "stretching") {
+                    atom.resize(2);
+                    atom[0] = std::stod(strs.front()); strs.pop_front();
+                    atom[1] = std::stod(strs.front());
+                } else if (MotionType == "bending") {
+                    atom[0] = std::stod(strs.front()); strs.pop_front();
+                    atom[1] = std::stod(strs.front()); strs.pop_front();
+                    atom[2] = std::stod(strs.front());
+                } else if (MotionType == "torsion") {
+                    atom[0] = std::stod(strs.front()); strs.pop_front();
+                    atom[1] = std::stod(strs.front()); strs.pop_front();
+                    atom[2] = std::stod(strs.front()); strs.pop_front();
+                    atom[3] = std::stod(strs.front()); strs.pop_front();
+                } else if (MotionType == "OutOfPlane") {
+                    atom[0] = std::stod(strs.front()); strs.pop_front();
+                    atom[1] = std::stod(strs.front()); strs.pop_front();
+                    atom[2] = std::stod(strs.front()); strs.pop_front();
+                    atom[3] = std::stod(strs.front()); strs.pop_front();
+                }
+                intcoorddef[intdim-1].motion.push_back(InvolvedMotion(MotionType, coeff, atom));
+            }
+        }
+        // Normalized linear combination coefficient
+        for (size_t i = 0; i < intdim; i++) {
+            double norm2 = 0.0;
+            for (size_t j = 0; j < intcoorddef[i].motion.size(); j++) {
+                norm2 += intcoorddef[i].motion[j].coeff * intcoorddef[i].motion[j].coeff;
+            }
+            norm2 = sqrt(norm2);
+            for (size_t j = 0; j < intcoorddef[i].motion.size(); j++) {
+                intcoorddef[i].motion[j].coeff /= norm2;
+            }
+        }
+        return std::tie(intdim, intcoorddef);
+    }
+}
 
 } // namespace FL
 

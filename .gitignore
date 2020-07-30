@@ -33,6 +33,8 @@ __pycache__/
 *.exe
 *.out
 *.app
+include/
+lib/
 
 # Visual studio and VS code
 .vscode/
