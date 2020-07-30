@@ -40,9 +40,7 @@ endif
 .PHONY: install
 install: | $(incdir) $(libdir)
 	mv *.mod $(incdir)
-ifneq ($(realpath include),$(incdir))
-	cp include/*.hpp $(incdir)
-endif
+	cp cpp/*.hpp $(incdir)
 	mv *.a  $(libdir)
 	mv *.so $(libdir)
 ifneq ($(realpath .),$(RealPrefix))
