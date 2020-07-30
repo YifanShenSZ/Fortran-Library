@@ -267,7 +267,7 @@ namespace GeometryTransformation {
             // First line is always "TEXAS"
             // New internal coordinate line starts with 'K'
             ifs.open(file);
-            if (not ifs.good()) {
+            if (! ifs.good()) {
                 ifs.close();
                 ifs.open("intcfl");
             }
@@ -306,7 +306,7 @@ namespace GeometryTransformation {
             //          -1.000000    stretching     1     3
             //      3    1.000000       bending     2     1     3
             ifs.open(file);
-            if (not ifs.good()) {
+            if (! ifs.good()) {
                 ifs.close();
                 ifs.open("IntCoordDef");
             }
