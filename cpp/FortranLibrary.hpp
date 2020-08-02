@@ -84,7 +84,7 @@ namespace General {
     inline void ShowTime() {general_mp_showtime_();}
     inline void dScientificNotation(double & x, int & i) {general_mp_dscientificnotation_(x, i);}
 }
-namespace NonlinearOptimization {
+namespace NO { // NonlinearOptimization
     inline void ConjugateGradient(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
@@ -135,7 +135,7 @@ namespace NonlinearOptimization {
 namespace Chemistry {
     inline void InitializePhaseFixing(const int & NStates) {chemistry_mp_initializephasefixing_(NStates);}
 }
-namespace GeometryTransformation {
+namespace GT { // GeometryTransformation
     inline int DefineInternalCoordinate(std::string format, std::string file) {
         return geometrytransformation_mp_defineinternalcoordinate_(
             format.c_str(), file.c_str(), format.size(), file.size()
@@ -160,7 +160,7 @@ namespace GeometryTransformation {
         geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(r, BT, q, cartdim, intdim);
     }
 }
-namespace FortranLibrary {
+namespace FL { // FortranLibrary
     inline void TestFortranLibrary() {fortranlibrary_mp_testfortranlibrary_();};
 }
 #elif __GNUC__
@@ -200,7 +200,7 @@ namespace General {
 namespace Chemistry {
     inline void InitializePhaseFixing(const int & NStates) {__chemistry_MOD_initializephasefixing(NStates);}
 }
-namespace GeometryTransformation {
+namespace GT { // GeometryTransformation
     inline int DefineInternalCoordinate(std::string format, std::string file) {
         return __geometrytransformation_MOD_defineinternalcoordinate(
             format.c_str(), file.c_str(), format.size(), file.size()
@@ -225,14 +225,14 @@ namespace GeometryTransformation {
         __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(r, BT, q, cartdim, intdim);
     }
 }
-namespace FortranLibrary {
+namespace FL { // FortranLibrary
     inline void TestFortranLibrary() {
         __fortranlibrary_MOD_testfortranlibrary();
     };
 }
 #endif
 
-namespace GeometryTransformation {
+namespace GT { // GeometryTransformation
     struct InvolvedMotion {
         std::string type;
         double coeff;
@@ -254,7 +254,7 @@ namespace GeometryTransformation {
     // We provide a function to load internal coordinate format in c++
     // instead of fetching GeometryTransformation_IntCoordDef
     inline void FetchInternalCoordinateDefinition(const std::string & format, const std::string & file,
-    size_t & intdim, std::vector<IntCoordDef> & intcoorddef) {
+    int & intdim, std::vector<IntCoordDef> & intcoorddef) {
         std::ifstream ifs;
         std::string line, MotionType;
         double coeff;
@@ -271,7 +271,7 @@ namespace GeometryTransformation {
             std::getline(ifs, line);
             while (true) {
                 std::getline(ifs, line);
-                if (line == "") break;
+                if (! ifs.good()) break;
                 if (line[0] == 'K') {
                     intdim++;
                     intcoorddef.push_back(IntCoordDef());
@@ -311,7 +311,7 @@ namespace GeometryTransformation {
             }
             while (true) {
                 std::getline(ifs, line);
-                if (line == "") break;
+                if (! ifs.good()) break;
                 std::istringstream iss(line);
                 std::forward_list<std::string> strs(std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>());
                 if (line.substr(0, 6) != "      ") {
