@@ -33,20 +33,20 @@ int main() {
             vec = new double[dim];
             std::cout << "DY_S\n";
             for (i=0; i<dim; i++) vec[i] = (double)rand() / (double)RAND_MAX;
-            FL::NonlinearOptimization::ConjugateGradient(f, fd, vec, dim);
+            FL::NO::ConjugateGradient(f, fd, vec, dim);
             std::cout << norm(vec, dim) << "\n\n";
             std::cout << "DY_S__fdwithf\n";
             for (i=0; i<dim; i++) vec[i] = (double)rand() / (double)RAND_MAX;
-            FL::NonlinearOptimization::ConjugateGradient(f, fd, f_fd, vec, dim);
+            FL::NO::ConjugateGradient(f, fd, f_fd, vec, dim);
             std::cout << norm(vec, dim) << "\n\n";
             std::cout << "dtrnlsp\n";
             for (i=0; i<dim; i++) vec[i] = (double)rand() / (double)RAND_MAX;
-            FL::NonlinearOptimization::TrustRegion(fd_tr, fdd_tr, vec, dim, dim);
+            FL::NO::TrustRegion(fd_tr, fdd_tr, vec, dim, dim);
             std::cout << norm(vec, dim) << "\n\n";
     std::cout << "\n<<< Calling from c++ test passed <<<\n";
 
     std::cout << "\n>>> Testing calling from fortran... >>>\n";
-        FL::FortranLibrary::TestFortranLibrary();
+        FL::FL::TestFortranLibrary();
     std::cout << "<<< Calling from fortran test passed <<<\n";
 }
 

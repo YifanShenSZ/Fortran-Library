@@ -31,7 +31,21 @@ extern "C" {
     // General
     void general_mp_showtime_();
     void general_mp_dscientificnotation_(double & x, int & i);
+    // LinearAlgebra
+    void linearalgebra_mp_my_dgemm_t_(double * A, double * B, double * C, const int & M, const int & K, const int & N);
+    void linearalgebra_mp_my_dsyev_(const char & jobtype, double * A, double * eigval, const int & N);
     // NonlinearOptimization
+    void nonlinearoptimization_mp_bfgs_(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const char * Method,
+        int (*f_fd)(double &, double *, const double *, const int &),
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
+        int len_Method);
     void nonlinearoptimization_mp_conjugategradient_basic_(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
@@ -83,6 +97,14 @@ extern "C" {
 namespace General {
     inline void ShowTime() {general_mp_showtime_();}
     inline void dScientificNotation(double & x, int & i) {general_mp_dscientificnotation_(x, i);}
+}
+namespace LA {
+    inline void My_dgemm_T(double * A, double * B, double * C, const int & M, const int & K, const int & N) {
+        linearalgebra_mp_my_dgemm_t_(A, B, C, M, K, N);
+    }
+    inline void My_dsyev(const char & jobtype, double * A, double * eigval, const int & N) {
+        linearalgebra_mp_my_dsyev_(jobtype, A, eigval, N);
+    }
 }
 namespace NO { // NonlinearOptimization
     inline void ConjugateGradient(

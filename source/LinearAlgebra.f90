@@ -177,7 +177,23 @@ contains
         real*8,dimension(K,N),intent(in)::B
         real*8,dimension(M,N)::matmul_dgemm
         call dgemm('N','N',M,N,K,1d0,A,M,B,K,0d0,matmul_dgemm,M)
-    end function
+    end function matmul_dgemm
+    !M x K matrix A, K x N matrix B, C harvests A . B
+    subroutine My_dgemm(A, B, C, M, K, N)
+        integer,intent(in)::M,K,N
+        real*8,dimension(M,K),intent(in)::A
+        real*8,dimension(K,N),intent(in)::B
+        real*8,dimension(M,N)::C
+        call dgemm('N','N',M,N,K,1d0,A,M,B,K,0d0,C,M)
+    end subroutine My_dgemm
+    !K x M matrix A, K x N matrix B, C harvests A^T . B
+    subroutine My_dgemm_T(A, B, C, M, K, N)
+        integer,intent(in)::M,K,N
+        real*8,dimension(K,M),intent(in)::A
+        real*8,dimension(K,N),intent(in)::B
+        real*8,dimension(M,N)::C
+        call dgemm('T','N',M,N,K,1d0,A,K,B,K,0d0,C,M)
+    end subroutine My_dgemm_T
 
     !M order real symmetric matrix A, M x N matrix B, return A . B
     function matmul_dsymm(A, B, M, N)
@@ -186,7 +202,7 @@ contains
         real*8,dimension(M,N),intent(in)::B
         real*8,dimension(M,N)::matmul_dsymm
         call dsymm('L','L',M,N,1d0,A,M,B,M,0d0,matmul_dsymm,M)
-    end function
+    end function matmul_dsymm
 
     !M x N matrix A, N dimensional vector x, return A . x
     function mvmul_dgemv(A, x, M, N)

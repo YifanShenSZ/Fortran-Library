@@ -600,7 +600,7 @@ contains
             end if
         end if
         if(iIteration>maxit.and.warn) then
-            write(*,*)'Failed BFGS: max iteration exceeded!'
+            write(*,'(1x,A36)')'Failed BFGS: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
@@ -1635,18 +1635,26 @@ contains
                     tol(4)=MinStepLength
                     tol(5)=MinStepLength
                 end if
-            fdx=0d0; J=0d0; StepBound=100d0; RCI_request=0
+            call fd(fdx,x,M,N)
+            if(present(Jacobian)) then
+                i=Jacobian(J,x,M,N)
+            else
+                if(djacobi(fd_j,N,M,J,x,1d-8)/=TR_SUCCESS) then
+                    call mkl_free_buffers; return
+                end if
+            end if
+            StepBound=100d0; RCI_request=0
         if(present(low).and.present(up)) then
             if(dtrnlspbc_init(handle,N,M,x,low,up,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
-                write(*,*)'Trust region abort: invalid initialization'
+                write(*,'(1x,A42)')'Trust region abort: invalid initialization'
                 call mkl_free_buffers; return
             end if
             if(dtrnlspbc_check(handle,N,M,J,fdx,low,up,tol,info)/=TR_SUCCESS) then
-                write(*,*)'Trust region abort: check failed'
+                write(*,'(1x,A32)')'Trust region abort: check failed'
                 call mkl_free_buffers; return
             else
                 if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0.or.info(5)/=0.or.info(6)/=0) then
-                    write(*,*)'Trust region abort: check was not passed, the information is:'
+                    write(*,'(1x,A61)')'Trust region abort: check was not passed, the information is:'
                     write(*,*)info
                     call mkl_free_buffers; return
                 end if
@@ -1692,15 +1700,15 @@ contains
             end do
         else
             if(dtrnlsp_init(handle,N,M,x,tol,maxit,maxstepit,StepBound)/=TR_SUCCESS) then
-                write(*,*)'Trust region abort: invalid initialization'
+                write(*,'(1x,A42)')'Trust region abort: invalid initialization'
                 call mkl_free_buffers; return
             end if
             if(dtrnlsp_check(handle,N,M,J,fdx,tol,info)/=TR_SUCCESS) then
-                write(*,*)'Trust region abort: check failed'
+                write(*,'(1x,A32)')'Trust region abort: check failed'
                 call mkl_free_buffers; return
             else
                 if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
-                    write(*,*)'Trust region abort: check was not passed, the information is:'
+                    write(*,'(1x,A61)')'Trust region abort: check was not passed, the information is:'
                     write(*,*)info
                     call mkl_free_buffers; return
                 end if
@@ -1742,9 +1750,9 @@ contains
         call mkl_free_buffers
         if(StopReason/=3.and.warn) then
             select case(StopReason)
-            case(1); write(*,*)'Failed trust region: max iteration exceeded!'
-            case(4); write(*,*)'Failed trust region: singular Jacobian encountered!'
-            case default; write(*,*)'Trust region warning: step length has converged, but residual has not met accuracy goal'
+            case(1); write(*,'(1x,A44)')'Failed trust region: max iteration exceeded!'
+            case(4); write(*,'(1x,A51)')'Failed trust region: singular Jacobian encountered!'
+            case default; write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
             end select
             write(*,*)'Final residual =',FinalResidual
         end if
@@ -2037,7 +2045,7 @@ contains
         case default; write(*,*)'Program abort: unsupported unconstrained solver '//trim(adjustl(solver)); stop
         end select
         if(iIteration>maxit.and.warn) then
-            write(*,*)'Failed augmented Lagrangian: max iteration exceeded!'
+            write(*,'(1x,A52)')'Failed augmented Lagrangian: max iteration exceeded!'
             write(*,*)'Euclidean norm of constraint violation =',Norm2(cx)
         end if
         contains
@@ -2227,17 +2235,19 @@ contains
         real*8,dimension(M,N)::J
         !Initialize
         tol=[MinStepLength,Precision,1d-15,MinStepLength,MinStepLength,1d-15]
-        fdx=0d0; J=0d0; StepBound=100d0; RCI_request=0
+        call fd(fdx,x,M,N)
+        call Jacobian(J,x,M,N)
+        StepBound=100d0; RCI_request=0
         if(dtrnlsp_init(handle,N,M,x,tol,MaxIteration,MaxStepIteration,StepBound)/=TR_SUCCESS) then
-            write(*,*)'Trust region abort: invalid initialization'
+            write(*,'(1x,A42)')'Trust region abort: invalid initialization'
             call mkl_free_buffers; return
         end if
         if(dtrnlsp_check(handle,N,M,J,fdx,tol,info)/=TR_SUCCESS) then
-            write(*,*)'Trust region abort: check failed'
+            write(*,'(1x,A32)')'Trust region abort: check failed'
             call mkl_free_buffers; return
         else
             if(info(1)/=0.or.info(2)/=0.or.info(3)/=0.or.info(4)/=0) then
-                write(*,*)'Trust region abort: check was not passed, the information is:'
+                write(*,'(1x,A61)')'Trust region abort: check was not passed, the information is:'
                 write(*,*)info
                 call mkl_free_buffers; return
             end if
@@ -2263,9 +2273,9 @@ contains
         !Warn
         if(StopReason/=3.and.Warning) then
             select case(StopReason)
-            case(1); write(*,*)'Failed trust region: max iteration exceeded!'
-            case(4); write(*,*)'Failed trust region: singular Jacobian encountered!'
-            case default; write(*,*)'Trust region warning: step length has converged, but residual has not met accuracy goal'
+            case(1); write(*,'(1x,A44)')'Failed trust region: max iteration exceeded!'
+            case(4); write(*,'(1x,A51)')'Failed trust region: singular Jacobian encountered!'
+            case default; write(*,'(1x,A87)')'Trust region warning: step length has converged, but residual has not met accuracy goal'
             end select
             write(*,*)'Final residual =',FinalResidual
         end if

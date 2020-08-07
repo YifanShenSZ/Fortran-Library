@@ -9,7 +9,7 @@
 prefix = .
 # intel and gnu compilers are supported
 compiler = intel
-intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -no-prec-div -fp-model fast=2 -parallel -O3
+intelflag = -m64 -xCORE-AVX2 -mtune=core-avx2 -O3 -no-prec-div -fp-model fast=2 -static-intel
 gnuflag   = -m64 -march=core-avx2 -mtune=core-avx2 -O3
 
 # User does not have to take care of following variables
@@ -25,17 +25,22 @@ libdir = $(RealPrefix)/lib
 
 libFL.a libFL.so: $(src)
 ifeq ($(compiler),intel)
-	ifort -mkl -ipo $(intelflag) -c $^
+	ifort -qopenmp -mkl -parallel -ipo $(intelflag) -c $^
 	xiar rcs libFL.a *.o
-	ifort -mkl -ipo $(intelflag) -shared -fpic $^ -o libFL.so
+	rm *.o
+	ifort -mkl:sequential -ipo $(intelflag) -c $^
+	xiar rcs libFL_sequential.a *.o
+	rm *.o
+	ifort -qopenmp -mkl -parallel -ipo $(intelflag) -shared -fpic $^ -o libFL.so
+	ifort -mkl:sequential -ipo $(intelflag) -shared -fpic $^ -o libFL_sequential.so
 else
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -c $^
 	ar rcs libFL.a *.o
+	rm *.o
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -shared -fpic $^ -o libFL.so
 endif
-	rm *.o
 
 .PHONY: install
 install: | $(incdir) $(libdir)
@@ -56,12 +61,14 @@ $(libdir):
 .PHONY: test
 test:
 ifeq ($(compiler),intel)
-	ifort -mkl -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	ifort -qopenmp -mkl -parallel -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	ifort -mkl:sequential -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL_sequential.a -o test/test_static_sequential.exe
 else
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -I$(incdir) test/test.f90 -l:libFL.a $(gnumkl) -o test/test_static.exe
 endif
 	test/test_static.exe > test/log_static
+	test/test_static_sequential.exe > test/log_static_sequential
 
 ifeq (,$(findstring $(libdir),$(LIBRARY_PATH)))
 $(error Please add prefix/lib to LIBRARY_PATH)
@@ -71,22 +78,26 @@ $(error Please add prefix/lib to LD_LIBRARY_PATH)
 endif
 
 ifeq ($(compiler),intel)
-	ifort -mkl -ipo $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
+	ifort -qopenmp -mkl -parallel -ipo $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
+	ifort -mkl:sequential -ipo $(intelflag) test/test.f90 -lFL_sequential -o test/test_dynamic_sequential.exe
 else
 	gfortran -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include \
 	$(gnuflag) -I$(incdir) test/test.f90 -lFL $(gnumkl) -o test/test_dynamic.exe
 endif
 	test/test_dynamic.exe > test/log_dynamic
+	test/test_dynamic_sequential.exe > test/log_dynamic_sequential
 
 ifeq (,$(findstring $(incdir),$(CPATH)))
 $(error Please add prefix/include to CPATH)
 endif
 ifeq ($(compiler),intel)
-	icpc -mkl $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
+	icpc -qopenmp -mkl -parallel $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
+	icpc -mkl:sequential $(intelflag) test/test.cpp -lFL_sequential -o test/test_cpp_sequential.exe
 else
 	g++ -I${MKLROOT}/include $(gnuflag) test/test.cpp -lFL $(gnumkl) -o test/test_cpp.exe
 endif
 	test/test_cpp.exe > test/log_cpp
+	test/test_cpp_sequential.exe > test/log_cpp_sequential
 
 ifeq (,$(findstring $(RealPrefix),$(PYTHONPATH)))
 $(error Please add prefix to PYTHONPATH)
