@@ -111,7 +111,7 @@ namespace NO { // NonlinearOptimization
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         double * x, const int & dim,
-        std::string Method="DY",
+        const std::string & Method="DY",
         const bool & Strong=true, const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
@@ -127,7 +127,7 @@ namespace NO { // NonlinearOptimization
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
         double * x, const int & dim,
-        std::string Method="DY",
+        const std::string & Method="DY",
         const bool & Strong=true, const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
@@ -158,7 +158,7 @@ namespace Chemistry {
     inline void InitializePhaseFixing(const int & NStates) {chemistry_mp_initializephasefixing_(NStates);}
 }
 namespace GT { // GeometryTransformation
-    inline int DefineInternalCoordinate(std::string format, std::string file) {
+    inline int DefineInternalCoordinate(const std::string & format, const std::string & file) {
         return geometrytransformation_mp_defineinternalcoordinate_(
             format.c_str(), file.c_str(), format.size(), file.size()
         );
@@ -223,7 +223,7 @@ namespace Chemistry {
     inline void InitializePhaseFixing(const int & NStates) {__chemistry_MOD_initializephasefixing(NStates);}
 }
 namespace GT { // GeometryTransformation
-    inline int DefineInternalCoordinate(std::string format, std::string file) {
+    inline int DefineInternalCoordinate(const std::string & format, const std::string & file) {
         return __geometrytransformation_MOD_defineinternalcoordinate(
             format.c_str(), file.c_str(), format.size(), file.size()
         );
