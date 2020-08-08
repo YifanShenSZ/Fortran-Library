@@ -190,6 +190,46 @@ extern "C" {
     // General
     void __general_MOD_showtime();
     void __general_MOD_dscientificnotation(double & x, int & i);
+    // NonlinearOptimization
+    void __nonlinearoptimization_MOD_bfgs(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const char * Method,
+        int (*f_fd)(double &, double *, const double *, const int &),
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
+        int len_Method);
+    void __nonlinearoptimization_MOD_conjugategradient_basic(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const char * Method,
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
+        int len_Method);
+    void __nonlinearoptimization_MOD_conjugategradient(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const char * Method,
+        int (*f_fd)(double &, double *, const double *, const int &),
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
+        int len_Method);
+    void __nonlinearoptimization_MOD_trustregion_basic(
+        void (*fd)(double *, const double *, const int &, const int &),
+        void (*Jacobian)(double *, const double *, const int &, const int &),
+        double * x, const int & M, const int & N,
+        const bool & Warning,
+        const int & MaxIteration, const int & MaxStepIteration,
+        const double & Precision, const double & MinStepLength);
     // Chemistry
     void __chemistry_MOD_initializephasefixing(const int & NStates);
     // GeometryTransformation
@@ -218,6 +258,54 @@ extern "C" {
 namespace General {
     inline void ShowTime() {__general_MOD_showtime();}
     inline void dScientificNotation(double & x, int & i) {__general_MOD_dscientificnotation(x, i);}
+}
+namespace NO { // NonlinearOptimization
+    inline void ConjugateGradient(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        const std::string & Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
+        const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
+        const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
+    ) {
+        __nonlinearoptimization_MOD_conjugategradient_basic(
+            f, fd, x, dim,
+            Method.c_str(),
+            Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment,
+            Method.size());
+    }
+    inline void ConjugateGradient(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        int (*f_fd)(double &, double *, const double *, const int &),
+        double * x, const int & dim,
+        const std::string & Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
+        const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
+        const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
+    ) {
+        __nonlinearoptimization_MOD_conjugategradient(
+            f, fd, x, dim,
+            Method.c_str(),
+            f_fd,
+            Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment,
+            Method.size());
+    }
+    inline void TrustRegion(
+        void (*fd)(double *, const double *, const int &, const int &),
+        void (*Jacobian)(double *, const double *, const int &, const int &),
+        double * x, const int & M, const int & N,
+        const bool & Warning=true,
+        const int & MaxIteration=1000, const int & MaxStepIteration=100,
+        const double & Precision=1e-15, const double & MinStepLength=1e-15
+    ) {
+        __nonlinearoptimization_MOD_trustregion_basic(
+            fd, Jacobian, x, M, N,
+            Warning,
+            MaxIteration, MaxStepIteration,
+            Precision, MinStepLength);
+    }
 }
 namespace Chemistry {
     inline void InitializePhaseFixing(const int & NStates) {__chemistry_MOD_initializephasefixing(NStates);}
