@@ -1094,7 +1094,7 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
-                    write(*,'(1x,A106)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A107)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
@@ -2168,7 +2168,7 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(Warning) then
-                    write(*,'(1x,A106)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A107)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return

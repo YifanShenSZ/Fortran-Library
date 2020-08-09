@@ -35,17 +35,6 @@ extern "C" {
     void linearalgebra_mp_my_dgemm_t_(double * A, double * B, double * C, const int & M, const int & K, const int & N);
     void linearalgebra_mp_my_dsyev_(const char & jobtype, double * A, double * eigval, const int & N);
     // NonlinearOptimization
-    void nonlinearoptimization_mp_bfgs_(
-        void (*f)(double &, const double *, const int &),
-        void (*fd)(double *, const double *, const int &),
-        double * x, const int & dim,
-        const char * Method,
-        int (*f_fd)(double &, double *, const double *, const int &),
-        const bool & Strong, const bool & Warning,
-        const int & MaxIteration,
-        const double & Precision, const double & MinStepLength,
-        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
-        int len_Method);
     void nonlinearoptimization_mp_conjugategradient_basic_(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
@@ -111,8 +100,8 @@ namespace NO { // NonlinearOptimization
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY",
-        const bool & Strong=true, const bool & Warning=true,
+        const std::string & Method="DY", const bool & Strong=true,
+        const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -127,8 +116,8 @@ namespace NO { // NonlinearOptimization
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY",
-        const bool & Strong=true, const bool & Warning=true,
+        const std::string & Method="DY", const bool & Strong=true,
+        const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -190,18 +179,10 @@ extern "C" {
     // General
     void __general_MOD_showtime();
     void __general_MOD_dscientificnotation(double & x, int & i);
+    // LinearAlgebra
+    void __linearalgebra_MOD_my_dgemm_t(double * A, double * B, double * C, const int & M, const int & K, const int & N);
+    void __linearalgebra_MOD_my_dsyev(const char & jobtype, double * A, double * eigval, const int & N);
     // NonlinearOptimization
-    void __nonlinearoptimization_MOD_bfgs(
-        void (*f)(double &, const double *, const int &),
-        void (*fd)(double *, const double *, const int &),
-        double * x, const int & dim,
-        const char * Method,
-        int (*f_fd)(double &, double *, const double *, const int &),
-        const bool & Strong, const bool & Warning,
-        const int & MaxIteration,
-        const double & Precision, const double & MinStepLength,
-        const double & WolfeConst1, const double & WolfeConst2, const double & Increment,
-        int len_Method);
     void __nonlinearoptimization_MOD_conjugategradient_basic(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
@@ -259,13 +240,21 @@ namespace General {
     inline void ShowTime() {__general_MOD_showtime();}
     inline void dScientificNotation(double & x, int & i) {__general_MOD_dscientificnotation(x, i);}
 }
+namespace LA {
+    inline void My_dgemm_T(double * A, double * B, double * C, const int & M, const int & K, const int & N) {
+        __linearalgebra_MOD_my_dgemm_t(A, B, C, M, K, N);
+    }
+    inline void My_dsyev(const char & jobtype, double * A, double * eigval, const int & N) {
+        __linearalgebra_MOD_my_dsyev(jobtype, A, eigval, N);
+    }
+}
 namespace NO { // NonlinearOptimization
     inline void ConjugateGradient(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY",
-        const bool & Strong=true, const bool & Warning=true,
+        const std::string & Method="DY", const bool & Strong=true,
+        const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -280,8 +269,8 @@ namespace NO { // NonlinearOptimization
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY",
-        const bool & Strong=true, const bool & Warning=true,
+        const std::string & Method="DY", const bool & Strong=true,
+        const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
