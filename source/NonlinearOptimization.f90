@@ -98,7 +98,7 @@ contains
                 p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
                 if(-phidnew<tol) return
                 if(fnew==0d0) then; a=1d0
-                else; a=-fnew/phidnew; end if
+                else; a=dAbs(fnew)/dSqrt(-phidnew); end if
             end if
         if(present(Increment)) then
             if(present(fdd)) then!Analytical Hessian available
@@ -356,7 +356,7 @@ contains
                 p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
                 if(-phidnew<tol) return
                 if(fnew==0d0) then; a=1d0
-                else; a=-fnew/phidnew; end if
+                else; a=dAbs(fnew)/dSqrt(-phidnew); end if
                 s=x; y=fdnew
                 if(present(Increment)) then
                     if(sw) then
@@ -742,7 +742,7 @@ contains
             p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<tol) return
             if(fnew==0d0) then; a=1d0
-            else; a=-fnew/phidnew; end if
+            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
             xold=x; fdold=fdnew
             !Initial approximate inverse Hessian = a
             if(present(Increment)) then
@@ -973,7 +973,7 @@ contains
             p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<tol) return
             if(fnew==0d0) then; a=1d0
-            else; a=-fnew/phidnew; end if
+            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
         select case(type)
         case('DY')!Require Wolfe condition
             if(present(Increment)) then
@@ -2128,7 +2128,7 @@ contains
             p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
             if(-phidnew<tol) return
             if(fnew==0d0) then; a=1d0
-            else; a=-fnew/phidnew; end if
+            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
         select case(Method)
         case('DY')!Require Wolfe condition
             if(Strong) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
