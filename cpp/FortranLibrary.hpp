@@ -16,9 +16,10 @@
 namespace FL {
 
 // No need to fetch constant, directly provide them in c++
-#define AMUInAU  1822.888486192;
-#define AInAU    1.8897261339212517;
-#define cm_1InAu 0.000004556335830019422;
+// Unit conversion (Multiplying xIny converts x to y)
+#define AMUInAU  = 1822.888486192
+#define AInAU    = 1.8897261339212517
+#define cm_1InAu = 0.000004556335830019422
 
 // C recognizes fortran functions by their compiled names
 // fortran function Func contained in module Mod will be renamed

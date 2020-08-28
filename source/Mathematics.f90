@@ -15,7 +15,7 @@ module Mathematics
             sqrtpi=1.7724538509055159d0,sqrt2pi=2.506628274631d0
     !Physical constant (If has unit, then in atomic unit)
         real*8,parameter::NAvogadro=6.02214076d23
-    !Unit conversion (Multiplying xIny converts from x to y)
+    !Unit conversion (Multiplying xIny converts x to y)
         real*8,parameter::DegInRad=0.017453292519943295,&!degree to radius
             !Common unit to atomic unit
             AMUInAU=1822.888486192d0,&!Mass
