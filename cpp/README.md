@@ -8,12 +8,17 @@ C++ interface wraps fortran routines, because:
 * You may view the compiled names by `nm libFL.so`
 2. Optional argument cannot be conveniently passed to fortran:
 * In fortran, optional arguments can be trully absent. Function func with optional argument optarg can be called by func(optarg=x) with optarg, or func() without
-* In c++, optional arguments are actually all present. Function func with optional argument optarg can be called by func(optarg=x) with user value, or func() with default
+* In c++, optional arguments are actually all present. Function func with optional argument optarg can be called by func(x) with user value, or func() with default
 * So when interfaced to c++, we can no longer selectively pass optarg to fortran, since c++ passes all arguments
+
+There are also some c++ convenience to utilize:
+1. C++ function can return any number of outputs by tuple
+* Fortran has to let arguments harvest the outputs
 
 So the wrappers:
 1. Rename fortran functions back to their origin
 2. Take in optional arguments in c++ style (default them in wrapper then pass all to fortran)
+3. Return multiple outputs by tuple
 
 The fortran side also provides some help in 'Interoperability' section:
 1. Again, the optional argument issue:

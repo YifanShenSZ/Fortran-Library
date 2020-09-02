@@ -144,19 +144,19 @@ file=Path('null')) -> (int, int):
             file_str = 'IntCoordDef'
     n2 = len(file_str)
     f2 = (c_char*n2)(); f2.value = file_str.encode('ascii')
-    intdim = c_int(0); count = c_int(0)
+    intdim = c_int(0); ID = c_int(0)
     func = None
     try:
         func = FL.geometrytransformation_mp_defineinternalcoordinate_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_defineinternalcoordinate
-    func(byref(intdim), byref(count), f1, f2, n1, n2)
-    return intdim.value, count.value
+    func(byref(intdim), byref(ID), f1, f2, n1, n2)
+    return intdim.value, ID.value
 
 # ========== Cartesian -> Internal ==========
 
 def InternalCoordinate(r:numpy.ndarray, q:numpy.ndarray,
-count:int=1) -> None:
+ID:int=1) -> None:
     p_r = array2p(r)
     p_q = array2p(q)
     cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
@@ -165,14 +165,14 @@ count:int=1) -> None:
         func = FL.geometrytransformation_mp_dinternalcoordinate_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_dinternalcoordinate
-    func(p_r, p_q, byref(cartdim), byref(intdim), byref(c_int(count)))
+    func(p_r, p_q, byref(cartdim), byref(intdim), byref(c_int(ID)))
     p2array(p_q, q)
 
 # Due to row- and column-major difference, python
 #     throws: cartgrad^T
 #     fetchs:  intgrad^T
 def Cartesian2Internal(r:numpy.ndarray, cartgradT:numpy.ndarray, q:numpy.ndarray, intgradT:numpy.ndarray,
-count:int=1) -> None:
+ID:int=1) -> None:
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
     cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
@@ -185,12 +185,12 @@ count:int=1) -> None:
         func = FL.geometrytransformation_mp_dcartesian2internal_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_dcartesian2internal
-    func(p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(NStates), byref(c_int(count)))
+    func(p_r, p_cartgradT, p_q, p_intgradT, byref(cartdim), byref(intdim), byref(NStates), byref(c_int(ID)))
     p2array(p_q, q); p2array(p_intgradT, intgradT)
 
 # Due to row- and column-major difference, python fetchs B^T
 def WilsonBMatrixAndInternalCoordinate(r:numpy.ndarray, BT:numpy.ndarray, q:numpy.ndarray,
-count:int=1) -> None:
+ID:int=1) -> None:
     p_r = array2p(r)
     p_BT = array2p(BT); p_q = array2p(q)
     cartdim = c_int(r.shape[0]); intdim = c_int(q.shape[0])
@@ -199,7 +199,7 @@ count:int=1) -> None:
         func = FL.geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate
-    func(p_r, p_BT, p_q, byref(cartdim), byref(intdim), byref(c_int(count)))
+    func(p_r, p_BT, p_q, byref(cartdim), byref(intdim), byref(c_int(ID)))
     p2array(p_BT, BT); p2array(p_q, q)
 
 # =================== End ===================
@@ -207,7 +207,7 @@ count:int=1) -> None:
 # ========== Cartesian <- Internal ==========
 
 def CartesianCoordinate(q:numpy.ndarray, r:numpy.ndarray, \
-r0=numpy.array([numpy.nan]), count:int=1) -> None:
+r0=numpy.array([numpy.nan]), ID:int=1) -> None:
     p_q = array2p(q)
     p_r = array2p(r)
     if numpy.isnan(r0[0]): r0=numpy.random.rand(r.shape[0])
@@ -218,14 +218,14 @@ r0=numpy.array([numpy.nan]), count:int=1) -> None:
         func = FL.geometrytransformation_mp_cartesiancoordinate_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_cartesiancoordinate
-    func(p_q, p_r, byref(intdim), byref(cartdim), p_r0, byref(c_int(count)))
+    func(p_q, p_r, byref(intdim), byref(cartdim), p_r0, byref(c_int(ID)))
     p2array(p_r, r)
 
 # Due to row- and column-major difference, python
 #     throws:  intgrad^T
 #     fetchs: cartgrad^T
 def Internal2Cartesian(q:numpy.ndarray, intgradT:numpy.ndarray, r:numpy.ndarray, cartgradT:numpy.ndarray, \
-r0=numpy.array([numpy.nan]), count:int=1) -> None:
+r0=numpy.array([numpy.nan]), ID:int=1) -> None:
     p_q = array2p(q); p_intgradT  = array2p( intgradT)
     p_r = array2p(r); p_cartgradT = array2p(cartgradT)
     intdim = c_int(q.shape[0]); cartdim = c_int(r.shape[0])
@@ -240,7 +240,7 @@ r0=numpy.array([numpy.nan]), count:int=1) -> None:
         func = FL.geometrytransformation_mp_internal2cartesian_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_internal2cartesian
-    func(p_q, p_intgradT, p_r, p_cartgradT, byref(intdim), byref(cartdim), byref(c_int(NStates)), p_r0, byref(c_int(count)))
+    func(p_q, p_intgradT, p_r, p_cartgradT, byref(intdim), byref(cartdim), byref(c_int(NStates)), p_r0, byref(c_int(ID)))
     p2array(p_r, r); p2array(p_cartgradT, cartgradT)
 
 # =================== End ===================
