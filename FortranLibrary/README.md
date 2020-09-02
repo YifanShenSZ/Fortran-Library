@@ -16,11 +16,13 @@ Python interface wraps fortran routines, because:
 * So when interfaced to python, we can no longer selectively pass optarg to fortran, since python passes all arguments
 
 There are also some python convenience to utilize:
-1. Python has specified array length with .shape:
+1. Python function can return any number of outputs
+* Fortran has to let arguments harvest the outputs
+2. Python has specified array length with .shape:
 * Fortran routine takes array length as an argument
 * It is required in multidimensional case
 * Although it can be optional for 1 dimensional, I require it considering stability
-2. You are using python, so you must be rich in memory and CPU:
+3. You are using python, so you must be rich in memory and CPU:
 * Fortran code is aimed at memory and CPU demanding jobs
 * So in many cases fortran code sacrifices convenience, e.g. using the memory of input argument as work space
 
@@ -28,8 +30,9 @@ So the wrappers:
 1. Rename fortran functions back to their origin
 2. Return immutable output values in python style
 3. Take in optional arguments in python style (default them in wrapper then pass all to fortran)
-4. No longer take array length as an argument
-5. No longer unnecessarily overwrite input arguments
+4. Return multiple outputs in python style
+5. No longer take array length as an argument
+6. No longer unnecessarily overwrite input arguments
 
 The fortran side also provides some help in 'Interoperability' section:
 1. Again, the optional argument issue:

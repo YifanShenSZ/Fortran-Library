@@ -13,7 +13,12 @@ def Rotate(q:numpy.ndarray, r:numpy.ndarray) -> None:
         NAtoms = c_int(int(r.shape[0]/3))
     else:
         NAtoms = c_int(r.shape[0])
-    FL.mathematics_mp_rotate_(p_q, p_r, byref(NAtoms))
+    func = None
+    try:
+        func = FL.mathematics_mp_rotate_
+    except AttributeError:
+        func = FL.__mathematics_MOD_rotate
+    func(p_q, p_r, byref(NAtoms))
     p2array(p_r, r)
 
 # ----------------------- End ------------------------
