@@ -22,7 +22,7 @@ int main() {
     double * vec;
 
     std::cout << ">>> Testing calling from c++... >>>\n";
-        std::cout << "\nTime display\n";
+        std::cout << "\nTime display" << std::endl;
             FL::General::ShowTime();
         std::cout << "\nScientific notation\n";
             x = 3564.1212587;
@@ -45,7 +45,7 @@ int main() {
             std::cout << norm(vec, dim) << "\n\n";
     std::cout << "\n<<< Calling from c++ test passed <<<\n";
 
-    std::cout << "\n>>> Testing calling from fortran... >>>\n";
+    std::cout << "\n>>> Testing calling from fortran... >>>" << std::endl;
         FL::FL::TestFortranLibrary();
     std::cout << "<<< Calling from fortran test passed <<<\n";
 }
