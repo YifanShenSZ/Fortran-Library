@@ -80,7 +80,8 @@ Source code level from bottom to top:
 * mkl_rci.f90 & mkl_dfti.f90 (can be found in MKL installation path)
 
 ## Publications based on this work
-> Y. Shen and D. R. Yarkony, J. Phys. Chem. A acs.jpca.0c02763 (2020) https://doi.org/10.1021/acs.jpca.0c02763
+> 1. Y. Shen and D. R. Yarkony, J. Phys. Chem. A 2020, 124, 22, 4539–4548 https://doi.org/10.1021/acs.jpca.0c02763
+> 2. Y. Shen and D. R. Yarkony, J. Phys. Chem. Lett. 2020, 11, 17, 7245–7252 https://doi.org/10.1021/acs.jpclett.0c02199
 
 ## Reference
 > 1. J. Nocedal, S. J. Wright, *Numerical Optimization 2nd edition* (Springer, 2006)
