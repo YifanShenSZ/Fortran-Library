@@ -36,6 +36,15 @@ extern "C" {
     void linearalgebra_mp_my_dgemm_t_(double * A, double * B, double * C, const int & M, const int & K, const int & N);
     void linearalgebra_mp_my_dsyev_(const char & jobtype, double * A, double * eigval, const int & N);
     // NonlinearOptimization
+    void nonlinearoptimization_mp_steepestdescent_(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        int (*f_fd)(double &, double *, const double *, const int &),
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment);
     void nonlinearoptimization_mp_conjugategradient_basic_(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
@@ -83,6 +92,8 @@ extern "C" {
         const float * r, float * BT, float * q, const int & cartdim, const int & intdim, const int & ID);
     void geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(
         const double * r, double * BT, double * q, const int & cartdim, const int & intdim, const int & ID);
+    void geometrytransformation_mp_cartesiancoordinate_(
+        const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID);
     // FortranLibrary
     void fortranlibrary_mp_testfortranlibrary_();
 }
@@ -99,12 +110,26 @@ namespace LA {
     }
 }
 namespace NO { // NonlinearOptimization
+    inline void SteepestDescent(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        int (*f_fd)(double &, double *, const double *, const int &),
+        double * x, const int & dim,
+        const bool & Strong=true, const bool & Warning=true,
+        const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
+        const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
+    ) {
+        nonlinearoptimization_mp_steepestdescent_(
+            f, fd, x, dim,
+            f_fd,
+            Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment);
+    }
     inline void ConjugateGradient(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY", const bool & Strong=true,
-        const bool & Warning=true,
+        const std::string & Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -119,8 +144,8 @@ namespace NO { // NonlinearOptimization
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY", const bool & Strong=true,
-        const bool & Warning=true,
+        const std::string & Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -141,9 +166,7 @@ namespace NO { // NonlinearOptimization
     ) {
         nonlinearoptimization_mp_trustregion_basic_(
             fd, Jacobian, x, M, N,
-            Warning,
-            MaxIteration, MaxStepIteration,
-            Precision, MinStepLength);
+            Warning, MaxIteration, MaxStepIteration, Precision, MinStepLength);
     }
 }
 namespace Chemistry {
@@ -175,6 +198,9 @@ namespace GT { // GeometryTransformation
     inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int & cartdim, const int & intdim, const int & ID=1) {
         geometrytransformation_mp_dwilsonbmatrixandinternalcoordinate_(r, BT, q, cartdim, intdim, ID);
     }
+    inline void CartesianCoordinate(const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID=1) {
+        geometrytransformation_mp_cartesiancoordinate_(q, r, intdim, cartdim, r0, ID);
+    }
 }
 namespace FL { // FortranLibrary
     inline void TestFortranLibrary() {fortranlibrary_mp_testfortranlibrary_();};
@@ -188,6 +214,15 @@ extern "C" {
     void __linearalgebra_MOD_my_dgemm_t(double * A, double * B, double * C, const int & M, const int & K, const int & N);
     void __linearalgebra_MOD_my_dsyev(const char & jobtype, double * A, double * eigval, const int & N);
     // NonlinearOptimization
+    void __nonlinearoptimization_MOD_steepestdescent(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        double * x, const int & dim,
+        int (*f_fd)(double &, double *, const double *, const int &),
+        const bool & Strong, const bool & Warning,
+        const int & MaxIteration,
+        const double & Precision, const double & MinStepLength,
+        const double & WolfeConst1, const double & WolfeConst2, const double & Increment);
     void __nonlinearoptimization_MOD_conjugategradient_basic(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
@@ -235,6 +270,8 @@ extern "C" {
         const float * r, float * BT, float * q, const int & cartdim, const int & intdim, const int & ID);
     void __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(
         const double * r, double * BT, double * q, const int & cartdim, const int & intdim, const int & ID);
+    void __geometrytransformation_MOD_cartesiancoordinate(
+        const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID);
     // FortranLibrary
     void __fortranlibrary_MOD_testfortranlibrary();
 }
@@ -251,12 +288,26 @@ namespace LA {
     }
 }
 namespace NO { // NonlinearOptimization
+    inline void SteepestDescent(
+        void (*f)(double &, const double *, const int &),
+        void (*fd)(double *, const double *, const int &),
+        int (*f_fd)(double &, double *, const double *, const int &),
+        double * x, const int & dim,
+        const bool & Strong=true, const bool & Warning=true,
+        const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
+        const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
+    ) {
+        __nonlinearoptimization_MOD_steepestdescent(
+            f, fd, x, dim,
+            f_fd,
+            Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment);
+    }
     inline void ConjugateGradient(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY", const bool & Strong=true,
-        const bool & Warning=true,
+        const std::string & Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -271,8 +322,8 @@ namespace NO { // NonlinearOptimization
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
         double * x, const int & dim,
-        const std::string & Method="DY", const bool & Strong=true,
-        const bool & Warning=true,
+        const std::string & Method="DY",
+        const bool & Strong=true, const bool & Warning=true,
         const int & MaxIteration=1000, const double & Precision=1e-15, const double & MinStepLength=1e-15,
         const double & WolfeConst1=1e-4, const double & WolfeConst2=0.45, const double & Increment=1.05
     ) {
@@ -326,6 +377,9 @@ namespace GT { // GeometryTransformation
     }
     inline void WilsonBMatrixAndInternalCoordinate(const double * r, double * BT, double * q, const int & cartdim, const int & intdim, const int & ID=1) {
         __geometrytransformation_MOD_dwilsonbmatrixandinternalcoordinate(r, BT, q, cartdim, intdim, ID);
+    }
+    inline void CartesianCoordinate(const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID=1) {
+        __geometrytransformation_MOD_cartesiancoordinate(q, r, intdim, cartdim, r0, ID);
     }
 }
 namespace FL { // FortranLibrary

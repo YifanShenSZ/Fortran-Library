@@ -344,59 +344,14 @@ subroutine TestFortranLibrary()
         low=-1d0
         up=1d0
         write(*,*)'Testing unconstrained solvers...'
-            write(*,*)'Newton'
+            write(*,*)'Steepest descent'
                 call random_number(x)
-                call NewtonRaphson(f,fd,x,dim,fdd=fdd)
+                call SteepestDescent(f,fd,x,dim,Strong=.false.)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'Newton_S'
+            write(*,*)'Steepest descent with strong Wolfe'
                 call random_number(x)
-                call NewtonRaphson(f,fd,x,dim,Strong=.true.)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'Newton_S_fdwithf'
-                call random_number(x)
-                call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'BFGS'
-                call random_number(x)
-                call BFGS(f,fd,x,dim,fdd=fdd)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'BFGS_cheap'
-                call random_number(x)
-                call BFGS(f,fd,x,dim,ExactStep=0)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'BFGS_NH'
-                call random_number(x)
-                call BFGS(f,fd,x,dim,ExactStep=5)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'BFGS_S'
-                call random_number(x)
-                call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'BFGS_S_fdwithf'
-                call random_number(x)
-                call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'LBFGS'
-                call random_number(x)
-                call LBFGS(f,fd,x,dim)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'LBFGS_S'
-                call random_number(x)
-                call LBFGS(f,fd,x,dim,Strong=.true.)
-                write(*,*)norm2(x)
-            write(*,*)
-            write(*,*)'LBFGS_S_fdwithf'
-                call random_number(x)
-                call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
+                call SteepestDescent(f,fd,x,dim)
                 write(*,*)norm2(x)
             write(*,*)
             write(*,*)'DY'
@@ -424,6 +379,61 @@ subroutine TestFortranLibrary()
                 chartemp='PR'
                 call random_number(x)
                 call ConjugateGradient(f,fd,x,dim,Method=chartemp,f_fd=f_fd)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'LBFGS'
+                call random_number(x)
+                call LBFGS(f,fd,x,dim)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'LBFGS_S'
+                call random_number(x)
+                call LBFGS(f,fd,x,dim,Strong=.true.)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'LBFGS_S_fdwithf'
+                call random_number(x)
+                call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'BFGS'
+                call random_number(x)
+                call BFGS(f,fd,x,dim,fdd=fdd)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'BFGS_cheap'
+                call random_number(x)
+                call BFGS(f,fd,x,dim,ExactStep=0)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'BFGS_NH'
+                call random_number(x)
+                call BFGS(f,fd,x,dim,ExactStep=5)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'BFGS_S'
+                call random_number(x)
+                call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'BFGS_S_fdwithf'
+                call random_number(x)
+                call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'Newton'
+                call random_number(x)
+                call NewtonRaphson(f,fd,x,dim,fdd=fdd)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'Newton_S'
+                call random_number(x)
+                call NewtonRaphson(f,fd,x,dim,Strong=.true.)
+                write(*,*)norm2(x)
+            write(*,*)
+            write(*,*)'Newton_S_fdwithf'
+                call random_number(x)
+                call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
                 write(*,*)norm2(x)
             write(*,*)
             write(*,*)'dtrnlsp'

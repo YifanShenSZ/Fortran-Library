@@ -43,32 +43,377 @@ contains
     !    Precision: (default = 1d-15) convergence considered when || f'(x) ||_2 < Precision
     !    MinStepLength: (default = 1d-15) terminate if search step < MinStepLength before || f'(x) ||_2 converges
     !    WolfeConst1 & WolfeConst2: 0 < WolfeConst1 < WolfeConst2 <  1  for Newton & quasi-Newton
-    !                               0 < WolfeConst1 < WolfeConst2 < 0.5 for conjugate gradient
+    !                               0 < WolfeConst1 < WolfeConst2 < 0.5 for steepest descent & conjugate gradient
     !    Increment: see line searcher
     !On input x is an initial guess, on exit x is a local minimum of f(x)
 
-    !Newton-Raphson method, requiring Wolfe condition
-    !Optional: fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
-    subroutine NewtonRaphson(f, fd, x, dim, &
-    fdd, &
+    !Steepest descent method, requiring Wolfe condition
+    subroutine SteepestDescent(f, fd, x, dim, &
     f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
         !Optional argument
-            integer,external,optional::fdd,f_fd
+            integer,external,optional::f_fd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration
             real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
         integer::maxit,iIteration,info
-        real*8::tol,minstep,c1,c2,a,fnew,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew
-        real*8,dimension(dim,dim)::Hessian
+        real*8::tol,minstep,c1,c2,a,fnew,fold,phidnew,phidold
+        real*8,dimension(dim)::p,fdnew,fdold
         !Initialize
             terminate=.false.
             !Set parameter according to optional argument
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                    else; tol=1d-30; end if
+                if(present(MinStepLength)) then;  minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+                    else; minstep=1d-30; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
+                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    else; c2=0.45d0; end if
+            if(present(f_fd)) then!Initial f(x) & f'(x)
+                info=f_fd(fnew,fdnew,x,dim)
+            else
+                call f(fnew,x,dim); call fd(fdnew,x,dim)
+            end if
+            !Initial direction & step length
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            if(-phidnew<tol) return
+            if(fnew==0d0) then; a=1d0
+            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
+        if(present(Increment)) then
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
+            else
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
+            end if
+        else
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
+            else
+                if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
+            end if
+        end if
+        if(iIteration>maxit.and.warn) then
+            write(*,'(1x,A50)')'Failed steepest descent: max iteration exceeded!'
+            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
+        end if
+        contains
+        subroutine After()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A107)')'Steepest descent warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            a=a*phidold/phidnew
+        end subroutine After
+    end subroutine SteepestDescent
+
+    !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
+    !Available methods: DY (Dai-Yuan), PR (Polak-Ribiere+)
+    !Optional: Method: (default = DY) which conjugate gradient method to use
+    subroutine ConjugateGradient(f, fd, x, dim, &
+    Method, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
+        !Required argument
+            external::f,fd
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(inout)::x
+        !Optional argument
+            character(*),intent(in),optional::Method
+            integer,external,optional::f_fd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::MaxIteration
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
+        logical::sw,warn,terminate
+        character*2::type
+        integer::maxit,iIteration,info
+        real*8::tol,minstep,c1,c2,a,fnew,fold,phidnew,phidold
+        real*8,dimension(dim)::p,fdnew,fdold
+        !Initialize
+            terminate=.false.
+            !Set parameter according to optional argument
+                if(present(Method)) then; type=Method
+                    else; type='DY'; end if
+                if(present(Strong)) then; sw=Strong
+                    else; sw=.true.; end if
+                if(present(Warning)) then; warn=Warning
+                    else; warn=.true.; end if
+                if(present(MaxIteration)) then; maxit=MaxIteration
+                    else; maxit=1000; end if
+                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
+                    else; tol=1d-30; end if
+                if(present(MinStepLength)) then;  minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
+                    else; minstep=1d-30; end if
+                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
+                    else; c1=1d-4; end if
+                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
+                    else; c2=0.45d0; end if
+            if(present(f_fd)) then!Initial f(x) & f'(x)
+                info=f_fd(fnew,fdnew,x,dim)
+            else
+                call f(fnew,x,dim); call fd(fdnew,x,dim)
+            end if
+            !Initial direction & step length
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            if(-phidnew<tol) return
+            if(fnew==0d0) then; a=1d0
+            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
+        select case(type)
+        case('DY')!Require Wolfe condition
+            if(present(Increment)) then
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                else
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                end if
+            else
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                else
+                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call DY()!After search
+                            if(terminate) return
+                        end do
+                    end if
+                end if
+            end if
+        case('PR')!Require strong Wolfe condition
+            if(present(Increment)) then
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                end if
+            else
+                if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call PR()!After search
+                        if(terminate) return
+                    end do
+                end if
+            end if
+        case default; write(*,*)'Program abort: unsupported conjugate gradient method '//trim(adjustl(type)); stop
+        end select
+        if(iIteration>maxit.and.warn) then
+            write(*,'(1x,A50)')'Failed conjugate gradient: max iteration exceeded!'
+            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
+        end if
+        contains
+        subroutine DY()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A107)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
+            phidnew=dot_product(fdnew,p)
+            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            end if
+            a=a*phidold/phidnew
+        end subroutine DY
+        subroutine PR()!Check convergence, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction
+            p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
+            phidnew=dot_product(fdnew,p)
+            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            end if
+            a=a*phidold/phidnew
+        end subroutine PR
+    end subroutine ConjugateGradient
+
+    !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
+    !Optional: Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
+    subroutine LBFGS(f, fd, x, dim, &
+    Memory, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
+        !Required argument
+            external::f,fd
+            integer,intent(in)::dim
+            real*8,dimension(dim),intent(inout)::x
+        !Optional argument
+            integer,external,optional::f_fd
+            logical,intent(in),optional::Strong,Warning
+            integer,intent(in),optional::Memory,MaxIteration
+            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
+        logical::sw,warn,terminate
+        integer::mem,maxit,iIteration,i,recent
+        real*8::tol,minstep,c1,c2,a,fnew,phidnew
+        real*8,dimension(dim)::p,fdnew,xold,fdold
+        real*8,allocatable,dimension(:)::rho,alpha
+        real*8,allocatable,dimension(:,:)::s,y
+        !Initialize
+            terminate=.false.
+            !Set parameter according to optional argument
+                if(present(Memory)) then; mem=max(1,Memory)!Fail safe
+                    else; mem=10; end if
                 if(present(Strong)) then; sw=Strong
                     else; sw=.true.; end if
                 if(present(Warning)) then; warn=Warning
@@ -83,170 +428,181 @@ contains
                     else; c1=1d-4; end if
                 if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                     else; c2=0.9d0; end if
+            allocate(rho(0:mem)); allocate(alpha(0:mem)); allocate(s(dim,0:mem)); allocate(y(dim,0:mem))
             if(present(f_fd)) then!Initial f(x) & f'(x)
-                info=f_fd(fnew,fdnew,x,dim)
+                i=f_fd(fnew,fdnew,x,dim)
             else
                 call f(fnew,x,dim); call fd(fdnew,x,dim)
             end if
-            !Initial direction & step length
-            if(present(fdd)) then; info=fdd(Hessian,x,dim)
-            else; info=djacobi(fd_j,dim,dim,Hessian,x,1d-8); end if
-            p=-fdnew; call My_dposv(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p); a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
-                if(-phidnew<tol) return
-                if(fnew==0d0) then; a=1d0
-                else; a=dAbs(fnew)/dSqrt(-phidnew); end if
-            end if
-        if(present(Increment)) then
-            if(present(fdd)) then!Analytical Hessian available
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    end if
+            !Initial iteration history
+            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            if(-phidnew<tol) return
+            if(fnew==0d0) then; a=1d0
+            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
+            xold=x; fdold=fdnew
+            !Initial approximate inverse Hessian = a
+            if(present(Increment)) then
+                if(sw) then
+                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
                 else
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    end if
+                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
                 end if
             else
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
+                if(sw) then
+                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                else
+                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
+                end if
+            end if
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) return
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                return
+            end if
+            recent=0
+            s(:,0)=x-xold; y(:,0)=fdnew-fdold; rho(0)=1d0/dot_product(y(:,0),s(:,0))
+            do iIteration=1,mem-1!Preiterate to get enough history
+                xold=x; fdold=fdnew!Prepare
+                !Determine new direction
+                p=fdnew
+                do i=recent,0,-1
+                    alpha(i)=rho(i)*dot_product(s(:,i),p)
+                    p=p-alpha(i)*y(:,i)
+                end do
+                p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
+                do i=0,recent
+                    phidnew=rho(i)*dot_product(y(:,i),p)
+                    p=p+(alpha(i)-phidnew)*s(:,i)
+                end do
+                p=-p; phidnew=dot_product(fdnew,p); a=1d0
+                if(present(Increment)) then!Line search
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
                     else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
                     end if
                 else
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
+                    if(sw) then
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                     else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
                     end if
+                end if
+                phidnew=dot_product(fdnew,fdnew)
+                if(phidnew<tol) return
+                if(dot_product(p,p)*a*a<minstep) then
+                    if(warn) then
+                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                    end if
+                    return
+                end if
+                recent=recent+1
+                s(:,recent)=x-xold; y(:,recent)=fdnew-fdold; rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
+            end do
+        if(present(Increment)) then
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                end if
+            else
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
+                else
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 end if
             end if
         else
-            if(present(fdd)) then!Analytical Hessian available
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    end if
+            if(present(f_fd)) then!Cheaper to evaluate f' along with f
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 else
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After()!After search
-                            if(terminate) return
-                        end do
-                    end if
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 end if
             else
-                if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
-                    end if
+                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 else
-                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
-                    else
-                        do iIteration=1,maxit!Main loop
-                            phidold=phidnew!Prepare
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call After_NumericalHessian()!After search
-                            if(terminate) return
-                        end do
-                    end if
+                    do iIteration=1,maxit!Main loop
+                        call Before()!Before search
+                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                        call After()!After search
+                        if(terminate) return
+                    end do
                 end if
             end if
         end if
         if(iIteration>maxit.and.warn) then
-            write(*,'(1x,A46)')'Failed Newton-Raphson: max iteration exceeded!'
+            write(*,'(1x,A38)')'Failed L-BFGS: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
+        deallocate(rho); deallocate(alpha); deallocate(s); deallocate(y)!Clean up
         contains
-        subroutine After()!Check convergence, determine new direction & step length
+        subroutine Before()!Prepare, determine new direction & step length
+            xold=x; fdold=fdnew!Prepare
+            !Determine new direction
+            p=fdnew
+            do i=recent,0,-1
+                alpha(i)=rho(i)*dot_product(s(:,i),p)
+                p=p-alpha(i)*y(:,i)
+            end do
+            do i=mem-1,recent+1,-1
+                alpha(i)=rho(i)*dot_product(s(:,i),p)
+                p=p-alpha(i)*y(:,i)
+            end do
+            p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
+            do i=recent+1,mem-1
+                phidnew=rho(i)*dot_product(y(:,i),p)
+                p=p+(alpha(i)-phidnew)*s(:,i)
+            end do
+            do i=0,recent
+                phidnew=rho(i)*dot_product(y(:,i),p)
+                p=p+(alpha(i)-phidnew)*s(:,i)
+            end do
+            p=-p; phidnew=dot_product(fdnew,p); a=1d0
+        end subroutine Before
+        subroutine After()!Check convergence, replace earliest iteration history with latest
             !Check convergence
             phidnew=dot_product(fdnew,fdnew)
             if(phidnew<tol) then
@@ -254,47 +610,15 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
-                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
             end if
-            !Determine new direction and step length
-            p=-fdnew; info=fdd(Hessian,x,dim); call My_dposv(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p); a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew; phidnew=-phidnew; a=a*phidold/phidnew
-            end if
+            recent=mod(recent+1,mem)
+            s(:,recent)=x-xold; y(:,recent)=fdnew-fdold; rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
         end subroutine After
-        subroutine After_NumericalHessian()!Check convergence, determine new direction & step length
-            !Check convergence
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<tol) then
-                terminate=.true.; return
-            end if
-            if(dot_product(p,p)*a*a<minstep) then
-                if(warn) then
-                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                end if
-                terminate=.true.; return
-            end if
-            !Determine new direction and step length
-            p=-fdnew; info=djacobi(fd_j,dim,dim,Hessian,x,1d-8); call My_dposv(Hessian,p,dim,info)
-            if(info==0) then
-                phidnew=dot_product(fdnew,p); a=1d0
-            else!Hessian is not positive definite, use steepest descent direction
-                p=-fdnew; phidnew=-phidnew; a=a*phidold/phidnew
-            end if
-        end subroutine After_NumericalHessian
-        subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
-            integer,intent(in)::M,N
-            real*8,dimension(N),intent(in)::x
-            real*8,dimension(M),intent(out)::fdx
-            call fd(fdx,x,N)
-        end subroutine fd_j
-    end subroutine NewtonRaphson
+    end subroutine LBFGS
 
     !Broyden–Fletcher–Goldfarb–Shanno (BFGS) quasi-Newton method, requiring Wolfe condition
     !Optional argument:
@@ -604,120 +928,117 @@ contains
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-            subroutine After()!Check convergence, update approximate inverse Hessian, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.; return
+        subroutine After()!Check convergence, update approximate inverse Hessian, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.; return
-                end if
-                !Determine new direction and step length, update approximate inverse Hessian
-                i=mod(iIteration,freq)
-                if(i==0) then!Every freq steps compute exact Hessian
-                    i=fdd(U,x,dim); call My_dpotri(U,dim,i)
-                    if(i==0) then!Use exact Hessian if positive definite
-                        call sycp(H,U,dim); call syL2U(H,dim)
-                        p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
-                    end if
-                end if
-                if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
-                    s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
-                    U=-rho*vector_direct_product(y,s,dim,dim)
-                    forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
-                    H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
+                terminate=.true.; return
+            end if
+            !Determine new direction and step length, update approximate inverse Hessian
+            i=mod(iIteration,freq)
+            if(i==0) then!Every freq steps compute exact Hessian
+                i=fdd(U,x,dim); call My_dpotri(U,dim,i)
+                if(i==0) then!Use exact Hessian if positive definite
+                    call sycp(H,U,dim); call syL2U(H,dim)
                     p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
                 end if
-            end subroutine After
-            subroutine After_NumericalHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.; return
-                end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.; return
-                end if
-                !Determine new direction and step length, update approximate inverse Hessian
-                i=mod(iIteration,freq)
-                if(i==0) then!Every freq steps compute exact Hessian
-                    i=djacobi(fd_j,dim,dim,U,x,1d-8)
-                    call My_dpotri(U,dim,i)
-                    if(i==0) then!Use exact Hessian if positive definite
-                        call sycp(H,U,dim); call syL2U(H,dim)
-                        p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
-                    end if
-                end if
-                if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
-                    s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
-                    U=-rho*vector_direct_product(y,s,dim,dim)
-                    forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
-                    H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
-                    p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
-                end if
-            end subroutine After_NumericalHessian
-            subroutine After_NoHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.; return
-                end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.; return
-                end if
-                !Determine new direction and step length, update approximate inverse Hessian
+            end if
+            if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
                 s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
                 U=-rho*vector_direct_product(y,s,dim,dim)
                 forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
                 H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
                 p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
-            end subroutine After_NoHessian
-            subroutine fd_j(M,N,x,fdx)!Reformat for djacobi
-                integer,intent(in)::M,N
-                real*8,dimension(N),intent(in)::x
-                real*8,dimension(M),intent(out)::fdx
-                call fd(fdx,x,N)
-            end subroutine fd_j
+            end if
+        end subroutine After
+        subroutine After_NumericalHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction and step length, update approximate inverse Hessian
+            i=mod(iIteration,freq)
+            if(i==0) then!Every freq steps compute exact Hessian
+                i=djacobi(fd_j,dim,dim,U,x,1d-8)
+                call My_dpotri(U,dim,i)
+                if(i==0) then!Use exact Hessian if positive definite
+                    call sycp(H,U,dim); call syL2U(H,dim)
+                    p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
+                end if
+            end if
+            if(i/=0) then!Exact Hessian is either uncomputed or not positive definite, update approximate Hessian
+                s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
+                U=-rho*vector_direct_product(y,s,dim,dim)
+                forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
+                H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
+                p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
+            end if
+        end subroutine After_NumericalHessian
+        subroutine After_NoHessian()!Check convergence, update approximate inverse Hessian, determine new direction & step length
+            !Check convergence
+            phidnew=dot_product(fdnew,fdnew)
+            if(phidnew<tol) then
+                terminate=.true.; return
+            end if
+            if(dot_product(p,p)*a*a<minstep) then
+                if(warn) then
+                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
+                end if
+                terminate=.true.; return
+            end if
+            !Determine new direction and step length, update approximate inverse Hessian
+            s=x-s; y=fdnew-y; rho=1d0/dot_product(y,s)
+            U=-rho*vector_direct_product(y,s,dim,dim)
+            forall(i=1:dim); U(i,i)=U(i,i)+1d0; end forall
+            H=matmul(transpose(U),matmul(H,U))+rho*vector_direct_product(s,s,dim,dim)
+            p=-matmul(H,fdnew); phidnew=dot_product(fdnew,p); a=1d0
+        end subroutine After_NoHessian
+        subroutine fd_j(M,N,x,fdx)!Reformat for djacobi
+            integer,intent(in)::M,N
+            real*8,dimension(N),intent(in)::x
+            real*8,dimension(M),intent(out)::fdx
+            call fd(fdx,x,N)
+        end subroutine fd_j
     end subroutine BFGS
 
-    !Limited-memory Broyden–Fletcher–Goldfarb–Shanno (L-BFGS) quasi-Newton method, requiring Wolfe condition
-    !Optional: Memory: (default = 10) memory usage = O( Memory * dim ). [3,30] is recommended (must > 0)
-    subroutine LBFGS(f, fd, x, dim, &
-    Memory, &
+    !Newton-Raphson method, requiring Wolfe condition
+    !Optional: fdd: presence means analytical Hessian is available, otherwise call djacobi for central difference Hessian
+    subroutine NewtonRaphson(f, fd, x, dim, &
+    fdd, &
     f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd
             integer,intent(in)::dim
             real*8,dimension(dim),intent(inout)::x
         !Optional argument
-            integer,external,optional::f_fd
+            integer,external,optional::fdd,f_fd
             logical,intent(in),optional::Strong,Warning
-            integer,intent(in),optional::Memory,MaxIteration
+            integer,intent(in),optional::MaxIteration
             real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
         logical::sw,warn,terminate
-        integer::mem,maxit,iIteration,i,recent
-        real*8::tol,minstep,c1,c2,a,fnew,phidnew
-        real*8,dimension(dim)::p,fdnew,xold,fdold
-        real*8,allocatable,dimension(:)::rho,alpha
-        real*8,allocatable,dimension(:,:)::s,y
+        integer::maxit,iIteration,info
+        real*8::tol,minstep,c1,c2,a,fnew,phidnew,phidold
+        real*8,dimension(dim)::p,fdnew
+        real*8,dimension(dim,dim)::Hessian
         !Initialize
             terminate=.false.
             !Set parameter according to optional argument
-                if(present(Memory)) then; mem=max(1,Memory)!Fail safe
-                    else; mem=10; end if
                 if(present(Strong)) then; sw=Strong
                     else; sw=.true.; end if
                 if(present(Warning)) then; warn=Warning
@@ -732,280 +1053,54 @@ contains
                     else; c1=1d-4; end if
                 if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
                     else; c2=0.9d0; end if
-            allocate(rho(0:mem)); allocate(alpha(0:mem)); allocate(s(dim,0:mem)); allocate(y(dim,0:mem))
-            if(present(f_fd)) then!Initial f(x) & f'(x)
-                i=f_fd(fnew,fdnew,x,dim)
-            else
-                call f(fnew,x,dim); call fd(fdnew,x,dim)
-            end if
-            !Initial iteration history
-            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<tol) return
-            if(fnew==0d0) then; a=1d0
-            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
-            xold=x; fdold=fdnew
-            !Initial approximate inverse Hessian = a
-            if(present(Increment)) then
-                if(sw) then
-                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
-                else
-                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
-                end if
-            else
-                if(sw) then
-                    call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                else
-                    call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                end if
-            end if
-            phidnew=dot_product(fdnew,fdnew)
-            if(phidnew<tol) return
-            if(dot_product(p,p)*a*a<minstep) then
-                if(warn) then
-                    write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                    write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                end if
-                return
-            end if
-            recent=0
-            s(:,0)=x-xold; y(:,0)=fdnew-fdold; rho(0)=1d0/dot_product(y(:,0),s(:,0))
-            do iIteration=1,mem-1!Preiterate to get enough history
-                xold=x; fdold=fdnew!Prepare
-                !Determine new direction
-                p=fdnew
-                do i=recent,0,-1
-                    alpha(i)=rho(i)*dot_product(s(:,i),p)
-                    p=p-alpha(i)*y(:,i)
-                end do
-                p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-                do i=0,recent
-                    phidnew=rho(i)*dot_product(y(:,i),p)
-                    p=p+(alpha(i)-phidnew)*s(:,i)
-                end do
-                p=-p; phidnew=dot_product(fdnew,p); a=1d0
-                if(present(Increment)) then!Line search
-                    if(sw) then
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
-                    else
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)
-                    end if
-                else
-                    if(sw) then
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                    else
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)
-                    end if
-                end if
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) return
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A84)')'BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    return
-                end if
-                recent=recent+1
-                s(:,recent)=x-xold; y(:,recent)=fdnew-fdold; rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-            end do
-        if(present(Increment)) then
-            if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                else
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                end if
-            else
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                else
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                end if
-            end if
-        else
-            if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                else
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                end if
-            else
-                if(sw) then!Use strong Wolfe condition instead of Wolfe condition
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                else
-                    do iIteration=1,maxit!Main loop
-                        call Before()!Before search
-                        call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call After()!After search
-                        if(terminate) return
-                    end do
-                end if
-            end if
-        end if
-        if(iIteration>maxit.and.warn) then
-            write(*,'(1x,A38)')'Failed L-BFGS: max iteration exceeded!'
-            write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
-        end if
-        deallocate(rho); deallocate(alpha); deallocate(s); deallocate(y)!Clean up
-        contains
-            subroutine Before()!Prepare, determine new direction & step length
-                xold=x; fdold=fdnew!Prepare
-                !Determine new direction
-                p=fdnew
-                do i=recent,0,-1
-                    alpha(i)=rho(i)*dot_product(s(:,i),p)
-                    p=p-alpha(i)*y(:,i)
-                end do
-                do i=mem-1,recent+1,-1
-                    alpha(i)=rho(i)*dot_product(s(:,i),p)
-                    p=p-alpha(i)*y(:,i)
-                end do
-                p=p/rho(recent)/dot_product(y(:,recent),y(:,recent))
-                do i=recent+1,mem-1
-                    phidnew=rho(i)*dot_product(y(:,i),p)
-                    p=p+(alpha(i)-phidnew)*s(:,i)
-                end do
-                do i=0,recent
-                    phidnew=rho(i)*dot_product(y(:,i),p)
-                    p=p+(alpha(i)-phidnew)*s(:,i)
-                end do
-                p=-p; phidnew=dot_product(fdnew,p); a=1d0
-            end subroutine Before
-            subroutine After()!Check convergence, replace earliest iteration history with latest
-                !Check convergence
-                phidnew=dot_product(fdnew,fdnew)
-                if(phidnew<tol) then
-                    terminate=.true.; return
-                end if
-                if(dot_product(p,p)*a*a<minstep) then
-                    if(warn) then
-                        write(*,'(1x,A86)')'L-BFGS warning: step length has converged, but gradient norm has not met accuracy goal'
-                        write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
-                    end if
-                    terminate=.true.; return
-                end if
-                recent=mod(recent+1,mem)
-                s(:,recent)=x-xold; y(:,recent)=fdnew-fdold; rho(recent)=1d0/dot_product(y(:,recent),s(:,recent))
-            end subroutine After
-    end subroutine LBFGS
-
-    !Conjugate gradient method, requiring either Wolfe or Strong Wolfe condition
-    !Available methods: DY (Dai-Yuan), PR (Polak-Ribiere+)
-    !Optional: Method: (default = DY) which conjugate gradient method to use
-    subroutine ConjugateGradient(f, fd, x, dim, &
-    Method, &
-    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
-        !Required argument
-            external::f,fd
-            integer,intent(in)::dim
-            real*8,dimension(dim),intent(inout)::x
-        !Optional argument
-            character(*),intent(in),optional::Method
-            integer,external,optional::f_fd
-            logical,intent(in),optional::Strong,Warning
-            integer,intent(in),optional::MaxIteration
-            real*8,intent(in),optional::Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
-        logical::sw,warn,terminate
-        character*2::type
-        integer::maxit,iIteration,info
-        real*8::tol,minstep,c1,c2,a,fnew,fold,phidnew,phidold
-        real*8,dimension(dim)::p,fdnew,fdold
-        !Initialize
-            terminate=.false.
-            !Set parameter according to optional argument
-                if(present(Method)) then; type=Method
-                    else; type='DY'; end if
-                if(present(Strong)) then; sw=Strong
-                    else; sw=.true.; end if
-                if(present(Warning)) then; warn=Warning
-                    else; warn=.true.; end if
-                if(present(MaxIteration)) then; maxit=MaxIteration
-                    else; maxit=1000; end if
-                if(present(Precision)) then; tol=Precision*Precision!To save sqrt cost, precision is squared
-                    else; tol=1d-30; end if
-                if(present(MinStepLength)) then;  minstep=MinStepLength*MinStepLength!To save sqrt cost, MinStepLength is squared
-                    else; minstep=1d-30; end if
-                if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
-                    else; c1=1d-4; end if
-                if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
-                    else; c2=0.45d0; end if
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 info=f_fd(fnew,fdnew,x,dim)
             else
                 call f(fnew,x,dim); call fd(fdnew,x,dim)
             end if
             !Initial direction & step length
-            p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
-            if(-phidnew<tol) return
-            if(fnew==0d0) then; a=1d0
-            else; a=dAbs(fnew)/dSqrt(-phidnew); end if
-        select case(type)
-        case('DY')!Require Wolfe condition
-            if(present(Increment)) then
+            if(present(fdd)) then; info=fdd(Hessian,x,dim)
+            else; info=djacobi(fd_j,dim,dim,Hessian,x,1d-8); end if
+            p=-fdnew; call My_dposv(Hessian,p,dim,info)
+            if(info==0) then
+                phidnew=dot_product(fdnew,p); a=1d0
+            else!Hessian is not positive definite, use steepest descent direction
+                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+                if(-phidnew<tol) return
+                if(fnew==0d0) then; a=1d0
+                else; a=dAbs(fnew)/dSqrt(-phidnew); end if
+            end if
+        if(present(Increment)) then
+            if(present(fdd)) then!Analytical Hessian available
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            phidold=phidnew!Prepare
                             call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call DY()!After search
+                            call After()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            phidold=phidnew!Prepare
                             call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call DY()!After search
+                            call After()!After search
                             if(terminate) return
                         end do
                     end if
                 else
-                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            phidold=phidnew!Prepare
                             call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call DY()!After search
+                            call After()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
+                            phidold=phidnew!Prepare
                             call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                            call DY()!After search
+                            call After()!After search
                             if(terminate) return
                         end do
                     end if
@@ -1014,79 +1109,114 @@ contains
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
                     if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
                             if(terminate) return
                         end do
                     end if
                 else
-                    if(sw) then!To meet Nocedal performance suggestion, Dai-Yuan requires strong Wolfe condition
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
                             if(terminate) return
                         end do
                     else
                         do iIteration=1,maxit!Main loop
-                            fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                            call DY()!After search
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
+                            call After_NumericalHessian()!After search
                             if(terminate) return
                         end do
                     end if
                 end if
             end if
-        case('PR')!Require strong Wolfe condition
-            if(present(Increment)) then
+        else
+            if(present(fdd)) then!Analytical Hessian available
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                        call PR()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim,Increment=Increment)!Line search
-                        call PR()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             else
                 if(present(f_fd)) then!Cheaper to evaluate f' along with f
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                        call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call PR()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe_fdwithf(c1,c2,f,fd,f_fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 else
-                    do iIteration=1,maxit!Main loop
-                        fold=fnew; fdold=fdnew; phidold=phidnew!Prepare
-                        call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
-                        call PR()!After search
-                        if(terminate) return
-                    end do
+                    if(sw) then!Use strong Wolfe condition instead of Wolfe condition
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call StrongWolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    else
+                        do iIteration=1,maxit!Main loop
+                            phidold=phidnew!Prepare
+                            call Wolfe(c1,c2,f,fd,x,a,p,fnew,phidnew,fdnew,dim)!Line search
+                            call After_NumericalHessian()!After search
+                            if(terminate) return
+                        end do
+                    end if
                 end if
             end if
-        case default; write(*,*)'Program abort: unsupported conjugate gradient method '//trim(adjustl(type)); stop
-        end select
+        end if
         if(iIteration>maxit.and.warn) then
-            write(*,'(1x,A50)')'Failed conjugate gradient: max iteration exceeded!'
+            write(*,'(1x,A46)')'Failed Newton-Raphson: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
-        subroutine DY()!Check convergence, determine new direction & step length
+        subroutine After()!Check convergence, determine new direction & step length
             !Check convergence
             phidnew=dot_product(fdnew,fdnew)
             if(phidnew<tol) then
@@ -1094,20 +1224,20 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
-                    write(*,'(1x,A107)')'Dai-Yuan conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
             end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew)/dot_product(fdnew-fdold,p)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            !Determine new direction and step length
+            p=-fdnew; info=fdd(Hessian,x,dim); call My_dposv(Hessian,p,dim,info)
+            if(info==0) then
+                phidnew=dot_product(fdnew,p); a=1d0
+            else!Hessian is not positive definite, use steepest descent direction
+                p=-fdnew; phidnew=-phidnew; a=a*phidold/phidnew
             end if
-            a=a*phidold/phidnew
-        end subroutine DY
-        subroutine PR()!Check convergence, determine new direction & step length
+        end subroutine After
+        subroutine After_NumericalHessian()!Check convergence, determine new direction & step length
             !Check convergence
             phidnew=dot_product(fdnew,fdnew)
             if(phidnew<tol) then
@@ -1115,20 +1245,26 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
-                    write(*,'(1x,A113)')'Polak-Ribiere+ conjugate gradient warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A94)')'Newton-Raphson warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
             end if
-            !Determine new direction
-            p=-fdnew+dot_product(fdnew,fdnew-fdold)/dot_product(fdold,fdold)*p
-            phidnew=dot_product(fdnew,p)
-            if(phidnew>0d0) then!Ascent direction, reset to steepest descent direction
-                p=-fdnew; phidnew=-dot_product(fdnew,fdnew)
+            !Determine new direction and step length
+            p=-fdnew; info=djacobi(fd_j,dim,dim,Hessian,x,1d-8); call My_dposv(Hessian,p,dim,info)
+            if(info==0) then
+                phidnew=dot_product(fdnew,p); a=1d0
+            else!Hessian is not positive definite, use steepest descent direction
+                p=-fdnew; phidnew=-phidnew; a=a*phidold/phidnew
             end if
-            a=a*phidold/phidnew
-        end subroutine PR
-    end subroutine ConjugateGradient
+        end subroutine After_NumericalHessian
+        subroutine fd_j(M,N,x,fdx)!Reformat fd for djacobi
+            integer,intent(in)::M,N
+            real*8,dimension(N),intent(in)::x
+            real*8,dimension(M),intent(out)::fdx
+            call fd(fdx,x,N)
+        end subroutine fd_j
+    end subroutine NewtonRaphson
 
     !=========== Line searcher ============
         !Some direction finders can only converge under strong Wolfe condition
