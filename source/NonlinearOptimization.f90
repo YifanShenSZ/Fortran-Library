@@ -160,7 +160,7 @@ contains
             end if
         end if
         if(iIteration>maxit.and.warn) then
-            write(*,'(1x,A50)')'Failed steepest descent: max iteration exceeded!'
+            write(*,'(1x,A48)')'Failed steepest descent: max iteration exceeded!'
             write(*,*)'Euclidean norm of gradient =',Norm2(fdnew)
         end if
         contains
@@ -172,7 +172,7 @@ contains
             end if
             if(dot_product(p,p)*a*a<minstep) then
                 if(warn) then
-                    write(*,'(1x,A107)')'Steepest descent warning: step length has converged, but gradient norm has not met accuracy goal'
+                    write(*,'(1x,A96)')'Steepest descent warning: step length has converged, but gradient norm has not met accuracy goal'
                     write(*,*)'Euclidean norm of gradient =',dSqrt(phidnew)
                 end if
                 terminate=.true.; return
