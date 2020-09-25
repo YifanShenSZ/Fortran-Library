@@ -27,7 +27,7 @@ module Mathematics
 
 !Overload
     interface RK4
-        module procedure dRK4, zRK4
+        module procedure dRK4_t, dRK4, zRK4
     end interface RK4
 
 contains
@@ -815,14 +815,34 @@ contains
 !----------------------- End ------------------------
 
 !---------- Ordinary differential equation ----------
-    !Integrate the ordinary differential equation: u(dt) = u(0) + Integrate[du/dt,{t,0,dt}]
-    !du/dt should not depend explicitly on time, i.e. du/dt must be determined merely by u
-    !External procedure: subroutine f(du/dt,u,dim), dim dimentional vector du/dt & u
-    !Input:  old = u(0), f, dt, dim
+    !The ordinary differential equation is provided by a subroutine to calculate du/dt(t, u)
+    !From tau and u(tau), calculate u(tau + dt)
+
+    !Input:  tau, old = u(tau), f, dt, dim
     !Output: new harvests u(dt)
+    !For du/dt(t, u), subroutine f(du/dt, t, u, dim)
+    !For du/dt(u), subroutine f(du/dt, u, dim)
+    !where du/dt and u are dim dimentional vectors
 
     !Runge Kutta 4 order
-    !double old, new
+    !For du/dt(t, u), double old, new
+    subroutine dRK4_t(t, old, new, f, dt, dim)
+        real*8, intent(in)::t
+        integer, intent(in)::dim
+        real*8, dimension(dim), intent(in)::old
+        real*8, dimension(dim), intent(out)::new
+        external::f
+        real*8,intent(in)::dt
+        real*8::dtd2
+        real*8,dimension(dim)::k1, k2, k3, k4
+        dtd2 = dt / 2d0
+        call f(k1, t       , old            , dim)
+        call f(k2, t + dtd2, old + k1 * dtd2, dim)
+        call f(k3, t + dtd2, old + k2 * dtd2, dim)
+        call f(k4, t + dt  , old + k3 * dt  , dim)
+        new = old + dt / 6d0 * (k1 + 2d0 * k2 + 2d0 * k3 + k4)
+    end subroutine dRK4_t
+    !For du/dt(u), double old, new
     subroutine dRK4(old, new, f, dt, dim)
         integer,intent(in)::dim
         real*8,dimension(dim),intent(in)::old
@@ -838,7 +858,7 @@ contains
         call f(k4,old+k3*dt,dim)
         new=old+dt/6d0*(k1+2d0*k2+2d0*k3+k4)
     end subroutine dRK4
-    !complex old, new
+    !For du/dt(u), complex old, new
     subroutine zRK4(old, new, f, dt, dim)
         integer,intent(in)::dim
         complex*16,dimension(dim),intent(in)::old

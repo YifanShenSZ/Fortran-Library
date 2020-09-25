@@ -26,13 +26,13 @@ libdir = $(RealPrefix)/lib
 
 libFL.a libFL.so: $(src)
 ifeq ($(compiler),intel)
-	ifort -qopenmp -mkl -parallel -ipo $(intelflag) -c $^
+	ifort -qopenmp -parallel -mkl -ipo $(intelflag) -c $^
 	xiar rcs libFL.a *.o
 	rm *.o
 	ifort -mkl:sequential -ipo $(intelflag) -c $^
 	xiar rcs libFL_sequential.a *.o
 	rm *.o
-	ifort -qopenmp -mkl -parallel -ipo $(intelflag) -shared -fpic $^ -o libFL.so
+	ifort -qopenmp -parallel -mkl -ipo $(intelflag) -shared -fpic $^ -o libFL.so
 	ifort -mkl:sequential -ipo $(intelflag) -shared -fpic $^ -o libFL_sequential.so
 else
 	gfortran -fopenmp -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include $(gnuflag) -c $^
@@ -64,7 +64,7 @@ $(libdir):
 .PHONY: test
 test:
 ifeq ($(compiler),intel)
-	ifort -qopenmp -mkl -parallel -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
+	ifort -qopenmp -parallel -mkl -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL.a -o test/test_static.exe
 	ifort -mkl:sequential -ipo $(intelflag) -I$(incdir) test/test.f90 $(libdir)/libFL_sequential.a -o test/test_static_sequential.exe
 else
 	gfortran -fopenmp -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include $(gnuflag) -I$(incdir) test/test.f90 -l:libFL.a $(gnumkl) -o test/test_static.exe
@@ -81,7 +81,7 @@ $(error Please add prefix/lib to LD_LIBRARY_PATH)
 endif
 
 ifeq ($(compiler),intel)
-	ifort -qopenmp -mkl -parallel -ipo $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
+	ifort -qopenmp -parallel -mkl -ipo $(intelflag) test/test.f90 -lFL -o test/test_dynamic.exe
 	ifort -mkl:sequential -ipo $(intelflag) test/test.f90 -lFL_sequential -o test/test_dynamic_sequential.exe
 else
 	gfortran -fopenmp -ffree-line-length-0 -fno-range-check -I${MKLROOT}/include $(gnuflag) -I$(incdir) test/test.f90 -lFL $(gnumkl) -o test/test_dynamic.exe
@@ -94,7 +94,7 @@ ifeq (,$(findstring $(incdir),$(CPATH)))
 $(error Please add prefix/include to CPATH)
 endif
 ifeq ($(compiler),intel)
-	icpc -qopenmp -mkl -parallel $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
+	icpc -qopenmp -parallel -mkl $(intelflag) test/test.cpp -lFL -o test/test_cpp.exe
 	icpc -mkl:sequential $(intelflag) test/test.cpp -lFL_sequential -o test/test_cpp_sequential.exe
 else
 	g++ -fopenmp -I${MKLROOT}/include $(gnuflag) test/test.cpp -lFL $(gnumkl) -o test/test_cpp.exe

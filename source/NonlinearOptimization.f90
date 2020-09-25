@@ -79,7 +79,7 @@ contains
                 if(present(WolfeConst1)) then; c1=max(1d-15,WolfeConst1)!Fail safe
                     else; c1=1d-4; end if
                 if(present(WolfeConst2)) then; c2=min(1d0-1d-15,max(c1+1d-15,WolfeConst2))!Fail safe
-                    else; c2=0.45d0; end if
+                    else; c2=0.9d0; end if
             if(present(f_fd)) then!Initial f(x) & f'(x)
                 info=f_fd(fnew,fdnew,x,dim)
             else
@@ -1904,10 +1904,10 @@ contains
 
 !---------- Equality constraint ----------
     !Lagrangian multiplier method is a classical way to treat equality constraint:
-    !    L = f - lamda . c
-    !where f is the target function to be minimized, lamda is Lagrangian multiplier, c is equality constraint c(x) = 0
+    !    L = f - lambda . c
+    !where f is the target function to be minimized, lambda is Lagrangian multiplier, c is equality constraint c(x) = 0
     !Textbook is wrong: it claims Lagrangian multiplier method transforms constrained optimization into unconstrained one
-    !However, L has no lower bound, since lamda . c can approach infinity when c != 0 and lamda diverges
+    !However, L has no lower bound, since lambda . c can approach infinity when c != 0 and lambda diverges
     !Lagrangian multiplier method actually turns a minimization problem into a saddle point problem,
     !which cannot necessarily be solved through decreasing L, deteriorating all unconstrained minimizers
     !Lagrangian multiplier method is numerically feasible only when at least 1 of the following statements is true:
@@ -1915,9 +1915,9 @@ contains
     !    The initial guess is sufficiently close to the exact solution
     !under which circumstance we may simply minimize || L'(x) ||
     !In general case, we have to turn to the augmented Lagrangian method:
-    !    Augmented Lagrangian = f - lamda . c + miu / 2 * c . c
+    !    Augmented Lagrangian = f - lambda . c + miu / 2 * c . c
     !where miu is constraint violation penalty strength
-    !    miu should >= 1 because c ~ ( lamda - lamda_true ) / miu
+    !    miu should >= 1 because c ~ ( lambda - lambda_true ) / miu
     !Suggestion:
     !    Augmented Lagrangian has ill conditioned Hessian when miu is too large, deteriorating performance of line searchers
     !    so do not take too much iterations nor push accuracy to double precision limit
@@ -1938,17 +1938,17 @@ contains
     !Lagrangian multiplier method for equality constraint
     !Please read the instruction above to make sure this is really feasible for your problem
     !Additional required argument:
-    !    lamda: on input is an initial guess of Lagranguan multiplier, on exit is the solution
+    !    lambda: on input is an initial guess of Lagranguan multiplier, on exit is the solution
     !Optional argument:
     !    Warning: (default = true) if false, all warnings will be suppressed
     !    MaxIteration: (default = 1000) max number of iterations to perform
     !    Precision: (default = 1d-15) convergence considered when || L'(x) ||_2 < Precision
-    subroutine LagrangianMultiplier(fd, fdd, c, cd, cdd, x, lamda, N, M, &
+    subroutine LagrangianMultiplier(fd, fdd, c, cd, cdd, x, lambda, N, M, &
     Warning, MaxIteration, Precision)
         !Required argument
             external::fd,c,cd; integer,external::fdd,cdd
             integer,intent(in)::N,M
-            real*8,dimension(N),intent(inout)::x; real*8,dimension(M),intent(inout)::lamda
+            real*8,dimension(N),intent(inout)::x; real*8,dimension(M),intent(inout)::lambda
         !Optional argument
             logical,intent(in),optional::Warning
             integer,intent(in),optional::MaxIteration
@@ -1969,21 +1969,21 @@ contains
         do iIteration=1,maxit
             !Construct -Ld and Ldd
                 call fd(minusLd(1:N),x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
-                minusLd(1:N)=matmul(cdx,lamda)-minusLd(1:N); minusLd(N+1:dim)=cx
+                minusLd(1:N)=matmul(cdx,lambda)-minusLd(1:N); minusLd(N+1:dim)=cx
                 if(dot_product(minusLd,minusLd)<tol) return!Converged
                 i=fdd(Ldd(1:N,1:N),x,N); i=cdd(cddx,x,M,N)
                 forall(i=1:N)
-                    Ldd(i,1:N)=Ldd(i,1:N)-matmul(cddx(i,:,:),lamda)
+                    Ldd(i,1:N)=Ldd(i,1:N)-matmul(cddx(i,:,:),lambda)
                 end forall
                 Ldd(N+1:dim,1:N)=-transpose(cdx); Ldd(N+1:dim,N+1:dim)=0d0
             !Newton iteration
                 call My_dsysv(Ldd,minusLd,dim)
-                x=x+minusLd(1:N); lamda=lamda+minusLd(N+1:dim)
+                x=x+minusLd(1:N); lambda=lambda+minusLd(N+1:dim)
         end do
         if(iIteration>maxit.and.warn) then
             write(*,'(1x,A53)')'Failed Lagrangian multiplier: max iteration exceeded!'
             call fd(minusLd(1:N),x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
-            minusLd(1:N)=matmul(cdx,lamda)-minusLd(1:N); minusLd(N+1:dim)=cx
+            minusLd(1:N)=matmul(cdx,lambda)-minusLd(1:N); minusLd(N+1:dim)=cx
             write(*,*)'Euclidean norm of Lagrangian gradient =',Norm2(minusLd)
         end if
     end subroutine LagrangianMultiplier
@@ -1991,7 +1991,7 @@ contains
     !Augmented Lagrangian method for equality constraint
     !Optional argument:
     !    UnconstrainedSolver: (default = BFGS) specify the unconstraind solver to use, every line searcher is available
-    !    lamda0: (default = 0) initial guess of lamda
+    !    lambda0: (default = 0) initial guess of lambda
     !    miu0: (default = 1) initial miu (must >= 1)
     !    All line search optional arguments are also optional here and will be passed to line searchers,
 	!    some of them also control augmented Lagrangian behaviour: Warning, MaxIteration, Precision, Increment
@@ -1999,20 +1999,21 @@ contains
     !        Precision: convergence considered when || c(x) ||_2 < Precision
 	!        Increment: each iteration change miu by how much time
     subroutine AugmentedLagrangian(f, fd, c, cd, x, N, M, &
-    UnconstrainedSolver,lamda0,miu0,&
-    f_fd,Strong,Warning,MaxIteration,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment,fdd,cdd,ExactStep,Memory,Method)
+    UnconstrainedSolver, lambda0, miu0, &
+    fdd, cdd, ExactStep, Memory, Method, &
+    f_fd, Strong, Warning, MaxIteration, Precision, MinStepLength, WolfeConst1, WolfeConst2, Increment)
         !Required argument
             external::f,fd,c,cd
             integer,intent(in)::N,M
             real*8,dimension(N),intent(inout)::x
         !Optional argument
-            character*32,intent(in),optional::UnconstrainedSolver
-            real*8,dimension(M),intent(in),optional::lamda0
+            character(*),intent(in),optional::UnconstrainedSolver
+            real*8,dimension(M),intent(in),optional::lambda0
             integer,external,optional::f_fd,fdd,cdd
             logical,intent(in),optional::Strong,Warning
             integer,intent(in),optional::MaxIteration,ExactStep,Memory
             real*8,intent(in),optional::miu0,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
-            character*32,intent(in),optional::Method
+            character(*),intent(in),optional::Method
         !Job control
             character*32::solver,type
             logical::sw,warn
@@ -2020,7 +2021,7 @@ contains
             real*8::tol,minstep,c1,c2,incrmt
         integer::iIteration,i
         real*8::tolsq,miu
-        real*8,dimension(M)::lamda,cx
+        real*8,dimension(M)::lambda,cx
         real*8,dimension(N,M)::cdx
         real*8,dimension(N,N,M)::cddx
         real*8,dimension(N,N)::Lddxtemp
@@ -2028,8 +2029,8 @@ contains
             !Augmented Lagrangian optional argument
                 if(present(UnconstrainedSolver)) then; solver=UnconstrainedSolver
                     else; solver='BFGS'; end if
-                if(present(lamda0)) then; lamda=lamda0
-                    else; lamda=0d0; end if
+                if(present(lambda0)) then; lambda=lambda0
+                    else; lambda=0d0; end if
                 if(present(miu0)) then; miu=max(1d0,miu0)
                     else; miu=1d0; end if
             !Common line search optional argument
@@ -2074,7 +2075,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 else
                     do iIteration=1,maxit
@@ -2082,7 +2083,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 end if
             else
@@ -2092,7 +2093,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 else
 					do iIteration=1,maxit
@@ -2100,7 +2101,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 end if
             end if
@@ -2112,7 +2113,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 else
                     do iIteration=1,maxit
@@ -2120,7 +2121,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 end if
             else
@@ -2130,7 +2131,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 else
                     do iIteration=1,maxit
@@ -2138,7 +2139,7 @@ contains
                         Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                         call c(cx,x,M,N)
                         if(dot_product(cx,cx)<tolsq) exit
-                        lamda=lamda-miu*cx; miu=miu*incrmt
+                        lambda=lambda-miu*cx; miu=miu*incrmt
                     end do
                 end if
             end if
@@ -2149,7 +2150,7 @@ contains
                     Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                     call c(cx,x,M,N)
                     if(dot_product(cx,cx)<tolsq) exit
-                    lamda=lamda-miu*cx; miu=miu*incrmt
+                    lambda=lambda-miu*cx; miu=miu*incrmt
                 end do
             else
                 do iIteration=1,maxit
@@ -2157,7 +2158,7 @@ contains
                     Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                     call c(cx,x,M,N)
                     if(dot_product(cx,cx)<tolsq) exit
-                    lamda=lamda-miu*cx; miu=miu*incrmt
+                    lambda=lambda-miu*cx; miu=miu*incrmt
                 end do
             end if
         case('ConjugateGradient')
@@ -2167,7 +2168,7 @@ contains
                     Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                     call c(cx,x,M,N)
                     if(dot_product(cx,cx)<tolsq) exit
-                    lamda=lamda-miu*cx; miu=miu*incrmt
+                    lambda=lambda-miu*cx; miu=miu*incrmt
                 end do
             else
                 do iIteration=1,maxit
@@ -2175,7 +2176,7 @@ contains
                     Strong=sw,Warning=warn,MaxIteration=maxit,Precision=tol,MinStepLength=minstep,WolfeConst1=c1,WolfeConst2=c2,Increment=incrmt)
                     call c(cx,x,M,N)
                     if(dot_product(cx,cx)<tolsq) exit
-                    lamda=lamda-miu*cx; miu=miu*incrmt
+                    lambda=lambda-miu*cx; miu=miu*incrmt
                 end do
             end if
         case default; write(*,*)'Program abort: unsupported unconstrained solver '//trim(adjustl(solver)); stop
@@ -2190,14 +2191,14 @@ contains
                 real*8,dimension(N),intent(in)::x
                 real*8,intent(out)::Lx
                 call f(Lx,x,N); call c(cx,x,M,N)
-                Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
+                Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
             end subroutine L
             subroutine Ld(Ldx,x,N)
                 integer,intent(in)::N
                 real*8,dimension(N),intent(in)::x
                 real*8,dimension(N),intent(out)::Ldx
                 call fd(Ldx,x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
-                Ldx=Ldx+matmul(cdx,miu*cx-lamda)
+                Ldx=Ldx+matmul(cdx,miu*cx-lambda)
             end subroutine Ld
             integer function L_Ld(Lx,Ldx,x,N)!Compute c & cd together is cheaper
                 integer,intent(in)::N
@@ -2205,9 +2206,9 @@ contains
                 real*8,intent(out)::Lx
                 real*8,dimension(N),intent(out)::Ldx
                 call f(Lx,x,N); call c(cx,x,M,N)
-                Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
+                Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
                 call fd(Ldx,x,N); call cd(cdx,x,M,N)
-                Ldx=Ldx+matmul(cdx,miu*cx-lamda)
+                Ldx=Ldx+matmul(cdx,miu*cx-lambda)
                 L_Ld=0!return 0
             end function L_Ld
             integer function L_Ld_fdwithf(Lx,Ldx,x,N)!When f_fd is available
@@ -2216,9 +2217,9 @@ contains
                 real*8,intent(out)::Lx
                 real*8,dimension(N),intent(out)::Ldx
                 i=f_fd(Lx,Ldx,x,N); call c(cx,x,M,N)
-                Lx=Lx-dot_product(lamda,cx)+miu/2d0*dot_product(cx,cx)
+                Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
                 call cd(cdx,x,M,N)
-                Ldx=Ldx+matmul(cdx,miu*cx-lamda)
+                Ldx=Ldx+matmul(cdx,miu*cx-lambda)
                 L_Ld_fdwithf=0!return 0
             end function L_Ld_fdwithf
             integer function Ldd(Lddx,x,N)!When fdd & cdd is available
@@ -2226,7 +2227,7 @@ contains
                 real*8,dimension(N),intent(in)::x
                 real*8,dimension(N,N),intent(out)::Lddx
                 i=fdd(Lddx,x,N); i=cdd(cddx,x,M,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
-                cx=miu*cx-lamda
+                cx=miu*cx-lambda
                 forall(i=1:N)
                     Lddxtemp(:,i)=matmul(cddx(i,:,:),cx)
                 end forall

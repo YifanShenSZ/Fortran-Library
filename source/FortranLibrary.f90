@@ -12,7 +12,7 @@ subroutine TestFortranLibrary()
     integer::i,j,k,l,dim,M,N
     integer,dimension(10)::indicesort
     real*8::difference,DoubleTemp,dbtp
-    real*8,dimension(1)::lamda
+    real*8,dimension(1)::lambda
     real*8,dimension(3)::avec,bvec,cvec,mass
     real*8,dimension(3,3)::intHessian,mode
     real*8,dimension(3,9)::WilsonB
@@ -37,7 +37,7 @@ subroutine TestFortranLibrary()
     real*8,dimension(10,10,2)::covariance
 
     call BetterRandomSeed()
-    write(*,*)'This is a test routine on Fortran-Library'
+    write(*,*)'This is a test program on Fortran-Library'
     write(*,*)'Correct routines should print close to 0'
     call ShowTime()
 
@@ -203,27 +203,24 @@ subroutine TestFortranLibrary()
                 end do
                 write(*,*)DoubleTemp
             write(*,*)
-            write(*,*)'sy3UnitaryTransformation'
-                do j=1,10
-                    do i=j,10
+            write(*,*)'UT_A3_U'
+                do j = 1, 10
+                    do i = j, 10
                         call random_number(A3(:,i,j))
                     end do
                 end do
-                call sy3L2U(A3,10,10)
-                do j=1,10
-                    do i=j,10
-                        B(i,j)=BetterRandomNumber()
+                do j = 1, 10
+                    do i = j, 10
+                        B(i,j) = BetterRandomNumber()
                     end do
                 end do
-                call My_dsyev('V',B,eigval,10)
-                B3=sy3UnitaryTransformation(A3,B,10,10)
-                forall(i=1:10)
-                    C3(i,:,:)=matmul(transpose(B),matmul(A3(i,:,:),B))
-                end forall
-                DoubleTemp=0d0
-                do j=1,10
-                    do i=j,10
-                        DoubleTemp=DoubleTemp+dot_product(B3(:,i,j)-C3(:,i,j),B3(:,i,j)-C3(:,i,j))
+                call My_dsyev('V', B, eigval, 10)
+                B3 = UT_A3_U(A3, B, 10, 10)
+                call UT_A3_U_InPlace(A3, B, 10, 10)
+                DoubleTemp = 0d0
+                do j = 1, 10
+                    do i = j, 10
+                        DoubleTemp = DoubleTemp + dot_product(A3(:,i,j) - B3(:,i,j), A3(:,i,j) - B3(:,i,j))
                     end do
                 end do
                 write(*,*)DoubleTemp
@@ -349,7 +346,7 @@ subroutine TestFortranLibrary()
                 call SteepestDescent(f,fd,x,dim,Strong=.false.)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'Steepest descent with strong Wolfe'
+            write(*,*)'Steepest descent: strong Wolfe'
                 call random_number(x)
                 call SteepestDescent(f,fd,x,dim)
                 write(*,*)norm2(x)
@@ -359,12 +356,12 @@ subroutine TestFortranLibrary()
                 call ConjugateGradient(f,fd,x,dim,Strong=.false.)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'DY_S'
+            write(*,*)'DY: strong Wolfe'
                 call random_number(x)
                 call ConjugateGradient(f,fd,x,dim)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'DY_S_fdwithf'
+            write(*,*)'DY: strong Wolfe, fd with f'
                 call random_number(x)
                 call ConjugateGradient(f,fd,x,dim,f_fd=f_fd)
                 write(*,*)norm2(x)
@@ -375,7 +372,7 @@ subroutine TestFortranLibrary()
                 call ConjugateGradient(f,fd,x,dim,Method=chartemp)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'PR_fdwithf'
+            write(*,*)'PR: fd with f'
                 chartemp='PR'
                 call random_number(x)
                 call ConjugateGradient(f,fd,x,dim,Method=chartemp,f_fd=f_fd)
@@ -386,12 +383,12 @@ subroutine TestFortranLibrary()
                 call LBFGS(f,fd,x,dim)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'LBFGS_S'
+            write(*,*)'LBFGS: strong Wolfe'
                 call random_number(x)
                 call LBFGS(f,fd,x,dim,Strong=.true.)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'LBFGS_S_fdwithf'
+            write(*,*)'LBFGS: strong Wolfe, fd with f'
                 call random_number(x)
                 call LBFGS(f,fd,x,dim,f_fd=f_fd,Memory=5)
                 write(*,*)norm2(x)
@@ -416,7 +413,7 @@ subroutine TestFortranLibrary()
                 call BFGS(f,fd,x,dim,fdd=fdd,Strong=.true.)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'BFGS_S_fdwithf'
+            write(*,*)'BFGS: strong Wolfe, fd with f'
                 call random_number(x)
                 call BFGS(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
                 write(*,*)norm2(x)
@@ -426,12 +423,12 @@ subroutine TestFortranLibrary()
                 call NewtonRaphson(f,fd,x,dim,fdd=fdd)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'Newton_S'
+            write(*,*)'Newton: strong Wolfe'
                 call random_number(x)
-                call NewtonRaphson(f,fd,x,dim,Strong=.true.)
+                call NewtonRaphson(f,fd,x,dim)
                 write(*,*)norm2(x)
             write(*,*)
-            write(*,*)'Newton_S_fdwithf'
+            write(*,*)'Newton: strong Wolfe, fd with f'
                 call random_number(x)
                 call NewtonRaphson(f,fd,x,dim,f_fd=f_fd,fdd=fdd)
                 write(*,*)norm2(x)
@@ -459,8 +456,8 @@ subroutine TestFortranLibrary()
         write(*,*)'Testing constrained solvers...'
             write(*,*)
             write(*,*)'Lagrangian multiplier'
-            call random_number(x); call random_number(lamda)
-            call LagrangianMultiplier(fd,fdd,constraint,constraintd,constraintdd,x,lamda,dim,1,Warning=.false.)
+            call random_number(x); call random_number(lambda)
+            call LagrangianMultiplier(fd,fdd,constraint,constraintd,constraintdd,x,lambda,dim,1,Warning=.false.)
     		write(*,*)norm2(x)-1d0
             write(*,*)
             write(*,*)'augmented Lagrangian based on BFGS'
@@ -723,8 +720,10 @@ subroutine TestFortranLibrary()
         integer,intent(in)::M,N
         real*8,dimension(N),intent(in)::x
         real*8,dimension(N,N,M),intent(out)::cddx
-        cddx(:,:,1)=2d0
-        constraintdd=0!return 0
+        integer::i
+        cddx = 0d0
+        forall (i = 1 : N); cddx(i, i, 1) = 2d0; end forall
+        constraintdd = 0 !return 0
     end function constraintdd
 end subroutine TestFortranLibrary
 

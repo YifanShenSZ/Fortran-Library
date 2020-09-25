@@ -10,6 +10,10 @@ C++ interface wraps fortran routines, because:
 * In fortran, optional arguments can be trully absent. Function func with optional argument optarg can be called by func(optarg=x) with optarg, or func() without
 * In c++, optional arguments are actually all present. Function func with optional argument optarg can be called by func(x) with user value, or func() with default
 * So when interfaced to c++, we can no longer selectively pass optarg to fortran, since c++ passes all arguments
+3. C++ `bool` is different from fortran `logical`:
+* C++ `bool` occupies 1 byte
+* Fortran `logical` occupies 4 bytes
+* So `int32_t` rather than `bool` interfaces `logical`. For intel (gnu) compiler, fortran `.true.` and `.false.` are `-1` (`1`) and `0`
 
 There are also some c++ convenience to utilize:
 1. C++ function can return any number of outputs by tuple

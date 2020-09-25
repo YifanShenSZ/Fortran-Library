@@ -1,18 +1,11 @@
-"""
-A test program on the python interface of Fortran-Library
-"""
+"""This is a test program on Fortran-Library python interface
+Correct routines should print close to 0"""
 
 import FortranLibrary as FL
 
-print('>>> Testing calling from python... >>>')
-print('\nTime display')
-FL.ShowTime()
+print(__doc__)
+
 print('\nScientific notation')
 x = 3564.1212587; i = 0
 x, i = FL.dScientificNotation(x)
 print(x - 3.5641212587, i - 3)
-print('\n<<< Calling from python test passed <<<')
-
-print('\n>>> Testing calling from fortran... >>>')
-FL.TestFortranLibrary()
-print('\n<<< Calling from fortran test passed <<<')

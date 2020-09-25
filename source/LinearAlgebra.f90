@@ -587,51 +587,77 @@ contains
         end do
     end function asy3matdirectmulsy3
 
-    !dim x N x N 3rd-order tensor A, real symmetric in N x N. N order unitary matrix U
-    !Return U^T . A . U on N x N of A
-    function sy3UnitaryTransformation(A, U, dim, N)
-        integer,intent(in)::dim,N
-        real*8,dimension(dim,N,N),intent(in)::A
-        real*8,dimension(N,N),intent(in)::U
-        real*8,dimension(dim,N,N)::sy3UnitaryTransformation
-        integer::i,j,k,l
-        forall(i=1:N,j=1:N,i>=j)
-            sy3UnitaryTransformation(:,i,j)=0d0
-        end forall
-        do j=1,N
-            do i=j,N
-                do k=1,N
-                    sy3UnitaryTransformation(:,i,j)=sy3UnitaryTransformation(:,i,j)+U(k,i)*U(k,j)*A(:,k,k)
-                    do l=k+1,N
-                        sy3UnitaryTransformation(:,i,j)=sy3UnitaryTransformation(:,i,j)+(U(k,i)*U(l,j)+U(l,i)*U(k,j))*A(:,l,k)
-                    end do
-                end do
+    !dim x N x N 3rd-order tensor A3, real symmetric in N x N. N order unitary matrix U
+    !Return U^T . A3 . U on N x N of A3
+    function UT_A3_U(A3, U, dim, N)
+        integer, intent(in)::dim, N
+        real*8, dimension(dim, N, N), intent(in)::A3
+        real*8, dimension(N, N), intent(in)::U
+        real*8,dimension(dim, N, N)::UT_A3_U
+        integer::i, j, a, b
+        real*8, dimension(dim, N, N)::work
+        work = 0d0
+        ! work_:ib = U^T_ia * A_:ab = U_ai * A_:ab
+        do i = 1, N; do b = 1, N
+            do a = 1, b
+                work(:, i, b) = work(:, i, b) + U(a, i) * A3(:, b, a)
             end do
-        end do
-    end function sy3UnitaryTransformation
+            do a = b + 1, N
+                work(:, i, b) = work(:, i, b) + U(a, i) * A3(:, a, b)
+            end do
+        end do; end do
+        ! result_:ij = work_:ib * U_bj
+        UT_A3_U = 0d0
+        do j = 1, N; do i = j, N; do b = 1, N
+            UT_A3_U(:, i, j) = UT_A3_U(:, i, j) + work(:, i, b) * U(b, j)
+        end do; end do; end do
+    end function UT_A3_U
+    !On exit A3 harvests the result
+    subroutine UT_A3_U_InPlace(A3, U, dim, N)
+        integer, intent(in)::dim, N
+        real*8, dimension(dim, N, N), intent(inout)::A3
+        real*8, dimension(N, N), intent(in)::U
+        integer::i, j, a, b
+        real*8, dimension(dim, N, N)::work
+        work = 0d0
+        ! work_:ib = U^T_ia * A_:ab = U_ai * A_:ab
+        do i = 1, N; do b = 1, N
+            do a = 1, b
+                work(:, i, b) = work(:, i, b) + U(a, i) * A3(:, b, a)
+            end do
+            do a = b + 1, N
+                work(:, i, b) = work(:, i, b) + U(a, i) * A3(:, a, b)
+            end do
+        end do; end do
+        ! result_:ij = work_:ib * U_bj
+        A3 = 0d0
+        do j = 1, N; do i = j, N; do b = 1, N
+            A3(:, i, j) = A3(:, i, j) + work(:, i, b) * U(b, j)
+        end do; end do; end do
+    end subroutine UT_A3_U_InPlace
 
     !dim1 x dim2 x N x N 4th-order tensor A, real symmetric in N x N. N order unitary matrix U
     !Return U^T . A . U on N x N of A
-    function sy4UnitaryTransformation(A, U, dim1, dim2, N)
+    function UT_A4_U(A, U, dim1, dim2, N)
         integer,intent(in)::dim1,dim2,N
         real*8,dimension(dim1,dim2,N,N),intent(in)::A
         real*8,dimension(N,N),intent(in)::U
-        real*8,dimension(dim1,dim2,N,N)::sy4UnitaryTransformation
+        real*8,dimension(dim1,dim2,N,N)::UT_A4_U
         integer::i,j,k,l
         forall(i=1:N,j=1:N,i>=j)
-            sy4UnitaryTransformation(:,:,i,j)=0d0
+            UT_A4_U(:,:,i,j)=0d0
         end forall
         do j=1,N
             do i=j,N
                 do k=1,N
-                    sy4UnitaryTransformation(:,:,i,j)=sy4UnitaryTransformation(:,:,i,j)+U(k,i)*U(k,j)*A(:,:,k,k)
+                    UT_A4_U(:,:,i,j)=UT_A4_U(:,:,i,j)+U(k,i)*U(k,j)*A(:,:,k,k)
                     do l=k+1,N
-                        sy4UnitaryTransformation(:,:,i,j)=sy4UnitaryTransformation(:,:,i,j)+(U(k,i)*U(l,j)+U(l,i)*U(k,j))*A(:,:,l,k)
+                        UT_A4_U(:,:,i,j)=UT_A4_U(:,:,i,j)+(U(k,i)*U(l,j)+U(l,i)*U(k,j))*A(:,:,l,k)
                     end do
                 end do
             end do
         end do
-    end function sy4UnitaryTransformation
+    end function UT_A4_U
 !----------------- End -----------------
 
 !------------ Linear solver ------------
@@ -847,7 +873,7 @@ contains
         complex*16,dimension(1,N)::vl
         call zgeev('N',jobtype,N,A,N,eigval,vl,1,eigvec,N,work,3*N,rwork,info)
     end subroutine My_zgeev
-    
+
     !eigval harvests the eigenvalues in ascending order, A harvests the normalized eigenvectors
     !A will be overwritten even for 'N' job
     subroutine My_dsyev(jobtype, A, eigval, N)
