@@ -242,7 +242,7 @@ namespace FL { namespace NO {
         );
     }
 
-    void AugmentedLagrangian(
+    inline void AugmentedLagrangian(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
@@ -511,7 +511,7 @@ namespace FL { namespace NO {
         );
     }
 
-    void AugmentedLagrangian(
+    inline void AugmentedLagrangian(
         void (*f)(double &, const double *, const int &),
         void (*fd)(double *, const double *, const int &),
         int (*f_fd)(double &, double *, const double *, const int &),
