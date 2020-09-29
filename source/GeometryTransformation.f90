@@ -5,7 +5,7 @@
 !
 !Reference: E. B. Wilson, J. C. Decius, P. C. Cross, *Molecular viobrations: the theory of infrared and Raman vibrational spectra* (Dover, 1980)
 module GeometryTransformation
-    use General; use Mathematics; use LinearAlgebra
+    use StringUtility; use General; use Mathematics; use LinearAlgebra
     use NonlinearOptimization
     implicit none
 
@@ -26,18 +26,25 @@ module GeometryTransformation
         !            specifically, angle between plane 123 and plane 234
         !            dihedral angle has same sign to n_123 x n_234 . r_23
         !            where n_abc (the normal vector of plane abc) is the unit vector along r_ab x r_bc
-        !            dihedral angle value encounters discontinuity at pi
         !OutOfPlane: the motion coordinate is out of plane angle atom1_atom2_atom3_atom4, range [-pi/2,pi/2]
         !            specifically, bond 12 out of plane 234
         character*10::type
-        real*8::coeff
+        !Involved atoms
         integer,allocatable,dimension(:)::atom
+        !Linear combination coefficient
+        real*8::coeff
+        ! For torsion only, deafult = -pi
+        ! if (the dihedral angle < min)       angle += 2pi
+        ! if (the dihedral angle > min + 2pi) angle -= 2pi
+        real*8::min
     end type InvolvedMotion
-    type IntCoordDef!short for INTernal COORDinate DEFinition
+    !short for INTernal COORDinate DEFinition
+    type IntCoordDef
         integer::NMotions
         type(InvolvedMotion),allocatable,dimension(:)::motion
     end type IntCoordDef
-    type p_IntCoordDef!Analog to pointer of IntCoordDef
+    !Analog to pointer of IntCoordDef
+    type p_IntCoordDef
         type(IntCoordDef),allocatable,dimension(:)::coord
     end type p_IntCoordDef
 
@@ -433,16 +440,20 @@ contains
             integer::NDef
             integer,allocatable,dimension(:)::NewLine
             character*10,allocatable,dimension(:)::MotionType
-            character*10::chartemp; integer::i,j,k,l; real*8::dbletemp
+            character*128::line
+            character*128, dimension(128)::strs
+            character*10::chartemp
+            integer::Nstrs, i, j, k, l
+            real*8::dbletemp
             if(present(file)) then; open(unit=99,file=file,status='old')
             else; open(unit=99,file='IntCoordDef',status='old'); end if
                 !The number of motion definition lines & internal coordinates
                     NDef=0
                     do
-                        read(99,'(I6)',iostat=i)j
-                        if(i/=0) exit!End of file
-                        NDef=NDef+1
-                        if(j>0) intdim=j
+                        read(99, '(I6)', iostat=i)j
+                        if (i /= 0) exit !End of file
+                        NDef = NDef + 1
+                        if (j > 0) intdim = j
                     end do; rewind 99
                 !New internal coordinate lines & motions of line
                     allocate(NewLine(intdim+1)); NewLine(intdim+1)=NDef+1
@@ -461,7 +472,7 @@ contains
                         allocate(GeometryTransformation_definitions(ID)%coord(i)%motion(GeometryTransformation_definitions(ID)%coord(i)%NMotions))
                         dbletemp=0d0
                         do j=1,GeometryTransformation_definitions(ID)%coord(i)%NMotions
-                            read(99,'(I6)',advance='no')l
+                            read(99, '(I6)', advance='no')l
                             GeometryTransformation_definitions(ID)%coord(i)%motion(j)%type=MotionType(k)
                             select case(MotionType(k))
                             case('stretching')
@@ -474,8 +485,17 @@ contains
                                           GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
                             case('torsion')
                                 allocate(GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(4))
-                                read(99,*)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp,&
-                                          GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
+                                read(99, '(A)')line
+                                call parse(line, ' ', strs, Nstrs)
+                                if (Nstrs == 6) then
+                                    read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp, &
+                                                 GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
+                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%min = -pi
+                                else
+                                    read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff, chartemp, &
+                                                 GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom, &
+                                                 GeometryTransformation_definitions(ID)%coord(i)%motion(j)%min
+                                end if
                             case('OutOfPlane')
                                 allocate(GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(4))
                                 read(99,*)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp,&
@@ -523,7 +543,10 @@ contains
                     case('torsion')
                         q(iIntC)=q(iIntC)&
                             +GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%coeff&
-                            *torsion(r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
+                            *torsion(r, &
+                                     GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom, &
+                                     GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%min , &
+                                     cartdim)
                     case('OutOfPlane')
                         q(iIntC)=q(iIntC)&
                             +GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%coeff&
@@ -562,25 +585,24 @@ contains
                 end if
             end function bending
             !For torsion, q = dihedral angle
-            real*4 function torsion(r, atom, cartdim)
-                integer,intent(in)::cartdim
-                real*4,dimension(cartdim),intent(in)::r
-                integer,dimension(4),intent(in)::atom
-                real*4,dimension(3)::r12,r23,r34,n123,n234
+            real*4 function torsion(r, atom, min, cartdim)
+                integer, intent(in)::cartdim
+                real*4, dimension(cartdim), intent(in)::r
+                integer, dimension(4), intent(in)::atom
+                real*8, intent(in)::min
+                real*4, dimension(3)::r12,r23,r34,n123,n234
                 r12 = r(3*atom(2)-2:3*atom(2)) - r(3*atom(1)-2:3*atom(1))
                 r23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
                 r34 = r(3*atom(4)-2:3*atom(4)) - r(3*atom(3)-2:3*atom(3))
                 n123 = cross_product(r12, r23); n123 = n123 / Norm2(n123)
                 n234 = cross_product(r23, r34); n234 = n234 / Norm2(n234)
                 torsion = dot_product(n123, n234)
-                if (torsion > 1.0) then
-                    torsion = 0.0
-                else if (torsion < -1.0) then
-                    torsion = 3.141592653589793
-                else
-                    torsion = acos(torsion)
-                end if
+                if (torsion > 1.0) then; torsion = 0.0
+                else if (torsion < -1.0) then; torsion = 3.141592653589793
+                else; torsion = acos(torsion); end if
                 if(triple_product(n123, n234, r23) < 0.0) torsion = -torsion
+                if (torsion < min) then; torsion = torsion + pim2
+                else if (torsion > min + pim2) then; torsion = torsion - pim2; endif
             end function torsion
             !For out of plane, q = out of plane angle
             real*4 function OutOfPlane(r, atom, cartdim)
@@ -626,7 +648,10 @@ contains
                     case('torsion')
                         q(iIntC)=q(iIntC)&
                             +GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%coeff&
-                            *torsion(r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
+                            *torsion(r, &
+                                     GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom, &
+                                     GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%min , &
+                                     cartdim)
                     case('OutOfPlane')
                         q(iIntC)=q(iIntC)&
                             +GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%coeff&
@@ -665,25 +690,24 @@ contains
                 end if
             end function bending
             !For torsion, q = dihedral angle
-            real*8 function torsion(r, atom, cartdim)
-                integer,intent(in)::cartdim
-                real*8,dimension(cartdim),intent(in)::r
-                integer,dimension(4),intent(in)::atom
-                real*8,dimension(3)::r12,r23,r34,n123,n234
+            real*8 function torsion(r, atom, min, cartdim)
+                integer, intent(in)::cartdim
+                real*8, dimension(cartdim), intent(in)::r
+                integer, dimension(4), intent(in)::atom
+                real*8, intent(in)::min
+                real*8, dimension(3)::r12,r23,r34,n123,n234
                 r12 = r(3*atom(2)-2:3*atom(2)) - r(3*atom(1)-2:3*atom(1))
                 r23 = r(3*atom(3)-2:3*atom(3)) - r(3*atom(2)-2:3*atom(2))
                 r34 = r(3*atom(4)-2:3*atom(4)) - r(3*atom(3)-2:3*atom(3))
                 n123 = cross_product(r12, r23); n123 = n123 / Norm2(n123)
                 n234 = cross_product(r23, r34); n234 = n234 / Norm2(n234)
                 torsion = dot_product(n123, n234)
-                if (torsion > 1d0) then
-                    torsion = 0d0
-                else if (torsion < -1d0) then
-                    torsion = 3.141592653589793d0
-                else
-                    torsion = acos(torsion)
-                end if
+                if (torsion > 1d0) then; torsion = 0d0
+                else if (torsion < -1d0) then; torsion = 3.141592653589793d0
+                else; torsion = acos(torsion); end if
                 if(triple_product(n123, n234, r23) < 0d0) torsion = -torsion
+                if (torsion < min) then; torsion = torsion + pim2
+                else if (torsion > min + pim2) then; torsion = torsion - pim2; endif
             end function torsion
             !For out of plane, q = out of plane angle
             real*8 function OutOfPlane(r, atom, cartdim)
@@ -757,7 +781,11 @@ contains
                     select case(GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%type)
                     case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
                     case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
-                    case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('torsion')
+                        call bAndTorsion(BRowVector, qMotion, r, &
+                                         GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom, &
+                                         GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%min , &
+                                         cartdim)
                     case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
                     end select
                     B(iIntC,:)=B(iIntC,:)+GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%coeff*BRowVector
@@ -815,12 +843,13 @@ contains
                 end if
             end subroutine bAndBending
             !For torsion, q = dihedral angle
-            subroutine bAndTorsion(b, q, r, atom, cartdim)
-                integer,intent(in)::cartdim
-                real*4,dimension(cartdim),intent(out)::b
-                real*4,intent(out)::q
-                real*4,dimension(cartdim),intent(in)::r
-                integer,dimension(4),intent(in)::atom
+            subroutine bAndTorsion(b, q, r, atom, min, cartdim)
+                integer, intent(in)::cartdim
+                real*4, dimension(cartdim), intent(out)::b
+                real*4, intent(out)::q
+                real*4, dimension(cartdim), intent(in)::r
+                integer, dimension(4), intent(in)::atom
+                real*8, intent(in)::min
                 real*4::r12,r23,r34,sin123,cos123,sin234,cos234
                 real*4,dimension(3)::runit12,runit23,runit34,n123,n234
                 b=0.0!Initialize
@@ -841,14 +870,12 @@ contains
                 b(3*atom(3)-2:3*atom(3))=(r34*cos234-r23)/(r23*r34*sin234)*n234+cos123/(r23*sin123)*n123
                 b(3*atom(4)-2:3*atom(4))= n234/(r34*sin234)
                 q = dot_product(n123, n234)
-                if (q > 1.0) then
-                    q = 0.0
-                else if (q < -1.0) then
-                    q = 3.141592653589793
-                else
-                    q = acos(q)
-                end if
+                if (q > 1.0) then; q = 0.0
+                else if (q < -1.0) then; q = 3.141592653589793
+                else; q = acos(q); end if
                 if(triple_product(n123, n234, runit23) < 0.0) q = -q
+                if (q < min) then; q = q + pim2
+                else if (q > min + pim2) then; q = q - pim2; endif
             end subroutine bAndTorsion
             !For out of plane, q = out of plane angle
             subroutine bAndOutOfPlane(b, q, r, atom, cartdim)
@@ -902,7 +929,11 @@ contains
                     select case(GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%type)
                     case('stretching'); call bAndStretching(BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
                     case('bending')   ; call bAndBending   (BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
-                    case('torsion')   ; call bAndTorsion   (BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
+                    case('torsion')
+                        call bAndTorsion(BRowVector, qMotion, r, &
+                                         GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom, &
+                                         GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%min , &
+                                         cartdim)
                     case('OutOfPlane'); call bAndOutOfPlane(BRowVector,qMotion,r,GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%atom,cartdim)
                     end select
                     B(iIntC,:)=B(iIntC,:)+GeometryTransformation_definitions(identity)%coord(iIntC)%motion(iMotion)%coeff*BRowVector
@@ -960,12 +991,13 @@ contains
                 end if
             end subroutine bAndBending
             !For torsion, q = dihedral angle
-            subroutine bAndTorsion(b, q, r, atom, cartdim)
-                integer,intent(in)::cartdim
-                real*8,dimension(cartdim),intent(out)::b
-                real*8,intent(out)::q
-                real*8,dimension(cartdim),intent(in)::r
-                integer,dimension(4),intent(in)::atom
+            subroutine bAndTorsion(b, q, r, atom, min, cartdim)
+                integer, intent(in)::cartdim
+                real*8, dimension(cartdim), intent(out)::b
+                real*8, intent(out)::q
+                real*8, dimension(cartdim), intent(in)::r
+                integer, dimension(4), intent(in)::atom
+                real*8, intent(in)::min
                 real*8::r12,r23,r34,sin123,cos123,sin234,cos234
                 real*8,dimension(3)::runit12,runit23,runit34,n123,n234
                 b = 0d0 !Initialize
@@ -986,14 +1018,12 @@ contains
                 b(3*atom(3)-2:3*atom(3))=(r34*cos234-r23)/(r23*r34*sin234)*n234+cos123/(r23*sin123)*n123
                 b(3*atom(4)-2:3*atom(4))= n234/(r34*sin234)
                 q = dot_product(n123, n234)
-                if (q > 1d0) then
-                    q = 0d0
-                else if (q < -1d0) then
-                    q = 3.141592653589793d0
-                else
-                    q = acos(q)
-                end if
+                if (q > 1d0) then; q = 0d0
+                else if (q < -1d0) then; q = 3.141592653589793d0
+                else; q = acos(q); end if
                 if(triple_product(n123, n234, runit23) < 0d0) q = -q
+                if (q < min) then; q = q + pim2
+                else if (q > min + pim2) then; q = q - pim2; endif
             end subroutine bAndTorsion
             !For out of plane, q = out of plane angle
             subroutine bAndOutOfPlane(b, q, r, atom, cartdim)

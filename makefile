@@ -15,7 +15,7 @@ gnuflag   = -m64 -march=core-avx2 -mtune=core-avx2 -O3
 # User does not have to take care of following variables
 gnumkl = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_gnu_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lgomp -lpthread -lm -ldl
 gnumkl_sequential = -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_sequential.a ${MKLROOT}/lib/intel64/libmkl_core.a -Wl,--end-group -lpthread -lm -ldl
-src = $(addprefix source/, General.f90 Mathematics.f90 LinearAlgebra.f90 \
+src = $(addprefix source/, StringUtility.f90 General.f90 Mathematics.f90 LinearAlgebra.f90 \
 mkl_rci.f90 NonlinearOptimization.f90 mkl_dfti.f90 IntegralTransform.f90 \
 Clustering.f90 Statistics.f90 Chemistry.f90 \
 GeometryTransformation.f90 \

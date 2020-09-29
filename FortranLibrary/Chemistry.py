@@ -7,10 +7,10 @@ file=Path('avogadro.log')) -> None:
     p_symbol = cast(((c_char*2)*NAtoms.value)(), POINTER(c_char*2))
     for i in range(NAtoms.value):
         p_symbol[i][0] = (symbol[i][0]).encode('ascii')
-        if len(symbol[i]) < 2:
-            p_symbol[i][1] = ' '.encode('ascii')
-        else:
+        if len(symbol[i]) > 1:
             p_symbol[i][1] = symbol[i][1].encode('ascii')
+        else:
+            p_symbol[i][1] = ' '.encode('ascii')
     p_r = array2p(r); p_freq = array2p(freq); p_modeT = array2p(modeT)
     file_str = str(file); n = len(file_str)
     f = (c_char*n)(); f.value = file_str.encode('ascii')

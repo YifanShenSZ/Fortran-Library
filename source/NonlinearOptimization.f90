@@ -2007,13 +2007,13 @@ contains
             integer,intent(in)::N,M
             real*8,dimension(N),intent(inout)::x
         !Optional argument
-            character(*),intent(in),optional::UnconstrainedSolver
-            real*8,dimension(M),intent(in),optional::lambda0
-            integer,external,optional::f_fd,fdd,cdd
-            logical,intent(in),optional::Strong,Warning
-            integer,intent(in),optional::MaxIteration,ExactStep,Memory
-            real*8,intent(in),optional::miu0,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
-            character(*),intent(in),optional::Method
+            character(*), intent(in), optional::UnconstrainedSolver
+            real*8,dimension(M), intent(in), optional::lambda0
+            integer, external, optional::f_fd, fdd, cdd
+            logical, intent(in), optional::Strong,Warning
+            integer, intent(in), optional::MaxIteration,ExactStep,Memory
+            real*8, intent(in), optional::miu0,Precision,MinStepLength,WolfeConst1,WolfeConst2,Increment
+            character(*), intent(in), optional::Method
         !Job control
             character*32::solver,type
             logical::sw,warn
@@ -2186,54 +2186,54 @@ contains
             write(*,*)'Euclidean norm of constraint violation =',Norm2(cx)
         end if
         contains
-            subroutine L(Lx,x,N)
-                integer,intent(in)::N
-                real*8,dimension(N),intent(in)::x
-                real*8,intent(out)::Lx
-                call f(Lx,x,N); call c(cx,x,M,N)
-                Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
-            end subroutine L
-            subroutine Ld(Ldx,x,N)
-                integer,intent(in)::N
-                real*8,dimension(N),intent(in)::x
-                real*8,dimension(N),intent(out)::Ldx
-                call fd(Ldx,x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
-                Ldx=Ldx+matmul(cdx,miu*cx-lambda)
-            end subroutine Ld
-            integer function L_Ld(Lx,Ldx,x,N)!Compute c & cd together is cheaper
-                integer,intent(in)::N
-                real*8,dimension(N),intent(in)::x
-                real*8,intent(out)::Lx
-                real*8,dimension(N),intent(out)::Ldx
-                call f(Lx,x,N); call c(cx,x,M,N)
-                Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
-                call fd(Ldx,x,N); call cd(cdx,x,M,N)
-                Ldx=Ldx+matmul(cdx,miu*cx-lambda)
-                L_Ld=0!return 0
-            end function L_Ld
-            integer function L_Ld_fdwithf(Lx,Ldx,x,N)!When f_fd is available
-                integer,intent(in)::N
-                real*8,dimension(N),intent(in)::x
-                real*8,intent(out)::Lx
-                real*8,dimension(N),intent(out)::Ldx
-                i=f_fd(Lx,Ldx,x,N); call c(cx,x,M,N)
-                Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
-                call cd(cdx,x,M,N)
-                Ldx=Ldx+matmul(cdx,miu*cx-lambda)
-                L_Ld_fdwithf=0!return 0
-            end function L_Ld_fdwithf
-            integer function Ldd(Lddx,x,N)!When fdd & cdd is available
-                integer,intent(in)::N
-                real*8,dimension(N),intent(in)::x
-                real*8,dimension(N,N),intent(out)::Lddx
-                i=fdd(Lddx,x,N); i=cdd(cddx,x,M,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
-                cx=miu*cx-lambda
-                forall(i=1:N)
-                    Lddxtemp(:,i)=matmul(cddx(i,:,:),cx)
-                end forall
-                Lddx=Lddx+Lddxtemp+matmul(cdx,transpose(cdx))
-                Ldd=0!return 0
-            end function Ldd
+        subroutine L(Lx, x, N)
+            integer, intent(in)::N
+            real*8, dimension(N), intent(in)::x
+            real*8, intent(out)::Lx
+            call f(Lx,x,N); call c(cx,x,M,N)
+            Lx = Lx - dot_product(lambda, cx) + miu / 2d0 * dot_product(cx, cx)
+        end subroutine L
+        subroutine Ld(Ldx,x,N)
+            integer,intent(in)::N
+            real*8,dimension(N),intent(in)::x
+            real*8,dimension(N),intent(out)::Ldx
+            call fd(Ldx,x,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
+            Ldx=Ldx+matmul(cdx,miu*cx-lambda)
+        end subroutine Ld
+        integer function L_Ld(Lx,Ldx,x,N)!Compute c & cd together is cheaper
+            integer,intent(in)::N
+            real*8,dimension(N),intent(in)::x
+            real*8,intent(out)::Lx
+            real*8,dimension(N),intent(out)::Ldx
+            call f(Lx,x,N); call c(cx,x,M,N)
+            Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
+            call fd(Ldx,x,N); call cd(cdx,x,M,N)
+            Ldx=Ldx+matmul(cdx,miu*cx-lambda)
+            L_Ld=0!return 0
+        end function L_Ld
+        integer function L_Ld_fdwithf(Lx,Ldx,x,N)!When f_fd is available
+            integer,intent(in)::N
+            real*8,dimension(N),intent(in)::x
+            real*8,intent(out)::Lx
+            real*8,dimension(N),intent(out)::Ldx
+            i=f_fd(Lx,Ldx,x,N); call c(cx,x,M,N)
+            Lx=Lx-dot_product(lambda,cx)+miu/2d0*dot_product(cx,cx)
+            call cd(cdx,x,M,N)
+            Ldx=Ldx+matmul(cdx,miu*cx-lambda)
+            L_Ld_fdwithf=0!return 0
+        end function L_Ld_fdwithf
+        integer function Ldd(Lddx,x,N)!When fdd & cdd is available
+            integer,intent(in)::N
+            real*8,dimension(N),intent(in)::x
+            real*8,dimension(N,N),intent(out)::Lddx
+            i=fdd(Lddx,x,N); i=cdd(cddx,x,M,N); call c(cx,x,M,N); call cd(cdx,x,M,N)
+            cx=miu*cx-lambda
+            forall(i=1:N)
+                Lddxtemp(:,i)=matmul(cddx(i,:,:),cx)
+            end forall
+            Lddx=Lddx+Lddxtemp+matmul(cdx,transpose(cdx))
+            Ldd=0!return 0
+        end function Ldd
     end subroutine AugmentedLagrangian
 !------------------ End ------------------
 

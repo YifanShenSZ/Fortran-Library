@@ -88,7 +88,7 @@ namespace FL { namespace NO {
 
         void nonlinearoptimization_mp_trustregion_basic_(
             // Required argument
-            void (*fd)(double *, const double *, const int &, const int &),
+            void (*residue)(double *, const double *, const int &, const int &),
             void (*Jacobian)(double *, const double *, const int &, const int &),
             double * x, const int & M, const int & N,
             // Optional argument
@@ -227,7 +227,7 @@ namespace FL { namespace NO {
     }
 
     inline void TrustRegion(
-        void (*fd)(double *, const double *, const int &, const int &),
+        void (*residue)(double *, const double *, const int &, const int &),
         void (*Jacobian)(double *, const double *, const int &, const int &),
         double * x, const int & M, const int & N,
         const bool & Warning=true,
@@ -237,7 +237,7 @@ namespace FL { namespace NO {
         int32_t w;
         if (Warning) w = -1; else w = 0;
         nonlinearoptimization_mp_trustregion_basic_(
-            fd, Jacobian, x, M, N,
+            residue, Jacobian, x, M, N,
             w, MaxIteration, MaxStepIteration, Precision, MinStepLength
         );
     }
@@ -357,7 +357,7 @@ namespace FL { namespace NO {
 
         void __nonlinearoptimization_MOD_trustregion_basic(
             // Required argument
-            void (*fd)(double *, const double *, const int &, const int &),
+            void (*residue)(double *, const double *, const int &, const int &),
             void (*Jacobian)(double *, const double *, const int &, const int &),
             double * x, const int & M, const int & N,
             // Optional argument
@@ -496,7 +496,7 @@ namespace FL { namespace NO {
     }
 
     inline void TrustRegion(
-        void (*fd)(double *, const double *, const int &, const int &),
+        void (*residue)(double *, const double *, const int &, const int &),
         void (*Jacobian)(double *, const double *, const int &, const int &),
         double * x, const int & M, const int & N,
         const bool & Warning=true,
@@ -506,7 +506,7 @@ namespace FL { namespace NO {
         int32_t w;
         if (Warning) w = -1; else w = 0;
         __nonlinearoptimization_MOD_trustregion_basic(
-            fd, Jacobian, x, M, N,
+            residue, Jacobian, x, M, N,
             w, MaxIteration, MaxStepIteration, Precision, MinStepLength
         );
     }
