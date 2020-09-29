@@ -39,6 +39,11 @@ namespace FL { namespace GT {
 
         void geometrytransformation_mp_cartesiancoordinate_(
             const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID);
+
+        void geometrytransformation_mp_wilsongfmethod_(
+            const double * H, const double * BT, const double * mass,
+            double * freq, double * intmodeT, double * LinvT, double * cartmodeT,
+            const int & intdim, const int & NAtoms);
     }
 
     inline std::tuple<int, int> DefineInternalCoordinate(const std::string & format, const std::string & file) {
@@ -76,6 +81,12 @@ namespace FL { namespace GT {
     inline void CartesianCoordinate(const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID=1) {
         geometrytransformation_mp_cartesiancoordinate_(q, r, intdim, cartdim, r0, ID);
     }
+
+    inline void WilsonGFMethod(const double * H, const double * BT, const double * mass,
+    double * freq, double * intmodeT, double * LinvT, double * cartmodeT,
+    const int & intdim, const int & NAtoms) {
+        geometrytransformation_mp_wilsongfmethod_(H, BT, mass, freq, intmodeT, LinvT, cartmodeT, intdim, NAtoms);
+    }
 #elif __GNUC__
     extern "C" {
         int __geometrytransformation_MOD_defineinternalcoordinate(
@@ -103,6 +114,11 @@ namespace FL { namespace GT {
 
         void __geometrytransformation_MOD_cartesiancoordinate(
             const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID);
+        
+        void __geometrytransformation_MOD_wilsongfmethod(
+            const double * H, const double * BT, const double * mass,
+            double * freq, double * intmodeT, double * LinvT, double * cartmodeT,
+            const int & intdim, const int & NAtoms);
     }
 
     inline std::tuple<int, int> DefineInternalCoordinate(const std::string & format, const std::string & file) {
@@ -139,6 +155,12 @@ namespace FL { namespace GT {
 
     inline void CartesianCoordinate(const double * q, double * r, const int & intdim, const int & cartdim, const double * r0, const int & ID=1) {
         __geometrytransformation_MOD_cartesiancoordinate(q, r, intdim, cartdim, r0, ID);
+    }
+
+    inline void WilsonGFMethod(const double * H, const double * BT, const double * mass,
+    double * freq, double * intmodeT, double * LinvT, double * cartmodeT,
+    const int & intdim, const int & NAtoms) {
+        __geometrytransformation_MOD_wilsongfmethod(H, BT, mass, freq, intmodeT, LinvT, cartmodeT, intdim, NAtoms);
     }
 #endif
 
