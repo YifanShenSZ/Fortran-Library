@@ -491,6 +491,10 @@ contains
                                     read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp, &
                                                  GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
                                     GeometryTransformation_definitions(ID)%coord(i)%motion(j)%min = -pi
+                                else if (index(strs(7), "#") > 0) then
+                                    read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp, &
+                                                 GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
+                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%min = -pi
                                 else
                                     read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff, chartemp, &
                                                  GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom, &
