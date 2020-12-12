@@ -36,7 +36,7 @@ module GeometryTransformation
         ! For torsion only, deafult = -pi
         ! if (the dihedral angle < min)       angle += 2pi
         ! if (the dihedral angle > min + 2pi) angle -= 2pi
-        real*8::min
+        real*8::min = -pi
     end type InvolvedMotion
     !short for INTernal COORDinate DEFinition
     type IntCoordDef
@@ -490,11 +490,9 @@ contains
                                 if (Nstrs == 6) then
                                     read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp, &
                                                  GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
-                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%min = -pi
                                 else if (index(strs(7), "#") > 0) then
                                     read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,chartemp, &
                                                  GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom
-                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%min = -pi
                                 else
                                     read(line, *)GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff, chartemp, &
                                                  GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom, &
