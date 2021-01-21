@@ -378,8 +378,10 @@ contains
             case(40); dFactorial=815915283247897734345611269596115894272d9
             case default
                 if((.not.present(Warning)).or.Warning) write(*,'(1x,A22)')'Not accurate factorial'
-                temp=(9d0*N)**3.141592653589793d0
-                dFactorial=Sqrt(6.283185307179586d0*N)*(N/enature)**N*Exp(1d0/12d0/N-Log(9d0*N)/(temp-1d0/temp))
+                temp = (9d0 * N)**3.141592653589793d0
+                dFactorial = Sqrt(6.283185307179586d0 * N) &
+                           * (N / enature)**N &
+                           * Exp(1d0 / 12d0 / N - Log(9d0 * N) / (temp - 1d0 / temp))
         end select
     end function dFactorial
 
@@ -432,9 +434,9 @@ contains
             case(40); dFactorial2=2551082656125828464640000d0
             case default
                 if(mod(n,2)==1) then
-                    dFactorial2=dFactorial(N+1)/(2**((N+1)/2)*dFactorial((N+1)/2))
+                    dFactorial2 = dFactorial(N + 1) / (2**((N + 1) / 2) * dFactorial((N + 1) / 2))
                 else
-                    dFactorial2=2**(N/2)*dFactorial(N/2)
+                    dFactorial2 = 2**(N / 2) * dFactorial(N / 2)
                 end if
         end select
     end function dFactorial2
@@ -498,7 +500,7 @@ contains
                         case(8); dPermutation=1814400d0
                     end select
                 case default
-                    if(M>20.and.N<10) then
+                    if(M<20.and.N<10) then
                         dPermutation=M*(M-1)
                         do i=M-2,M-N+1,-1
                             dPermutation=dPermutation*i
@@ -510,7 +512,7 @@ contains
         end if
     end function dPermutation
 
-    !Exact combination for 0 <= M <= 11 or ( N = 0 or N = 1 or N = M - 1 or N = M ), depend on permutation and factorial otherwise
+    !Exact combination for 0 <= M <= 11 or (N = 0 or N = 1 or N = M - 1 or N = M), depend on permutation and factorial otherwise
     real*8 function dCombination(M, N)
         integer,intent(in)::M,N
         integer::ntemp
@@ -523,7 +525,7 @@ contains
                 case(4); dCombination=6d0
                 case(5); dCombination=10d0
                 case default
-                    if(N<m/2d0) then
+                    if (N < M / 2) then
                         ntemp=M-N
                     else
                         ntemp=N
@@ -572,7 +574,7 @@ contains
         end if
     end function dCombination
 
-    !Exact factorial for N <= 23, 8 bits integer cannot represent N >= 24
+    !Exact factorial for N <= 20, 8 bytes integer cannot represent N >= 21
     integer*8 function iFactorial(N, Warning)
         integer,intent(in)::N
         logical,intent(in),optional::Warning
@@ -592,20 +594,17 @@ contains
             case(12); iFactorial=479001600 
             case(13); iFactorial=6227020800 
             case(14); iFactorial=87178291200 
-            case(15); iFactorial=1307674368 
-            case(16); iFactorial=20922789888 
-            case(17); iFactorial=355687428096 
-            case(18); iFactorial=6402373705728 
-            case(19); iFactorial=121645100408832 
-            case(20); iFactorial=243290200817664 
-            case(21); iFactorial=5109094217170944 
-            case(22); iFactorial=112400072777760768 
-            case(23); iFactorial=2585201673888497664  
-            case default; write(*,*)'Failed integer factorial: 8 bits integer upper limit exceeded!'
+            case(15); iFactorial=1307674368000
+            case(16); iFactorial=20922789888000
+            case(17); iFactorial=355687428096000
+            case(18); iFactorial=6402373705728000
+            case(19); iFactorial=121645100408832000
+            case(20); iFactorial=2432902008176640000
+            case default; write(*,*)'Failed integer factorial: 8 bytes integer upper limit exceeded!'
         end select
     end function iFactorial
 
-    !Exact double factorial for N <= 33, 8 bits integer cannot represent N >= 34
+    !Exact double factorial for N <= 33, 8 bytes integer cannot represent N >= 34
     integer*8 function iFactorial2(N)
         integer,intent(in)::N
         select case(N)
@@ -645,7 +644,7 @@ contains
             case(32); iFactorial2=1371195958099968000 
             case(33); iFactorial2=6332659870762850625 
             case default
-                write(*,'(1x,A69)')'Failed integer double factorial: 8 bits integer upper limit exceeded!'
+                write(*,'(1x,A69)')'Failed integer double factorial: 8 bytes integer upper limit exceeded!'
         end select
     end function iFactorial2
 
@@ -708,7 +707,7 @@ contains
                         case(8); iPermutation=1814400 
                     end select
                 case default
-                    if(M>20.and.N<10) then
+                    if(M<20.and.N<10) then
                         iPermutation=M*(M-1)
                         do i=M-2,M-N+1,-1
                             iPermutation=iPermutation*i
@@ -720,7 +719,7 @@ contains
         end if
     end function iPermutation
 
-    !Exact combination for 0 <= M <= 11 or ( N = 0 or N = 1 or N = M - 1 or N = M ), depend on permutation and factorial otherwise
+    !Exact combination for 0 <= M <= 11 or (N = 0 or N = 1 or N = M - 1 or N = M), depend on permutation and factorial otherwise
     integer*8 function iCombination(M, N)
         integer,intent(in)::M,N
         integer::ntemp
@@ -735,8 +734,8 @@ contains
                 case(5)
                     iCombination=10 
                 case default
-                    if(N<m/2 ) then
-                        ntemp=M-N
+                    if (N < M / 2) then
+                        ntemp = M - N
                     else
                         ntemp=N
                     end if

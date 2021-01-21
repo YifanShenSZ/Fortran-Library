@@ -1,5 +1,7 @@
-"""This is a test program on Fortran-Library python interface
-Correct routines should print close to 0"""
+'''
+This is a test program on Fortran-Library python interface
+Correct routines should print close to 0
+'''
 
 import FortranLibrary as FL
 

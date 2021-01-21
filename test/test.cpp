@@ -70,56 +70,56 @@ double norm(const double * x, const int & dim) {
 }
 
 int main() {
-    std::cout << "This is a test program on Fortran-Library c++ interface\n"
+    std::cerr << "This is a test program on Fortran-Library c++ interface\n"
               << "Correct routines should print close to 0\n";
 
-    std::cout << "\nScientific notation\n"; {
+    std::cerr << "\nScientific notation\n"; {
         double x = 3564.1212587;
         int i;
         FL::General::dScientificNotation(x,i);
-        std::cout << x - 3.5641212587 << ' ' << i - 3 << '\n';
+        std::cerr << x - 3.5641212587 << ' ' << i - 3 << '\n';
     }
 
-    std::cout << "\n!!!!!!!!!! Testing all nonlinear-optimization solvers... !!!!!!!!!!\n"; {
+    std::cerr << "\n!!!!!!!!!! Testing all nonlinear-optimization solvers... !!!!!!!!!!\n"; {
         int dim = 10;
         double * x = new double[dim];
 
-        std::cout << "Steepest descent\n";
+        std::cerr << "Steepest descent\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::SteepestDescent(f, fd, f_fd, x, dim);
-        std::cout << norm(x, dim) << "\n\n";
+        std::cerr << norm(x, dim) << "\n\n";
 
-        std::cout << "Dai-Yuan conjugate gradient: basic version, target and gradient are computed separately\n";
+        std::cerr << "Dai-Yuan conjugate gradient: basic version, target and gradient are computed separately\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::ConjugateGradient(f, fd, x, dim);
-        std::cout << norm(x, dim) << "\n\n";
+        std::cerr << norm(x, dim) << "\n\n";
 
-        std::cout << "Dai-Yuan conjugate gradient\n";
+        std::cerr << "Dai-Yuan conjugate gradient\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::ConjugateGradient(f, fd, f_fd, x, dim);
-        std::cout << norm(x, dim) << "\n\n";
+        std::cerr << norm(x, dim) << "\n\n";
  
-        std::cout << "BFGS\n";
+        std::cerr << "BFGS\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::BFGS(f, fd, f_fd, fdd, x, dim);
-        std::cout << norm(x, dim) << "\n\n";
+        std::cerr << norm(x, dim) << "\n\n";
 
-        std::cout << "Newton\n";
+        std::cerr << "Newton\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::NewtonRaphson(f, fd, f_fd, fdd, x, dim);
-        std::cout << norm(x, dim) << "\n\n";
+        std::cerr << norm(x, dim) << "\n\n";
 
-        std::cout << "dtrnlsp\n";
+        std::cerr << "dtrnlsp\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::TrustRegion(fd_tr, fdd_tr, x, dim, dim);
-        std::cout << norm(x, dim) << "\n\n";
+        std::cerr << norm(x, dim) << "\n\n";
 
-        std::cout << "Augmented Lagrangian\n";
+        std::cerr << "Augmented Lagrangian\n";
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         int M = 1;
         FL::NO::AugmentedLagrangian(f, fd, f_fd, fdd, constraint, constraintd, constraintdd, x, dim, M,
                                     "BFGS", {}, 1.0, 20, 10, "DY", true, false);
-        std::cout << norm(x, dim) - 1.0 << "\n\n";
+        std::cerr << norm(x, dim) - 1.0 << "\n\n";
         delete [] x;
     }
 }

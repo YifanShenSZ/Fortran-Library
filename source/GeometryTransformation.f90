@@ -376,9 +376,9 @@ contains
                                 allocate(GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(4))
                                 read(99,'(A28,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
                                 GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(1),&
+                                GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(3),&
                                 GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(4),&
-                                GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(2),&
-                                GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(3)
+                                GeometryTransformation_definitions(ID)%coord(i)%motion(1)%atom(2)
                             case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                             end select
                             k=k+1
@@ -409,9 +409,9 @@ contains
                                     read(99,'(A10,F10.7,8x,I6,1x,I9,1x,I9,1x,I9)')chartemp,&
                                     GeometryTransformation_definitions(ID)%coord(i)%motion(j)%coeff,&
                                     GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(1),&
+                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(3),&
                                     GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(4),&
-                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(2),&
-                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(3)
+                                    GeometryTransformation_definitions(ID)%coord(i)%motion(j)%atom(2)
                                 case default; write(*,*)'Program abort: unsupported internal coordinate type '//trim(adjustl(MotionType(k))); stop
                                 end select
                                 k=k+1
