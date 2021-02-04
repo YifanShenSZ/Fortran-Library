@@ -1,6 +1,8 @@
 # C++ interface for Fortran-Library
 Fortran-Library routines can be called in almost the same manner to fortran. Occasional difference does exist due to c++-fortran discrepancy, see details below.
 
+If linking to `*.so`, just use `-l` flag of your c++ linker. If linking to `*.a`, you will need an additional `-lifcore` flag to link to the fortran intrinsic library
+
 ## Routines
 C++ interface wraps fortran routines, because:
 1. C++ recognizes fortran functions by their compiled names:

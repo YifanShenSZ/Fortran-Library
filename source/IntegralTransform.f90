@@ -12,6 +12,9 @@
 !The input data set consists of N uniformly spaced data points {x_i, f(x_i)}, x_i+1 - x_i = dx
 !Periodic boundary condition is assumed as f(x_I) = f(x_[I mod N]) for all I < 0 or I >= N
 !From periodic boundary condition, there can only be N different frequencies: 2pi/Ndx * {0, 1, ..., N-1}
+
+#include "mkl_dfti.f90"
+
 module IntegralTransform
     use Mathematics
     use mkl_dfti!For FFT, disable it if you have no access to MKL

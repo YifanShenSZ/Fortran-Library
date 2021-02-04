@@ -70,56 +70,57 @@ double norm(const double * x, const int & dim) {
 }
 
 int main() {
-    std::cerr << "This is a test program on Fortran-Library c++ interface\n"
-              << "Correct routines should print close to 0\n";
+    std::cout << "This is a test program on Fortran-Library c++ interface\n"
+              << "Correct routines should print close to 0"
+              << std::endl;
 
-    std::cerr << "\nScientific notation\n"; {
+    std::cout << "\nScientific notation" << std::endl; {
         double x = 3564.1212587;
         int i;
         FL::General::dScientificNotation(x,i);
-        std::cerr << x - 3.5641212587 << ' ' << i - 3 << '\n';
+        std::cout << x - 3.5641212587 << ' ' << i - 3 << std::endl;
     }
 
-    std::cerr << "\n!!!!!!!!!! Testing all nonlinear-optimization solvers... !!!!!!!!!!\n"; {
+    std::cout << "\n!!!!!!!!!! Testing all nonlinear-optimization solvers... !!!!!!!!!!" << std::endl; {
         int dim = 10;
         double * x = new double[dim];
 
-        std::cerr << "Steepest descent\n";
+        std::cout << "Steepest descent" << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::SteepestDescent(f, fd, f_fd, x, dim);
-        std::cerr << norm(x, dim) << "\n\n";
+        std::cout << norm(x, dim) << '\n' << std::endl;
 
-        std::cerr << "Dai-Yuan conjugate gradient: basic version, target and gradient are computed separately\n";
+        std::cout << "Dai-Yuan conjugate gradient: basic version, target and gradient are computed separately" << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::ConjugateGradient(f, fd, x, dim);
-        std::cerr << norm(x, dim) << "\n\n";
+        std::cout << norm(x, dim) << '\n' << std::endl;
 
-        std::cerr << "Dai-Yuan conjugate gradient\n";
+        std::cout << "Dai-Yuan conjugate gradient" << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::ConjugateGradient(f, fd, f_fd, x, dim);
-        std::cerr << norm(x, dim) << "\n\n";
+        std::cout << norm(x, dim) << '\n' << std::endl;
  
-        std::cerr << "BFGS\n";
+        std::cout << "BFGS" << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::BFGS(f, fd, f_fd, fdd, x, dim);
-        std::cerr << norm(x, dim) << "\n\n";
+        std::cout << norm(x, dim) << '\n' << std::endl;
 
-        std::cerr << "Newton\n";
+        std::cout << "Newton"  << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::NewtonRaphson(f, fd, f_fd, fdd, x, dim);
-        std::cerr << norm(x, dim) << "\n\n";
+        std::cout << norm(x, dim) << '\n' << std::endl;
 
-        std::cerr << "dtrnlsp\n";
+        std::cout << "dtrnlsp" << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         FL::NO::TrustRegion(fd_tr, fdd_tr, x, dim, dim);
-        std::cerr << norm(x, dim) << "\n\n";
+        std::cout << norm(x, dim) << '\n' << std::endl;
 
-        std::cerr << "Augmented Lagrangian\n";
+        std::cout << "Augmented Lagrangian" << std::endl;
         for (int i = 0; i < dim; i++) x[i] = (double)rand() / (double)RAND_MAX;
         int M = 1;
         FL::NO::AugmentedLagrangian(f, fd, f_fd, fdd, constraint, constraintd, constraintdd, x, dim, M,
                                     "BFGS", {}, 1.0, 20, 10, "DY", true, false);
-        std::cerr << norm(x, dim) - 1.0 << "\n\n";
+        std::cout << norm(x, dim) - 1.0 << '\n' << std::endl;
         delete [] x;
     }
 }

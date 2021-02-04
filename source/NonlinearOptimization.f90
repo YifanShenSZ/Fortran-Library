@@ -11,9 +11,13 @@
 !    Heuristic algorithm is general but naive: search entire space (pay exponentially)
 !
 !Reference: J. Nocedal, S. J. Wright, *Numerical Optimization 2nd edition* (Springer, 2006)
+
+#include "mkl_rci.f90"
+
 module NonlinearOptimization
     use LinearAlgebra
-    use mkl_rci_type; use mkl_rci!For numerical exact Hessian & Trust region solver, disable them if you have no access to MKL
+    use mkl_rci_type
+    use mkl_rci
     implicit none
 
 contains

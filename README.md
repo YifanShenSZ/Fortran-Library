@@ -77,7 +77,7 @@ To see what this library is capable of in detail, you may open certain source fi
 
 Source code level from bottom to top:
 1. StringUtility.f90, General.f90, Mathematics.f90, LinearAlgebra.f90
-2. (mkl_rci.f90, NonlinearOptimization.f90), (mkl_dfti.f90, IntegralTransform.f90), Clustering.f90, Statistics.f90, Chemistry.f90
+2. NonlinearOptimization.f90, IntegralTransform.f90, Clustering.f90, Statistics.f90, Chemistry.f90
 3. GeometryTransformation.f90
 4. FortranLibrary.f90
 
