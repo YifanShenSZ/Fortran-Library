@@ -240,7 +240,7 @@ r0=numpy.array([numpy.nan]), ID:int=1) -> None:
         func = FL.geometrytransformation_mp_internal2cartesian_
     except AttributeError:
         func = FL.__geometrytransformation_MOD_internal2cartesian
-    func(p_q, p_intgradT, p_r, p_cartgradT, byref(intdim), byref(cartdim), byref(c_int(NStates)), p_r0, byref(c_int(ID)))
+    func(p_q, p_intgradT, p_r, p_cartgradT, byref(intdim), byref(cartdim), byref(NStates), p_r0, byref(c_int(ID)))
     p2array(p_r, r); p2array(p_cartgradT, cartgradT)
 
 # =================== End ===================
